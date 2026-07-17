@@ -1,0 +1,21 @@
+[project]
+name = "risc-tool"
+version = "0.3.0"
+description = "RisC Tool (Risk Identifier and Segmentation Creator): A platform for risk analysts to build and validate risk segmentation strategies."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.0.3",
+    "polars>=1.42.1",
+    "pydantic>=2.13.4",
+    "streamlit>=1.59.2",
+    "streamlit-sortables>=0.3.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.22",
+]
+
+[tool.ruff.format]
+line-ending = "cr-lf"

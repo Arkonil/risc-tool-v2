@@ -1,0 +1,12 @@
+[MAIN]
+load-plugins = pylint.extensions.typing
+max-line-length = 120
+disable=
+  missing-function-docstring,
+  too-many-arguments,
+  too-many-positional-arguments,
+  attribute-defined-outside-init,
+  missing-class-docstring,
+  useless-parent-delegation,
+  too-many-locals,
+  too-many-instance-attributes,
