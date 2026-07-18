@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+.agents/
+.claude/
+.ruff_cache/
+logs/
