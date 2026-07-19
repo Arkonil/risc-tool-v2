@@ -5,6 +5,7 @@ including repositories and view models.
 """
 
 from risc_tool.data.repositories.data import DataRepository
+from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
 from risc_tool.ui.data_importer.data_importer_vm import DataImporterViewModel
 
 
@@ -17,6 +18,7 @@ class Session:
     Attributes:
         data_repository: Repository for managing data sources.
         data_importer_view_model: View model for the data importer UI.
+        data_explorer_view_model: View model for the data explorer UI.
     """
 
     def __init__(self):
@@ -30,3 +32,5 @@ class Session:
         """
         self.data_repository = DataRepository()
         self.data_importer_view_model = DataImporterViewModel(self.data_repository)
+        self.data_explorer_view_model = DataExplorerViewModel(self.data_repository)
+

@@ -4,6 +4,7 @@ import polars as pl
 from polars._typing import PolarsDataType
 
 from risc_tool.data.models.data_source import DataSource
+from risc_tool.data.models.enums import VariableType
 from risc_tool.data.models.types import DataSourceID
 
 # INT_PROPERTIES defines (bit_width, is_signed) for integer types
@@ -317,3 +318,43 @@ class DataConfig:
                 else:
                     merged_fields[name] = normalize_type(dtype)
         return pl.Schema(merged_fields)
+
+    def available_columns(
+        self, data_source_ids: list[DataSourceID]
+    ) -> set[tuple[str, VariableType]]:
+        """Get the intersection of columns and their types across the specified sources.
+
+        Args:
+            data_source_ids: List of data source IDs to intersect.
+
+        Returns:
+            A set of (column_name, VariableType) tuples.
+        """
+        if not data_source_ids:
+            return set()
+
+        selected_schemas = [
+            self._schemas[ds_id]
+            for ds_id in data_source_ids
+            if ds_id in self._schemas
+        ]
+
+        if not selected_schemas:
+            return set()
+
+        common_cols = set(selected_schemas[0].keys())
+        for schema in selected_schemas[1:]:
+            common_cols.intersection_update(schema.keys())
+
+        result: set[tuple[str, VariableType]] = set()
+        for col in common_cols:
+            dtype = self._schema[col]
+            var_type = (
+                VariableType.NUMERICAL
+                if dtype.is_numeric()
+                else VariableType.CATEGORICAL
+            )
+            result.add((col, var_type))
+
+        return result
+

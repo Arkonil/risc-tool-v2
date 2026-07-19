@@ -42,6 +42,16 @@ class DataRepository(BaseRepository):
         """
         return Signature.DATA_REPOSITORY
 
+    @property
+    def has_valid_sources(self) -> bool:
+        """Check if there is at least one valid data source configured.
+
+        Returns:
+            True if at least one data source has a loaded schema, False otherwise.
+        """
+        return bool(self.data_config.schemas)
+
+
     def __init__(self) -> None:
         """Initialize an empty DataRepository."""
         super().__init__()

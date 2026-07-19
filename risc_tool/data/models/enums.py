@@ -61,3 +61,24 @@ class Signature(StrEnum):
     SUMMARY_VIEW_MODEL = "SUMMARY_VIEW_MODEL"
     EXPORT_VIEW_MODEL = "EXPORT_VIEW_MODEL"
     SESSION_ARCHIVE_VIEW_MODEL = "SESSION_ARCHIVE_VIEW_MODEL"
+
+
+class VariableType(StrEnum):
+    """Enumeration of variable types for data exploration and analysis.
+
+    Attributes:
+        NUMERICAL: Numeric continuous/discrete variables.
+        CATEGORICAL: Qualitative, string, or boolean variables.
+    """
+
+    NUMERICAL = "Numerical"
+    CATEGORICAL = "Categorical"
+
+
+class DataExplorerTabName(StrEnum):
+    """Enumeration of tab names for the Data Explorer page."""
+
+    IV_ANALYSIS = "IV Analysis"
+    OUTLIER_RULES = "Outlier Rules"
+
+
