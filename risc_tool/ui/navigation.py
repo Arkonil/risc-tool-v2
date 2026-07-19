@@ -2,7 +2,7 @@ import streamlit as st
 
 from risc_tool.ui.config import config_page
 from risc_tool.ui.data_explorer import data_explorer_page
-from risc_tool.ui.data_importer import data_importer_page
+from risc_tool.ui.data_importer.data_importer import data_importer_page
 from risc_tool.ui.documentation import documentation_page
 from risc_tool.ui.export import export_page
 from risc_tool.ui.filters import filter_page
@@ -36,4 +36,3 @@ def set_page_navigation():
 
 
 __all__ = ["set_page_navigation"]
-
