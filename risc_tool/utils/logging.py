@@ -1,3 +1,10 @@
+"""Logging configuration and utilities for the RISC Tool.
+
+This module provides a centralized logging setup with colored console output
+and optional file logging. It includes formatters that extract class/method
+names from the call stack for better debugging context.
+"""
+
 import inspect
 import logging
 import sys
@@ -16,7 +23,14 @@ LEVEL_COLORS = {
 
 
 class BaseFormatter(logging.Formatter):
-    """Base formatter class for styling and structuring log records."""
+    """Base formatter class for styling and structuring log records.
+
+    This formatter extracts the caller's class and method name from the
+    call stack to provide context in log messages.
+
+    Attributes:
+        SEPARATOR: String used to separate fields in the formatted output.
+    """
 
     SEPARATOR = " | "
 
@@ -36,11 +50,14 @@ class BaseFormatter(logging.Formatter):
     def _get_caller_name(self, record: logging.LogRecord) -> str:
         """Retrieve the class name and method name, or just the function name.
 
+        Walks the call stack to find the frame matching the log record's
+        function name, then extracts the qualified name.
+
         Args:
             record: The LogRecord instance.
 
         Returns:
-            The qualified caller name.
+            The qualified caller name (e.g., "ClassName.method_name").
         """
         try:
             # Walk up the call stack to find the frame matching the record's function name.
@@ -158,6 +175,9 @@ def configure_logging(
     log_level: int = logging.INFO, log_file: Path | None = None
 ) -> None:
     """Configure the logging system with optional color support.
+
+    Sets up the root logger with a colored console handler and optional
+    file handler. Only configures once; subsequent calls are no-ops.
 
     Args:
         log_level: The minimum logging level to display.

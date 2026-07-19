@@ -1,3 +1,5 @@
+"""Configuration page for the RISC Tool Streamlit application."""
+
 import streamlit as st
 
 from risc_tool.utils.logging import get_logger
@@ -6,6 +8,11 @@ logger = get_logger(__name__)
 
 
 def config_view():
+    """Render the Configuration page view.
+
+    Displays a placeholder for managing global settings, modeling options,
+    and scalar constants.
+    """
     logger.info("Rendering Configuration view")
     st.title("Configuration")
     st.write(

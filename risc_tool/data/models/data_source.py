@@ -14,6 +14,15 @@ ReadMode = t.Literal[
 
 
 class ReadConfig(BaseModel):
+    """Configuration for reading data from a file source.
+
+    Attributes:
+        read_mode: The file format to read (currently only "CSV" is supported).
+        delimiter: The delimiter character used in CSV files.
+        header_row: The row index (0-based) to use as column headers.
+        sample_row_count: Number of rows to read for schema inference and preview.
+    """
+
     read_mode: ReadMode = "CSV"
 
     # CSV specific options
@@ -22,6 +31,11 @@ class ReadConfig(BaseModel):
     sample_row_count: int = Field(default=1000, exclude=True)
 
     def __hash__(self) -> int:
+        """Return a hash based on the configuration parameters.
+
+        Returns:
+            A hash value computed from read_mode, delimiter, header_row, and sample_row_count.
+        """
         return hash((
             self.read_mode,
             self.delimiter,
@@ -31,6 +45,19 @@ class ReadConfig(BaseModel):
 
 
 class DataSource(BaseModel):
+    """Represents a single data source with its configuration and cached data.
+
+    Attributes:
+        uid: Unique identifier for the data source.
+        label: Human-readable label for the data source.
+        filepath: Path to the data file.
+        read_config: Configuration for reading the data file.
+        _logger: Private logger instance for this data source.
+        _pl_schema: Cached Polars schema inferred from the data file.
+        _full_lf: Cached Polars LazyFrame for the full dataset.
+        _full_lf_cache_key: Cache key for the LazyFrame (filepath, read_config).
+    """
+
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
     uid: DataSourceID
@@ -45,7 +72,17 @@ class DataSource(BaseModel):
     _full_lf: pl.LazyFrame | None = PrivateAttr(default=None)
     _full_lf_cache_key: tuple[Path, ReadConfig] | None = PrivateAttr(default=None)
 
-    def validate_read_config(self):
+    def validate_read_config(self) -> None:
+        """Validate the read configuration against the data file.
+
+        Checks that the file exists, is a valid file, and matches the configured
+        read mode (currently only CSV is supported with .csv extension).
+
+        Raises:
+            FileNotFoundError: If the filepath does not exist or is not a file.
+            ValueError: If the file extension does not match the read mode,
+                or if the read mode is unsupported.
+        """
         self._logger.debug(
             f"Validating read config for {self.label} with read mode {self.read_config.read_mode}"
         )
@@ -73,6 +110,11 @@ class DataSource(BaseModel):
 
     @property
     def is_valid(self) -> bool:
+        """Check if the data source configuration is valid.
+
+        Returns:
+            True if the read configuration validates successfully, False otherwise.
+        """
         try:
             self.validate_read_config()
             return True
@@ -81,6 +123,14 @@ class DataSource(BaseModel):
 
     @property
     def sample_df(self) -> pl.LazyFrame:
+        """Get a cached LazyFrame for the data source.
+
+        The LazyFrame is cached based on the filepath and read_config. If either
+        changes, a new LazyFrame is generated.
+
+        Returns:
+            A Polars LazyFrame representing the data source.
+        """
         current_key = (self.filepath, self.read_config)
 
         if self._full_lf is None or self._full_lf_cache_key != current_key:
@@ -100,6 +150,14 @@ class DataSource(BaseModel):
         return self._full_lf
 
     def get_schema(self) -> pl.Schema:
+        """Infer and return the Polars schema from the data file.
+
+        Returns:
+            A Polars Schema object containing column names and data types.
+
+        Raises:
+            ValueError: If the read mode is unsupported.
+        """
         self._logger.debug(
             f"Inferring schema for {self.filepath} with read mode {self.read_config.read_mode}"
         )
@@ -120,6 +178,17 @@ class DataSource(BaseModel):
         return self._pl_schema
 
     def get_lazyframe(self, schema: pl.Schema) -> pl.LazyFrame:
+        """Create a Polars LazyFrame for the data source with the given schema.
+
+        Args:
+            schema: The Polars schema to apply to the LazyFrame.
+
+        Returns:
+            A Polars LazyFrame configured with the data source's read configuration.
+
+        Raises:
+            ValueError: If the read mode is unsupported.
+        """
         self._logger.debug(
             f"Reading data from {self.filepath} with read mode {self.read_config.read_mode}"
         )
@@ -138,6 +207,11 @@ class DataSource(BaseModel):
 
     @classmethod
     def empty(cls) -> "DataSource":
+        """Create an empty DataSource instance for use as a template.
+
+        Returns:
+            A new DataSource with EMPTY uid, default label, empty filepath, and default ReadConfig.
+        """
         return cls(
             uid=DataSourceID.EMPTY,
             label="New Data Source",

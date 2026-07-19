@@ -1,3 +1,5 @@
+"""Data Explorer page for the RISC Tool Streamlit application."""
+
 import streamlit as st
 
 from risc_tool.utils.logging import get_logger
@@ -6,6 +8,11 @@ logger = get_logger(__name__)
 
 
 def data_explorer_view():
+    """Render the Data Explorer page view.
+
+    Provides functionality for analyzing variable strength (IV), inspecting
+    distributions, managing outliers, and previewing unified data.
+    """
     logger.info("Rendering Data Explorer view")
     st.title("Data Explorer")
     st.write(

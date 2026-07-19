@@ -1,3 +1,11 @@
+"""UI components for data source selection and configuration in the Data Importer.
+
+This module provides Streamlit widgets for configuring data source properties
+(label, file path, read mode, delimiter, header row, sample size) and the
+main data selector component that renders the list of data sources with
+add/refresh/delete actions.
+"""
+
 import pathlib
 import typing as t
 
@@ -10,6 +18,15 @@ from risc_tool.ui.data_importer.data_importer_vm import DataSourceViewModel
 
 
 def data_label_input_widget(key: str, label: str = "") -> str:
+    """Render a text input widget for the data source label.
+
+    Args:
+        key: Unique key for the widget (used for Streamlit session state).
+        label: Initial value for the label input.
+
+    Returns:
+        The user-entered label string.
+    """
     widget_label = "##### Data Label:"
 
     st.markdown(widget_label)
@@ -27,6 +44,16 @@ def filepath_input_widget(
     filepath: pathlib.Path | None = None,
     disabled: bool = False,
 ) -> pathlib.Path | None:
+    """Render a text input widget for the file path.
+
+    Args:
+        key: Unique key for the widget.
+        filepath: Initial file path value.
+        disabled: Whether to disable the input.
+
+    Returns:
+        The entered file path as a Path object, or None if empty.
+    """
     widget_label = "##### File Path:"
 
     default_value = ""
@@ -56,6 +83,16 @@ def read_mode_input_widget(
     read_mode: ReadMode = "CSV",
     disabled: bool = False,
 ) -> ReadMode:
+    """Render a selectbox widget for choosing the read mode.
+
+    Args:
+        key: Unique key for the widget.
+        read_mode: Initial read mode selection.
+        disabled: Whether to disable the input.
+
+    Returns:
+        The selected ReadMode (currently only "CSV" is supported).
+    """
     widget_label = "##### Read Mode:"
     options: list[ReadMode] = ["CSV"]
 
@@ -72,6 +109,16 @@ def read_mode_input_widget(
 
 
 def delimiter_input_widget(key: str, delimiter: str, disabled: bool = False) -> str:
+    """Render a selectbox widget for choosing the CSV delimiter.
+
+    Args:
+        key: Unique key for the widget.
+        delimiter: Initial delimiter value.
+        disabled: Whether to disable the input.
+
+    Returns:
+        The selected delimiter string.
+    """
     widget_label = "##### Delimiter:"
     delimiters = [
         {"name": "comma", "value": ","},
@@ -106,6 +153,16 @@ def delimiter_input_widget(key: str, delimiter: str, disabled: bool = False) -> 
 
 
 def header_row_input_widget(key: str, header_row: int, disabled: bool = False):
+    """Render a number input widget for the header row index.
+
+    Args:
+        key: Unique key for the widget.
+        header_row: Initial header row index (0-based).
+        disabled: Whether to disable the input.
+
+    Returns:
+        The selected header row index.
+    """
     widget_label = "##### Header Row:"
 
     st.markdown(widget_label)
@@ -126,6 +183,16 @@ def sample_row_count_input_widget(
     sample_row_count: int,
     disabled: bool = False,
 ):
+    """Render a number input widget for the sample row count.
+
+    Args:
+        key: Unique key for the widget.
+        sample_row_count: Initial sample row count.
+        disabled: Whether to disable the input.
+
+    Returns:
+        The selected sample row count.
+    """
     widget_label = "##### Sample Row Count:"
 
     st.markdown(widget_label)
@@ -146,12 +213,22 @@ def file_selector(
     import_button_label: t.Literal["Add", "Refresh"],
     delete_btn_disabled: bool = False,
 ):
+    """Render a complete file selector card for a data source.
+
+    Displays all configuration widgets (label, file path, read mode, delimiter,
+    header row, sample count) plus import and delete buttons. Handles the
+    import/update and delete actions via callbacks to the view model.
+
+    Args:
+        data_source_vm: The DataSourceViewModel containing the data source
+            and import status.
+        import_button_label: "Add" for new sources, "Refresh" for existing.
+        delete_btn_disabled: Whether to disable the delete button.
+    """
     session: Session = st.session_state["session"]
     data_importer_view_model = session.data_importer_view_model
 
     data_source = data_source_vm.data_source
-
-    # st.write(data_source)
 
     data_source_uid = data_source.uid
     label = data_source.label
@@ -248,6 +325,13 @@ def file_selector(
 
 
 def data_selector():
+    """Render the complete data source selector UI.
+
+    Iterates through all existing data source view models and renders a
+    file_selector for each. If the empty data source is being shown, renders
+    it with an "Add" button. Otherwise, shows an "Add Data Source" button
+    to reveal the empty form.
+    """
     session: Session = st.session_state["session"]
     data_importer_view_model = session.data_importer_view_model
 

@@ -1,3 +1,5 @@
+"""Page navigation configuration for the RISC Tool Streamlit application."""
+
 import streamlit as st
 
 from risc_tool.ui.config import config_page
@@ -13,6 +15,13 @@ from risc_tool.ui.summary import summary_page
 
 
 def set_page_navigation():
+    """Configure and run the Streamlit page navigation.
+
+    Organizes pages into three sections:
+    - Home: Home page and documentation
+    - Tools: Data importer, explorer, metrics, filters, config, iterations
+    - Results: Summary and export
+    """
     pg = st.navigation({
         "Home": [
             home_page,
@@ -33,6 +42,3 @@ def set_page_navigation():
     })
 
     pg.run()
-
-
-__all__ = ["set_page_navigation"]

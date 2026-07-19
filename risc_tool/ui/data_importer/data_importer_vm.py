@@ -1,3 +1,10 @@
+"""View model for the Data Importer UI component.
+
+This module provides the view model layer for managing data source import
+state, including adding, updating, and deleting data sources, as well as
+tracking the currently selected data source for preview.
+"""
+
 import typing as t
 from collections import OrderedDict
 from pathlib import Path
@@ -11,16 +18,38 @@ from risc_tool.data.repositories.data import DataRepository
 
 
 class ImportStatus(t.TypedDict):
+    """Status of a data source import operation.
+
+    Attributes:
+        status: One of "success", "error", "loading", or "unset".
+        message: Human-readable message describing the status.
+    """
+
     status: t.Literal["success", "error", "loading", "unset"]
     message: str
 
 
 class DataSourceViewModel:
+    """View model for a single data source in the importer UI.
+
+    Holds the data source model and its import status for display in the UI.
+
+    Attributes:
+        data_source: The DataSource model being represented.
+        import_status: Current import status (success, error, loading, unset).
+    """
+
     def __init__(
         self,
         data_source: DataSource | None = None,
         import_status: ImportStatus | None = None,
     ):
+        """Initialize the DataSourceViewModel.
+
+        Args:
+            data_source: The DataSource to wrap. Defaults to an empty DataSource.
+            import_status: The initial import status. Defaults to "unset".
+        """
         if data_source is None:
             data_source = DataSource.empty()
 
@@ -32,11 +61,34 @@ class DataSourceViewModel:
 
 
 class DataImporterViewModel(ChangeTracker):
+    """View model for the Data Importer UI.
+
+    Manages the collection of data source view models, handles user actions
+    (add, update, delete), and tracks the currently selected data source
+    for preview. Subscribes to DataRepository changes to stay in sync.
+
+    Attributes:
+        showing_empty_data_source: Whether the empty "new source" form is shown.
+        empty_data_source_view: View model for the empty/new data source form.
+        data_source_views: Ordered dict of data source view models by ID.
+        current_ds_id: The currently selected data source ID for preview.
+    """
+
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.DATA_IMPORTER_VIEW_MODEL
+        """
         return Signature.DATA_IMPORTER_VIEW_MODEL
 
     def __init__(self, data_repository: DataRepository) -> None:
+        """Initialize the DataImporterViewModel.
+
+        Args:
+            data_repository: The DataRepository to sync with.
+        """
         super().__init__(dependencies=[data_repository])
 
         # Dependencies
@@ -55,6 +107,14 @@ class DataImporterViewModel(ChangeTracker):
         self._current_ds_id: DataSourceID | None = None
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
+        """Handle updates from the DataRepository dependency.
+
+        Syncs the view models with the repository's current data sources,
+        adding new ones and removing deleted ones.
+
+        Args:
+            change_ids: Set of change IDs from the dependency.
+        """
         changed_dependencies = {sig for sig, _ in change_ids}
 
         if Signature.DATA_REPOSITORY in changed_dependencies:
@@ -75,10 +135,23 @@ class DataImporterViewModel(ChangeTracker):
 
     @property
     def is_empty(self) -> bool:
+        """Check if there are no data sources configured.
+
+        Returns:
+            True if no data sources exist, False otherwise.
+        """
         return len(self.data_source_views) == 0
 
     @property
     def current_ds_id(self) -> DataSourceID | None:
+        """Get the currently selected data source ID for preview.
+
+        If no explicit selection is made, returns the first successfully
+        imported data source.
+
+        Returns:
+            The selected DataSourceID, or None if no sources exist.
+        """
         if self._current_ds_id is not None:
             return self._current_ds_id
 
@@ -91,6 +164,11 @@ class DataImporterViewModel(ChangeTracker):
 
     @current_ds_id.setter
     def current_ds_id(self, ds_uid: DataSourceID | None) -> None:
+        """Set the currently selected data source ID.
+
+        Args:
+            ds_uid: The DataSourceID to select, or None to clear selection.
+        """
         if ds_uid is None:
             self._current_ds_id = None
             return
@@ -107,6 +185,18 @@ class DataImporterViewModel(ChangeTracker):
         label: str,
         read_config: ReadConfig,
     ):
+        """Add a new data source or update an existing one.
+
+        For EMPTY ID, creates a new data source via the repository.
+        For existing IDs, updates the data source in the repository.
+        Handles validation errors by updating the view model's import status.
+
+        Args:
+            data_source_id: The ID of the data source to update, or EMPTY for new.
+            filepath: Path to the data file.
+            label: Human-readable label for the data source.
+            read_config: Configuration for reading the file.
+        """
         self.logger.info(
             "Request to update/add data source ID %s. Filepath: %s, Label: %s",
             data_source_id,
@@ -166,6 +256,11 @@ class DataImporterViewModel(ChangeTracker):
                 self._current_ds_id = None
 
     def delete_data_source(self, data_source_id: DataSourceID):
+        """Delete a data source.
+
+        Args:
+            data_source_id: The ID of the data source to delete.
+        """
         self.logger.warning("Request to delete data source ID %s", data_source_id)
         if data_source_id == DataSourceID.EMPTY:
             self.showing_empty_data_source = False
@@ -188,5 +283,6 @@ class DataImporterViewModel(ChangeTracker):
             self._current_ds_uid = None
 
     def show_empty_data_source(self):
+        """Show the empty data source form for adding a new source."""
         self.showing_empty_data_source = True
         self.empty_data_source_view = DataSourceViewModel()

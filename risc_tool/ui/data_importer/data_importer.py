@@ -1,3 +1,9 @@
+"""Data Importer page for the RISC Tool Streamlit application.
+
+This module renders the main Data Importer UI, which allows users to add,
+configure, and preview data sources.
+"""
+
 import streamlit as st
 
 from risc_tool.data.session import Session
@@ -9,6 +15,11 @@ logger = get_logger(__name__)
 
 
 def data_importer_view():
+    """Render the Data Importer page.
+
+    Displays the data source selector and, if sources are configured,
+    the data preview viewer.
+    """
     logger.info("Rendering Data Importer page")
     session: Session = st.session_state["session"]
     data_importer_view_model = session.data_importer_view_model

@@ -1,3 +1,5 @@
+"""Repository for managing data sources and their configurations."""
+
 from collections import OrderedDict
 from pathlib import Path
 
@@ -12,19 +14,36 @@ from risc_tool.data.repositories.base import BaseRepository
 
 
 class DataRepository(BaseRepository):
-    """
-    This class stores the data and all reading attributes
+    """Repository for managing data sources and their unified schema.
+
+    This class stores DataSource objects, maintains their configurations,
+    and computes a unified schema across all valid sources through DataConfig.
+
+    Attributes:
+        data_sources: Ordered dictionary of data sources keyed by DataSourceID.
+        data_config: DataConfig instance managing per-source and unified schemas.
     """
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.DATA_REPOSITORY
+        """
         return Signature.DATA_REPOSITORY
 
     @property
     def _signature(self) -> Signature:
+        """Internal signature property for change tracking.
+
+        Returns:
+            Signature.DATA_REPOSITORY
+        """
         return Signature.DATA_REPOSITORY
 
     def __init__(self) -> None:
+        """Initialize an empty DataRepository."""
         super().__init__()
         self.logger.debug("Initializing DataRepository")
 
@@ -32,6 +51,11 @@ class DataRepository(BaseRepository):
         self.data_config = DataConfig()
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
+        """Handle dependency updates (no-op for DataRepository).
+
+        Args:
+            change_ids: Set of change IDs from dependencies.
+        """
         pass
 
     def add_data_source(
@@ -39,7 +63,24 @@ class DataRepository(BaseRepository):
         label: str,
         filepath: Path,
         read_config: ReadConfig,
-    ):
+    ) -> DataSource:
+        """Add a new data source to the repository.
+
+        Validates the configuration, checks for duplicate labels/filepaths,
+        assigns a unique ID, and updates the unified schema.
+
+        Args:
+            label: Human-readable label for the data source.
+            filepath: Path to the data file.
+            read_config: Configuration for reading the file.
+
+        Returns:
+            The newly created and registered DataSource.
+
+        Raises:
+            DataImportError: If validation fails, file doesn't exist,
+                or label/filepath already exists.
+        """
         self.logger.info(
             "Initializing new data source addition. Label: %s, File: %s, Mode: %s",
             label,
@@ -97,7 +138,26 @@ class DataRepository(BaseRepository):
         label: str | None = None,
         filepath: Path | None = None,
         read_config: ReadConfig | None = None,
-    ):
+    ) -> DataSource:
+        """Update an existing data source's configuration.
+
+        Creates a new DataSource with the provided parameters (keeping
+        existing values for None parameters), validates it, and replaces
+        the old one.
+
+        Args:
+            data_source_id: ID of the data source to update.
+            label: New label (optional).
+            filepath: New file path (optional).
+            read_config: New read configuration (optional).
+
+        Returns:
+            The updated DataSource.
+
+        Raises:
+            DataImportError: If validation fails or file doesn't exist.
+            KeyError: If data_source_id doesn't exist.
+        """
         data_source = self.data_sources[data_source_id]
         self.logger.info(
             "Updating data source ID %s. Current Label: %s, Current File: %s",
@@ -153,7 +213,17 @@ class DataRepository(BaseRepository):
 
         return new_data_source
 
-    def delete_data_source(self, data_source_id: DataSourceID):
+    def delete_data_source(self, data_source_id: DataSourceID) -> None:
+        """Delete a data source from the repository.
+
+        Removes the data source and updates the unified schema.
+
+        Args:
+            data_source_id: ID of the data source to delete.
+
+        Returns:
+            None. Logs a warning if the ID doesn't exist.
+        """
         if data_source_id not in self.data_sources:
             self.logger.warning(
                 "Attempted to delete non-existent data source ID %s", data_source_id

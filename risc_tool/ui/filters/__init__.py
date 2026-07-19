@@ -1,3 +1,5 @@
+"""Filter Editor page for the RISC Tool Streamlit application."""
+
 import streamlit as st
 
 from risc_tool.utils.logging import get_logger
@@ -6,6 +8,11 @@ logger = get_logger(__name__)
 
 
 def filters_view():
+    """Render the Filter Editor page view.
+
+    Allows building hierarchical population subsets to isolate and analyze
+    specific risk cohorts.
+    """
     logger.info("Rendering Filter Editor view")
     st.title("Filter Editor")
     st.write(

@@ -20,6 +20,14 @@ INT_PROPERTIES: dict[type[pl.DataType], tuple[int, bool]] = {
 
 
 def normalize_type(dtype: PolarsDataType) -> pl.DataType:
+    """Normalize a Polars data type to its instance form.
+
+    Args:
+        dtype: A Polars data type (either a class like pl.Int64 or an instance like pl.Int64()).
+
+    Returns:
+        An instance of the Polars data type. For pl.Enum, returns pl.String().
+    """
     if isinstance(dtype, type):
         if dtype == pl.Enum:
             return pl.String()
@@ -28,6 +36,17 @@ def normalize_type(dtype: PolarsDataType) -> pl.DataType:
 
 
 def get_int_properties(dtype: PolarsDataType) -> tuple[int, bool]:
+    """Get the bit width and signedness of an integer data type.
+
+    Args:
+        dtype: A Polars integer data type (class or instance).
+
+    Returns:
+        A tuple of (bit_width, is_signed).
+
+    Raises:
+        TypeError: If the dtype is not a supported integer type.
+    """
     normalized_dtype = normalize_type(dtype)
     properties = INT_PROPERTIES.get(type(normalized_dtype))
     if properties is None:
@@ -40,6 +59,18 @@ def resolve_broader_type(
     t1: PolarsDataType,
     t2: PolarsDataType,
 ) -> pl.DataType:
+    """Resolve the broader (supertype) of two Polars data types.
+
+    This function determines a common type that can represent values from both
+    input types without loss of information where possible.
+
+    Args:
+        t1: First Polars data type.
+        t2: Second Polars data type.
+
+    Returns:
+        A Polars data type that can accommodate both input types.
+    """
     t1 = normalize_type(t1)
     t2 = normalize_type(t2)
 
@@ -179,37 +210,47 @@ def resolve_broader_type(
 
 
 class DataConfig:
-    """Stores data schemas of data sources and computes the unified superset schema."""
+    """Stores data schemas of data sources and computes the unified superset schema.
+
+    This class manages per-source schemas and maintains a merged schema that
+    represents the union of all valid data sources, with compatible types
+    resolved to their broadest common type.
+
+    Attributes:
+        _schemas: Dictionary mapping data source IDs to their individual schemas.
+        _schema: The unified superset schema computed from all valid sources.
+    """
 
     def __init__(self) -> None:
+        """Initialize an empty DataConfig with no stored schemas."""
         self._schemas: dict[DataSourceID, pl.Schema] = {}
         self._schema: pl.Schema = pl.Schema()
 
     @property
     def schemas(self) -> dict[DataSourceID, pl.Schema]:
-        """Returns the stored per-source schemas keyed by data source ID."""
+        """Return the stored per-source schemas keyed by data source ID.
+
+        Returns:
+            A dictionary mapping DataSourceID to their Polars Schema.
+        """
         return dict(self._schemas)
 
     @property
     def schema(self) -> pl.Schema:
-        """Returns the unified superset schema of all valid registered data sources."""
+        """Return the unified superset schema of all valid registered data sources.
+
+        Returns:
+            A Polars Schema representing the merged schema of all valid sources.
+        """
         return self._schema
 
-    # def clear(self) -> None:
-    #     """Clears all stored source schemas and resets the merged schema."""
-    #     self._schemas.clear()
-    #     self._schema = pl.Schema()
-
-    # def update(self, data_sources: t.Mapping[DataSourceID, DataSource]) -> None:
-    #     """Rebuilds the stored schemas from the current repository sources."""
-    #     self.clear()
-    #     for source in data_sources.values():
-    #         self.update_source(source, rebuild=False)
-
-    #     self._rebuild_schema()
-
     def update_source(self, source: DataSource, rebuild: bool = True) -> None:
-        """Refreshes the stored schema for a single source."""
+        """Refresh the stored schema for a single source.
+
+        Args:
+            source: The DataSource to update.
+            rebuild: Whether to rebuild the merged schema after updating.
+        """
         schema = self._read_source_schema(source)
 
         if schema is None:
@@ -221,12 +262,25 @@ class DataConfig:
             self._rebuild_schema()
 
     def remove_source(self, uid: DataSourceID) -> None:
-        """Removes a single stored source schema and refreshes the merged schema."""
+        """Remove a single stored source schema and refresh the merged schema.
+
+        Args:
+            uid: The DataSourceID of the source to remove.
+        """
         if uid in self._schemas:
             del self._schemas[uid]
             self._rebuild_schema()
 
     def _read_source_schema(self, source: DataSource) -> pl.Schema | None:
+        """Read the schema from a data source if it is valid.
+
+        Args:
+            source: The DataSource to read the schema from.
+
+        Returns:
+            The Polars Schema if successful, None if the source is invalid
+            or schema reading fails.
+        """
         if not source.is_valid:
             return None
 
@@ -237,9 +291,21 @@ class DataConfig:
             return None
 
     def _rebuild_schema(self) -> None:
+        """Rebuild the unified schema from all stored source schemas."""
         self._schema = self._merge_schemas(self._schemas.values())
 
     def _merge_schemas(self, schemas: t.Iterable[pl.Schema]) -> pl.Schema:
+        """Merge multiple schemas into a single unified schema.
+
+        For each column name present in any schema, the merged type is the
+        broader type resolved by resolve_broader_type.
+
+        Args:
+            schemas: An iterable of Polars Schema objects to merge.
+
+        Returns:
+            A merged Polars Schema containing all columns with resolved types.
+        """
         merged_fields: dict[str, pl.DataType] = {}
 
         for schema in schemas:

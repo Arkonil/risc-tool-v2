@@ -1,9 +1,23 @@
+"""Data viewer component for the Data Importer UI.
+
+This module renders a tabbed preview of the currently selected data source,
+showing a sample of the data as a Streamlit dataframe.
+"""
+
 import streamlit as st
 
 from risc_tool.data.session import Session
 
 
 def data_viewer():
+    """Render the data preview section.
+
+    Shows a tabbed interface with one tab per data source. The currently
+    selected data source's tab is active by default. Displays a sample
+    of the data as an interactive Polars LazyFrame via st.dataframe.
+
+    Returns early if no data sources exist or none is selected.
+    """
     session: Session = st.session_state["session"]
     data_importer_view_model = session.data_importer_view_model
 
