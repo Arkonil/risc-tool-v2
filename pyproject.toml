@@ -15,8 +15,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pytest>=8.4.1",
     "ruff>=0.15.22",
 ]
 
 [tool.ruff.format]
 line-ending = "cr-lf"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
