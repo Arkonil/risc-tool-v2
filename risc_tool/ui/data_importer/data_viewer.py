@@ -44,7 +44,7 @@ def data_viewer():
 
     for ds_id, tab in zip(ds_ids, tabs):
         if tab.open:
-            sample_df = data_source_views[ds_id].data_source.sample_df
+            sample_df = data_source_views[ds_id].data_source.lazyframe
             st.dataframe(sample_df, key="data-viewer-dataframe")
             break
 

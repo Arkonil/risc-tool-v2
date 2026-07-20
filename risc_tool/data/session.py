@@ -5,8 +5,10 @@ including repositories and view models.
 """
 
 from risc_tool.data.repositories.data import DataRepository
+from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
 from risc_tool.ui.data_importer.data_importer_vm import DataImporterViewModel
+from risc_tool.ui.filters.filters_vm import FilterViewModel
 
 
 class Session:
@@ -17,8 +19,10 @@ class Session:
 
     Attributes:
         data_repository: Repository for managing data sources.
+        filter_repository: Repository for managing filters.
         data_importer_view_model: View model for the data importer UI.
         data_explorer_view_model: View model for the data explorer UI.
+        filter_editor_view_model: View model for the filters UI.
     """
 
     def __init__(self):
@@ -28,9 +32,20 @@ class Session:
     def reset(self):
         """Reset the session to its initial state.
 
-        Creates a new DataRepository and DataImporterViewModel.
+        Creates a new DataRepository, FilterRepository, and respective view models.
         """
-        self.data_repository = DataRepository()
-        self.data_importer_view_model = DataImporterViewModel(self.data_repository)
-        self.data_explorer_view_model = DataExplorerViewModel(self.data_repository)
 
+        # Repositories
+        self.data_repository = DataRepository()
+        self.filter_repository = FilterRepository(self.data_repository)
+
+        # View Models
+        self.data_importer_view_model = DataImporterViewModel(self.data_repository)
+        self.data_explorer_view_model = DataExplorerViewModel(
+            self.data_repository,
+            self.filter_repository,
+        )
+        self.filter_editor_view_model = FilterViewModel(
+            self.data_repository,
+            self.filter_repository,
+        )

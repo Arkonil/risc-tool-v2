@@ -33,7 +33,7 @@ def set_session_state(log_level: int = logging.INFO, log_file: bool = True) -> N
         log_file: Whether to write logs to a file. Defaults to True.
     """
     if "session" not in st.session_state:
-        session = Session()
+        session: Session = Session()
         st.session_state["session"] = session
 
     if "session_log_file" not in st.session_state:
