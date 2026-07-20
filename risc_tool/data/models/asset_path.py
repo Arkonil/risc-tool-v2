@@ -23,6 +23,10 @@ class AssetPath:
     APP_LOGO_LIGHT = pathlib.Path(f"{MODULE_NAME}/assets/rt-logo-light.svg")
     APP_LOGO_DARK = pathlib.Path(f"{MODULE_NAME}/assets/rt-logo-dark.svg")
     NO_DATA_ERROR_ICON = pathlib.Path(f"{MODULE_NAME}/assets/no-data-error.svg")
+    NO_FILTER_ICON = pathlib.Path(f"{MODULE_NAME}/assets/no-filter.svg")
+    FILTER_QUERY_REFERENCE = pathlib.Path(
+        f"{MODULE_NAME}/assets/filter_query_reference.md"
+    )
     STYLESHEET = pathlib.Path(f"{MODULE_NAME}/assets/style.css")
 
 

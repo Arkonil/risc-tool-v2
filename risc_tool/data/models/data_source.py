@@ -13,7 +13,7 @@ ReadMode = t.Literal[
 ]  # , "EXCEL"]  # EXCEL support is planned for future implementation
 
 
-class ReadConfig(BaseModel):
+class ReadConfig(BaseModel, frozen=True):
     """Configuration for reading data from a file source.
 
     Attributes:
@@ -30,18 +30,18 @@ class ReadConfig(BaseModel):
     header_row: int = 0
     sample_row_count: int = Field(default=1000, exclude=True)
 
-    def __hash__(self) -> int:
-        """Return a hash based on the configuration parameters.
+    # def __hash__(self) -> int:
+    #     """Return a hash based on the configuration parameters.
 
-        Returns:
-            A hash value computed from read_mode, delimiter, header_row, and sample_row_count.
-        """
-        return hash((
-            self.read_mode,
-            self.delimiter,
-            self.header_row,
-            self.sample_row_count,
-        ))
+    #     Returns:
+    #         A hash value computed from read_mode, delimiter, header_row, and sample_row_count.
+    #     """
+    #     return hash((
+    #         self.read_mode,
+    #         self.delimiter,
+    #         self.header_row,
+    #         self.sample_row_count,
+    #     ))
 
 
 class DataSource(BaseModel):
@@ -69,8 +69,8 @@ class DataSource(BaseModel):
         default_factory=lambda: get_logger("DataSource")
     )
     _pl_schema: pl.Schema | None = PrivateAttr(default=None)
-    _full_lf: pl.LazyFrame | None = PrivateAttr(default=None)
-    _full_lf_cache_key: tuple[Path, ReadConfig] | None = PrivateAttr(default=None)
+    _cache_lf: pl.LazyFrame | None = PrivateAttr(default=None)
+    _cache_lf_key: tuple[Path, ReadConfig] | None = PrivateAttr(default=None)
 
     def validate_read_config(self) -> None:
         """Validate the read configuration against the data file.
@@ -121,34 +121,6 @@ class DataSource(BaseModel):
         except (FileNotFoundError, ValueError):
             return False
 
-    @property
-    def sample_df(self) -> pl.LazyFrame:
-        """Get a cached LazyFrame for the data source.
-
-        The LazyFrame is cached based on the filepath and read_config. If either
-        changes, a new LazyFrame is generated.
-
-        Returns:
-            A Polars LazyFrame representing the data source.
-        """
-        current_key = (self.filepath, self.read_config)
-
-        if self._full_lf is None or self._full_lf_cache_key != current_key:
-            self._logger.debug(
-                f"Generating sample pandas DataFrame for {self.filepath}"
-            )
-            schema = (
-                self._pl_schema if self._pl_schema is not None else self.get_schema()
-            )
-
-            self._full_lf = self.get_lazyframe(schema)
-            self._full_lf_cache_key = (
-                self.filepath,
-                self.read_config.model_copy(deep=True),
-            )
-
-        return self._full_lf
-
     def get_schema(self) -> pl.Schema:
         """Infer and return the Polars schema from the data file.
 
@@ -177,11 +149,9 @@ class DataSource(BaseModel):
 
         return self._pl_schema
 
-    def get_lazyframe(self, schema: pl.Schema) -> pl.LazyFrame:
-        """Create a Polars LazyFrame for the data source with the given schema.
-
-        Args:
-            schema: The Polars schema to apply to the LazyFrame.
+    @property
+    def lazyframe(self) -> pl.LazyFrame:
+        """Create a Polars LazyFrame for the data source using its cached schema.
 
         Returns:
             A Polars LazyFrame configured with the data source's read configuration.
@@ -189,21 +159,38 @@ class DataSource(BaseModel):
         Raises:
             ValueError: If the read mode is unsupported.
         """
-        self._logger.debug(
-            f"Reading data from {self.filepath} with read mode {self.read_config.read_mode}"
-        )
+        self._logger.debug(f"Reading data from {self.filepath} as a lazyframe property")
 
-        if self.read_config.read_mode == "CSV":
-            return pl.scan_csv(
-                source=self.filepath,
-                separator=self.read_config.delimiter,
-                skip_lines=self.read_config.header_row,
-                schema_overrides=schema,
-                missing_columns="insert",
+        current_key = (self.filepath, self.read_config)
+
+        if self._cache_lf is None or self._cache_lf_key != current_key:
+            self._logger.debug(
+                f"Generating sample pandas DataFrame for {self.filepath}"
             )
+
+            if not self._pl_schema:
+                self._pl_schema = self.get_schema()
+
+            if self.read_config.read_mode == "CSV":
+                self._cache_lf = pl.scan_csv(
+                    source=self.filepath,
+                    separator=self.read_config.delimiter,
+                    skip_lines=self.read_config.header_row,
+                    schema_overrides=self._pl_schema,
+                )
+            else:
+                self._logger.error(
+                    f"Unsupported read mode: {self.read_config.read_mode}"
+                )
+                raise ValueError(f"Unsupported read mode: {self.read_config.read_mode}")
+
+            self._cache_lf_key = current_key
         else:
-            self._logger.error(f"Unsupported read mode: {self.read_config.read_mode}")
-            raise ValueError(f"Unsupported read mode: {self.read_config.read_mode}")
+            self._logger.debug(
+                f"Using cached LazyFrame for {self.filepath} with read config {self.read_config}"
+            )
+
+        return self._cache_lf
 
     @classmethod
     def empty(cls) -> "DataSource":

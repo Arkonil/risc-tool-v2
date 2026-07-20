@@ -59,3 +59,38 @@ class DataSourceID(SentinelInt):
 
 DataSourceID.TEMPORARY = DataSourceID(-1, name="TEMPORARY")
 DataSourceID.EMPTY = DataSourceID(-2, name="EMPTY")
+
+
+class FilterID(SentinelInt):
+    """Sentinel integer type for filter identifiers.
+
+    Provides special sentinel values for temporary and empty filters
+    while behaving like a regular integer for normal IDs.
+    """
+
+    TEMPORARY: "FilterID"
+    """Sentinel value (-1) representing a temporary/unsaved filter."""
+
+    EMPTY: "FilterID"
+    """Sentinel value (-2) representing an empty/placeholder filter."""
+
+    @classmethod
+    def validate_sentinel(cls, v: int) -> "FilterID":
+        """Validate and convert an integer to a FilterID, handling sentinels.
+
+        Args:
+            v: The integer value to validate.
+
+        Returns:
+            The corresponding FilterID sentinel or a new FilterID instance.
+        """
+        if v == int(cls.TEMPORARY):
+            return cls.TEMPORARY
+        if v == int(cls.EMPTY):
+            return cls.EMPTY
+
+        return super().validate_sentinel(v)
+
+
+FilterID.TEMPORARY = FilterID(-1, name="TEMPORARY")
+FilterID.EMPTY = FilterID(-2, name="EMPTY")

@@ -5,7 +5,8 @@ signature that identifies it in the change notification system. This allows
 components to subscribe to changes from specific dependencies.
 """
 
-from enum import StrEnum
+import re
+from enum import StrEnum, auto
 
 
 class Signature(StrEnum):
@@ -82,3 +83,65 @@ class DataExplorerTabName(StrEnum):
     OUTLIER_RULES = "Outlier Rules"
 
 
+class ComparisonOperation(StrEnum):
+    GT = ">"
+    GE = ">="
+    LT = "<"
+    LE = "<="
+
+    @property
+    def complement(self) -> "ComparisonOperation":
+        if self == ComparisonOperation.GT:
+            return ComparisonOperation.LE
+        elif self == ComparisonOperation.GE:
+            return ComparisonOperation.LT
+        elif self == ComparisonOperation.LT:
+            return ComparisonOperation.GE
+        elif self == ComparisonOperation.LE:
+            return ComparisonOperation.GT
+        else:
+            raise ValueError(f"Invalid comparison operation: {self}")
+
+
+class PercentileOptions(StrEnum):
+    @staticmethod
+    def _generate_next_value_(
+        name: str, start: int, count: int, last_values: list[str]
+    ) -> str:
+        return name
+
+    PERC_1 = auto()
+    PERC_5 = auto()
+    PERC_10 = auto()
+    PERC_25 = auto()
+    PERC_50 = auto()
+    PERC_75 = auto()
+    PERC_90 = auto()
+    PERC_95 = auto()
+    PERC_99 = auto()
+
+    @classmethod
+    def format_perc(cls, value: str) -> str:
+        try:
+            instance = cls(value)
+            m = re.match(r"PERC_(\d+)", instance.value)
+
+            if not m:
+                raise ValueError(f"{instance} is not of pattern `PERC_(\\d+)`")
+
+            perc_value = int(m.group(1))
+
+            match instance.value[-1]:
+                case "1":
+                    return f"{perc_value}st Percentile"
+                case "2":
+                    return f"{perc_value}nd Percentile"
+                case "3":
+                    return f"{perc_value}rd Percentile"
+                case _:
+                    return f"{perc_value}th Percentile"
+        except ValueError:
+            try:
+                return f"{float(value):,}"
+            except ValueError:
+                return value
