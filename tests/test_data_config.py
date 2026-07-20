@@ -2,7 +2,7 @@ from pathlib import Path
 
 import polars as pl
 
-from risc_tool.data.models.data_config import DataConfig, normalize_type
+from risc_tool.data.models.data_config import DataConfig
 from risc_tool.data.models.data_source import DataSource, ReadConfig
 from risc_tool.data.models.types import DataSourceID
 from risc_tool.data.repositories.data import DataRepository
@@ -22,7 +22,7 @@ def make_source(uid: int, path: Path) -> DataSource:
 
 
 def assert_dtype(schema: pl.Schema, field_name: str, expected: pl.DataType) -> None:
-    assert normalize_type(schema[field_name]) == normalize_type(expected)
+    assert schema[field_name] == expected
 
 
 def test_data_config_merges_missing_columns_and_widens_numeric_types(
@@ -35,8 +35,7 @@ def test_data_config_merges_missing_columns_and_widens_numeric_types(
     write_csv(second_path, "id,value,flag\n2,2,1\n")
 
     data_config = DataConfig()
-    data_config.update_source(make_source(1, first_path))
-    data_config.update_source(make_source(2, second_path))
+    data_config.update_schema([make_source(1, first_path), make_source(2, second_path)])
 
     schema = data_config.schema
 
@@ -55,8 +54,7 @@ def test_data_config_uses_string_for_conflicting_scalar_types(tmp_path: Path) ->
     write_csv(second_path, "value\nhello\n")
 
     data_config = DataConfig()
-    data_config.update_source(make_source(1, first_path))
-    data_config.update_source(make_source(2, second_path))
+    data_config.update_schema([make_source(1, first_path), make_source(2, second_path)])
 
     assert_dtype(data_config.schema, "value", pl.String())
 
@@ -96,15 +94,8 @@ def test_repository_updates_and_clears_cached_source_schemas(tmp_path: Path) -> 
 
     # Make the file missing by deleting it
     missing_path.unlink()
+    repository.data_config.update_schema(repository.data_sources.values())
 
-    # Rebuild the schema configuration manually by iterating and calling update_source
-    for source in repository.data_sources.values():
-        repository.data_config.update_source(source)
-
-    assert set(repository.data_config.schemas.keys()) == {
-        ds1.uid,
-        ds2.uid,
-    }
     assert_dtype(repository.data_config.schema, "value", pl.Float64())
 
     replacement_path = tmp_path / "replacement.csv"
@@ -115,13 +106,10 @@ def test_repository_updates_and_clears_cached_source_schemas(tmp_path: Path) -> 
 
     repository.delete_data_source(ds2.uid)
 
-    assert set(repository.data_config.schemas.keys()) == {ds1.uid}
     assert_dtype(repository.data_config.schema, "value", pl.Int64())
 
     repository.data_sources.clear()
-    for uid in list(repository.data_config.schemas.keys()):
-        repository.data_config.remove_source(uid)
+    repository.data_config.update_schema(repository.data_sources.values())
     repository.notify_subscribers()
 
-    assert repository.data_config.schemas == {}
     assert repository.data_config.schema == pl.Schema()
