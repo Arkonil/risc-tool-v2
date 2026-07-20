@@ -13,5 +13,9 @@
 - Use `how="full"` instead of deprecated `how="outer"` in `LazyFrame.join(...)`.
 - Use `how="horizontal_extend"` instead of deprecated `how="horizontal"` in `pl.concat(...)` when heights may differ.
 
+## AST Expression Compiler Guidelines
+- Evaluate literal AST nodes (constants, keyword strings, lists of literals) as native Python primitives (`eval_lit_value`) when passing arguments to Polars methods expecting strings or raw collections (e.g., `interpolation='nearest'`, `is_in([1, 2])`).
+
 ## Architecture & Routing Invariants
 - Package entrypoints under `risc_tool/ui/<feature>/__init__.py` must remain empty. Define page routes and `st.Page` instances inside `risc_tool/ui/<feature>/<feature>.py` to avoid circular imports during session/view model initialization.
+- Test files under `tests/` must be organized into structured subpackages (`tests/data/models/`, `tests/data/services/`, `tests/ui/<feature>/`) mirroring the `risc_tool` codebase structure.
