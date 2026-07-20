@@ -10,6 +10,7 @@ dependencies = [
     "polars>=1.42.1",
     "pydantic>=2.13.4",
     "streamlit>=1.59.2",
+    "streamlit-code-editor>=0.1.22",
     "streamlit-sortables>=0.3.1",
 ]
 
