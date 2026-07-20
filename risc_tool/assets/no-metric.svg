@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" fill="rgb(89, 89, 89)">
+  <title>No Metrics Created Yet</title>
+  <defs>
+    <mask id="cut-line">
+      <rect id="bg" x="0" y="0" width="100%" height="100%" fill="white" />
+      <rect width="60" height="850" x="390" y="220" transform="rotate(-25 40 360)" fill="black" />
+    </mask>
+  </defs>
+  <path d="
+    M 240 800 
+    v -60 
+    l 260 -240 -260 -240 
+    v -60 
+    h 480 
+    v 150 
+    h -20
+    a 30 50 0 0 0 -30 -50
+    h -259 
+    l 215 200 -215 200 
+    h 259 
+    a 30 50 0 0 0 30 -50
+    h 20
+    v 150 
+    Z" mask="url(#cut-line)" />
+  <rect width="60" height="850" x="330" y="230" transform="rotate(-25 40 360)" />
+</svg>
