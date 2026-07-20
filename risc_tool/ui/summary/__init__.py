@@ -13,7 +13,7 @@ def summary_view():
     Allows comparing multiple simulation iterations side-by-side using
     interactive metrics and charts.
     """
-    logger.info("Rendering Summary Dashboard view")
+    logger.debug("Rendering Summary Dashboard view")
     st.title("Summary Dashboard")
     st.write(
         "Compare multiple simulation iterations side-by-side using interactive metrics and charts."

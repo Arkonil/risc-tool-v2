@@ -6,6 +6,9 @@ import polars as pl
 import streamlit as st
 
 from risc_tool.data.session import Session
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def data_source_selector():
@@ -31,6 +34,7 @@ def data_source_selector():
     if set(iv_data_sources) == set(current_data_source_ids):
         return
 
+    logger.debug("User selected data sources for IV: %s", iv_data_sources)
     data_explorer_vm.iv_data_sources = iv_data_sources
     st.rerun()
 
@@ -144,6 +148,12 @@ def iv_analysis():
                 de_view_model.iv_current_filter_ids != filter_ids,
                 de_view_model.iv_remove_outliers != remove_outliers,
             ]):
+                logger.info(
+                    "User saved IV configuration (target=%s, variables=%d, filters=%d)",
+                    target_variable,
+                    len(input_variables),
+                    len(filter_ids),
+                )
                 de_view_model.iv_current_target = target_variable
                 de_view_model.iv_current_variables = input_variables
                 de_view_model.iv_current_filter_ids = filter_ids

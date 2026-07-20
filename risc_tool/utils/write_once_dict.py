@@ -9,6 +9,10 @@ and immutability of entries are important.
 import typing as t
 from collections import OrderedDict
 
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
 K = t.TypeVar("K")
 V = t.TypeVar("V")
 
@@ -36,6 +40,7 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
             ValueError: If the key already exists in the dictionary.
         """
         if key in self:
+            logger.warning("Attempted to overwrite existing key '%s'", key)
             raise ValueError(f"Key '{key}' already exists. Modification is forbidden.")
         super().__setitem__(key, value)
 
@@ -48,6 +53,7 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
         Raises:
             ValueError: Always raised as deletion is forbidden.
         """
+        logger.warning("Attempted to delete key '%s' (forbidden)", key)
         raise ValueError("Deletion is forbidden.")
 
     # --- Blocking other mutation methods ---
@@ -58,6 +64,7 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
         Raises:
             ValueError: Always raised as deletion is forbidden.
         """
+        logger.warning("Attempted to pop key '%s' (forbidden)", key)
         raise ValueError("Deletion (pop) is forbidden.")
 
     def popitem(self, last: bool = True):
@@ -69,6 +76,7 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
         Raises:
             ValueError: Always raised as deletion is forbidden.
         """
+        logger.warning("Attempted to popitem (forbidden)")
         raise ValueError("Deletion (popitem) is forbidden.")
 
     def clear(self):
@@ -77,6 +85,7 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
         Raises:
             ValueError: Always raised as deletion is forbidden.
         """
+        logger.warning("Attempted to clear dictionary (forbidden)")
         raise ValueError("Deletion (clear) is forbidden.")
 
     def move_to_end(self, key: K, last: bool = True):
@@ -89,6 +98,7 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
         Raises:
             ValueError: Always raised as reordering is forbidden.
         """
+        logger.warning("Attempted to move_to_end key '%s' (forbidden)", key)
         raise ValueError("Reordering (move_to_end) is forbidden.")
 
     def update(self, *args: t.Any, **kwargs: t.Any):
@@ -107,13 +117,16 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
             other = dict(args[0])
             for key in other:
                 if key in self:
+                    logger.warning("Attempted to update existing key '%s' (forbidden)", key)
                     raise ValueError(f"Key '{key}' already exists. Update forbidden.")
         elif len(args) > 1:
+            logger.warning("update expected at most 1 argument, got %d", len(args))
             raise TypeError(f"update expected at most 1 arguments, got {len(args)}")
 
         # Check kwargs
         for key in kwargs:
             if key in self:
+                logger.warning("Attempted to update existing key '%s' via kwargs (forbidden)", key)
                 raise ValueError(f"Key '{key}' already exists. Update forbidden.")
 
         super().update(*args, **kwargs)

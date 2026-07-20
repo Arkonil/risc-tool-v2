@@ -72,6 +72,12 @@ class DataExplorerViewModel(ChangeTracker):
 
     def _update_iv_inputs(self) -> None:
         """Synchronize selections with current repository state and clear cache."""
+        self.logger.debug(
+            "Syncing IV inputs: %d data sources, %d variables, %d filters",
+            len(self.__iv_data_sources),
+            len(self.iv_current_variables),
+            len(self.iv_current_filter_ids),
+        )
         # Remove selected sources that no longer exist
         self.__iv_data_sources = list(
             set(self.__iv_data_sources) & set(self.data_repository.data_sources)
@@ -226,18 +232,21 @@ class DataExplorerViewModel(ChangeTracker):
         self.iv_warnings.clear()
 
         if target_variable is None or not input_variables:
+            self.logger.debug("IV calculation skipped: missing target or inputs")
             self.iv_warnings.append(
                 "Please select a target variable and at least one input variable to calculate IV."
             )
             return None
 
         if not self.data_loaded:
+            self.logger.warning("IV calculation skipped: no valid data sources")
             self.iv_errors.append(
                 ValueError("No valid data sources loaded. Please import data first.")
             )
             return None
 
         if not self.__iv_data_sources:
+            self.logger.debug("IV calculation skipped: no data sources selected")
             self.iv_errors.append(ValueError("Please select at least one data source."))
             return None
 
@@ -298,6 +307,9 @@ class DataExplorerViewModel(ChangeTracker):
 
             height: int = unified_lf.select(pl.len()).collect().item()
             if height == 0:
+                self.logger.warning(
+                    "Filter criteria left no records available for IV analysis"
+                )
                 self.iv_warnings.append(
                     "The filter criteria left no records available for analysis."
                 )
@@ -318,6 +330,11 @@ class DataExplorerViewModel(ChangeTracker):
             unique_targets = target_series.drop_nulls().unique().to_list()
 
         if not set(unique_targets).issubset({0, 1}):
+            self.logger.warning(
+                "Target '%s' is not binary; found values: %s",
+                target_variable,
+                unique_targets,
+            )
             self.iv_errors.append(
                 ValueError(
                     f"Target variable must be binary (0 or 1).\n\n"
@@ -356,8 +373,12 @@ class DataExplorerViewModel(ChangeTracker):
                 self.iv_errors.append(error)
 
         if not iv_records:
+            self.logger.warning(
+                "No IV records computed (all variables failed or were skipped)"
+            )
             return None
 
+        self.logger.info("IV computed for %d variables", len(iv_records))
         # Return sorted Polars DataFrame
         return pl.DataFrame(iv_records).sort("iv", descending=True)
 
@@ -390,8 +411,8 @@ class DataExplorerViewModel(ChangeTracker):
                 (~combined_outliers_expr).sum().alias("outliers_count")
             ).collect()
             return freq_df.item(0, 0) if freq_df.height > 0 else 0
-        except Exception as e:
-            self.logger.error("Failed to compute total outlier count: %s", e)
+        except Exception:
+            self.logger.exception("Failed to compute total outlier count")
             return 0
 
     def get_boxplot_data(
@@ -467,11 +488,9 @@ class DataExplorerViewModel(ChangeTracker):
             )
 
             return boxplot_df, perc_df
-        except Exception as e:
-            self.logger.error(
-                "Failed to retrieve boxplot data for variable '%s': %s",
-                variable_name,
-                e,
+        except Exception:
+            self.logger.exception(
+                "Failed to retrieve boxplot data for variable '%s'", variable_name
             )
             return None, None
 
@@ -536,11 +555,9 @@ class DataExplorerViewModel(ChangeTracker):
                 .T.rename_axis(index="Percentile")
             )
             return quantile_df
-        except Exception as e:
-            self.logger.error(
-                "Failed to retrieve quantile table for variable '%s': %s",
-                variable_name,
-                e,
+        except Exception:
+            self.logger.exception(
+                "Failed to retrieve quantile table for variable '%s'", variable_name
             )
             return None
 
@@ -552,6 +569,7 @@ class DataExplorerViewModel(ChangeTracker):
         comparison_base: PercentileOptions | str,
     ) -> OutlierRule:
         if variable_name == "":
+            self.logger.warning("Outlier validation failed: empty variable name")
             raise ValueError("Variable name cannot be empty.")
 
         comparison_base_f: PercentileOptions | float
@@ -561,6 +579,9 @@ class DataExplorerViewModel(ChangeTracker):
             try:
                 comparison_base_f = float(comparison_base)
             except ValueError:
+                self.logger.warning(
+                    "Invalid comparison_base for outlier: %s", comparison_base
+                )
                 raise ValueError(
                     f"comparison_base is neither a PercentileEnum nor a float: {comparison_base}"
                 )
@@ -588,7 +609,7 @@ class DataExplorerViewModel(ChangeTracker):
                 outlier_id, variable_name, comparison_op, comparison_base
             )
         except Exception as e:
-            self.logger.error("Failed to save outlier rule ID %s: %s", outlier_id, e)
+            self.logger.exception("Failed to save outlier rule ID %s", outlier_id)
             self.ol_errors[outlier_id] = e
             return
 
@@ -606,9 +627,15 @@ class DataExplorerViewModel(ChangeTracker):
                 comparison_base=validated_outlier_rule.comparison_base,
             )
 
+        self.logger.info(
+            "Outlier rule saved for '%s' with op=%s, base=%s",
+            variable_name,
+            comparison_op,
+            comparison_base,
+        )
         if outlier_id in self.ol_errors:
             del self.ol_errors[outlier_id]
 
     def delete_outlier_rule(self, outlier_id: FilterID) -> None:
-        self.logger.warning("Request to delete outlier rule ID %s", outlier_id)
+        self.logger.info("Request to delete outlier rule ID %s", outlier_id)
         self.filter_repository.remove_filter(outlier_id)

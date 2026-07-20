@@ -13,7 +13,7 @@ def metrics_view():
     Allows defining complex, expression-based metrics using a Python-like
     syntax (e.g., Annualized Bad Rates, Dollar Loss).
     """
-    logger.info("Rendering Metrics Editor view")
+    logger.debug("Rendering Metrics Editor view")
     st.title("Metrics Editor")
     st.write(
         "Define complex, expression-based metrics using a Python-like syntax "

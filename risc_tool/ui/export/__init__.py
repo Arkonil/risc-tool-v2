@@ -13,7 +13,7 @@ def export_view():
     Provides options for exporting finalized strategies to production-ready
     Python or SAS code, or downloading a session archive for later restoration.
     """
-    logger.info("Rendering Export view")
+    logger.debug("Rendering Export view")
     st.title("Export")
     st.write(
         "Export your finalized strategy directly to production-ready Python or SAS code, "

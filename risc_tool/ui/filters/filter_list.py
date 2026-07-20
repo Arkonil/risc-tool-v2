@@ -10,6 +10,9 @@ from risc_tool.data.models.outlier import OutlierRule
 from risc_tool.data.models.types import FilterID
 from risc_tool.data.session import Session
 from risc_tool.ui.filters.no_filter_placeholder import no_filter_placeholder
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def sidebar_widgets():
@@ -46,10 +49,16 @@ def delete_confirmation_dialog(filter_id: FilterID):
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Delete", type="primary"):
+            logger.info(
+                "User confirmed deletion of filter ID %s ('%s')",
+                filter_id,
+                filter_obj.name,
+            )
             filter_editor_vm.remove_filter(filter_id)
             st.rerun()
     with col2:
         if st.button("Cancel", type="secondary"):
+            logger.debug("User cancelled deletion of filter ID %s", filter_id)
             st.rerun()
 
 
@@ -62,6 +71,9 @@ def filter_list():
     """
     session: Session = st.session_state["session"]
     filter_editor_vm = session.filter_editor_view_model
+    logger.debug(
+        "Rendering filter list with %d filters", len(filter_editor_vm.get_filters())
+    )
 
     if not filter_editor_vm.get_filters():
         no_filter_placeholder()

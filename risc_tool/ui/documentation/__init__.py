@@ -13,7 +13,7 @@ def documentation_view():
     Displays information about accessing user guides, metric/filter syntax
     references, and data cleaning/export strategies.
     """
-    logger.info("Rendering Documentation view")
+    logger.debug("Rendering Documentation view")
     st.title("Documentation")
     st.write(
         "Access comprehensive user guides, references for metric and filter syntax, "

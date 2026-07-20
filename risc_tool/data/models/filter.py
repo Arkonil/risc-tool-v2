@@ -138,6 +138,7 @@ class Filter:
         """Parse, validate structure, and extract used columns from the query."""
         self.logger.info("Validating filter query: '%s'", self.query)
         if not self.query.strip():
+            self.logger.warning("Filter query is empty")
             raise InvalidFilterError(self.query, "Query cannot be empty.")
 
         # --- 1. Preprocess Backticked Identifiers ---
@@ -155,9 +156,14 @@ class Filter:
         try:
             tree = ast.parse(processed_expression, mode="exec")
         except SyntaxError as e:
+            self.logger.warning("Syntax error in query '%s': %s", self.query, e)
             raise InvalidFilterError(self.query, f"Syntax error in expression: {e}")
 
         if not tree.body or len(tree.body) > 1:
+            self.logger.warning(
+                "Query expression has %d body elements, expected 1",
+                len(tree.body) if tree.body else 0,
+            )
             raise InvalidFilterError(
                 self.query,
                 "Query expression must contain exactly one single expression.",
@@ -166,12 +172,20 @@ class Filter:
         statement = tree.body[0]
 
         if isinstance(statement, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+            self.logger.warning(
+                "Assignment statement detected in query '%s'", self.query
+            )
             raise InvalidFilterError(
                 self.query,
                 "Assignments ('=') are not allowed. Use '==' for comparison.",
             )
 
         if not isinstance(statement, ast.Expr):
+            self.logger.warning(
+                "Non-expression statement in query '%s': %s",
+                self.query,
+                type(statement).__name__,
+            )
             raise InvalidFilterError(
                 self.query,
                 f"Query expression cannot contain statements of type '{type(statement).__name__}'. Only expressions are allowed.",
@@ -205,6 +219,9 @@ class Filter:
             if isinstance(expr_node, ast.BinOp):
                 op_type_name = type(expr_node.op).__name__
                 reason = f"the top-level arithmetic operator is '{op_type_name}'."
+            self.logger.warning(
+                "Non-boolean expression in query '%s': %s", self.query, reason
+            )
             raise InvalidFilterError(
                 self.query, f"Expression does not appear to be boolean; {reason}"
             )
@@ -220,6 +237,7 @@ class Filter:
             used_set = set(self.used_columns)
             missing_columns = sorted(list(used_set - available_set))
             if missing_columns:
+                self.logger.warning("Missing columns in query: %s", missing_columns)
                 raise InvalidFilterError(
                     self.query,
                     f"Following columns are not found in the data: {', '.join(missing_columns)}",
@@ -229,6 +247,7 @@ class Filter:
         try:
             self.filter_expr = self._compile_expression(expr_node, backticked_map)
         except Exception as e:
+            self.logger.exception("Failed to compile filter query '%s'", self.query)
             raise InvalidFilterError(
                 self.query, f"Failed to compile to Polars expression: {e}"
             )
@@ -262,6 +281,11 @@ class Filter:
         def require_expr(value: CompiledValue, context: str) -> pl.Expr:
             if isinstance(value, pl.Expr):
                 return value
+            self.logger.warning(
+                "%s expects an expression operand, got %s",
+                context,
+                type(value).__name__,
+            )
             raise ValueError(f"{context} expects an expression operand")
 
         def require_is_in_rhs(
@@ -295,6 +319,9 @@ class Filter:
                     return -operand
                 elif isinstance(n.op, ast.UAdd):
                     return operand
+                self.logger.warning(
+                    "Unsupported unary operator: %s", type(n.op).__name__
+                )
                 raise ValueError(f"Unsupported unary operator: {type(n.op).__name__}")
 
             elif isinstance(n, ast.BinOp):
@@ -325,6 +352,9 @@ class Filter:
                     return left | right
                 elif isinstance(op, ast.BitXor):
                     return left ^ right
+                self.logger.warning(
+                    "Unsupported binary operator: %s", type(op).__name__
+                )
                 raise ValueError(f"Unsupported binary operator: {type(op).__name__}")
 
             elif isinstance(n, ast.BoolOp):
@@ -341,6 +371,9 @@ class Filter:
                     for v in values[1:]:
                         res = res | v
                     return res
+                self.logger.warning(
+                    "Unsupported boolean operator: %s", type(n.op).__name__
+                )
                 raise ValueError(f"Unsupported boolean operator: {type(n.op).__name__}")
 
             elif isinstance(n, ast.Compare):
@@ -400,6 +433,9 @@ class Filter:
                             require_is_in_rhs(right_compiled)
                         )
                     else:
+                        self.logger.warning(
+                            "Unsupported comparison operator: %s", type(op).__name__
+                        )
                         raise ValueError(
                             f"Unsupported comparison operator: {type(op).__name__}"
                         )
@@ -423,6 +459,10 @@ class Filter:
                     fn_name = n.func.id
                     if fn_name == "arctan2":
                         if len(n.args) != 2:
+                            self.logger.warning(
+                                "arctan2 requires exactly 2 arguments, got %d",
+                                len(n.args),
+                            )
                             raise ValueError("arctan2 requires exactly 2 arguments")
                         y_arg = require_expr(
                             compile_sub(n.args[0]), "arctan2 y-argument"
@@ -433,6 +473,9 @@ class Filter:
                         return pl.arctan2(y_arg, x_arg)
                     elif fn_name == "expm1":
                         if len(n.args) != 1:
+                            self.logger.warning(
+                                "expm1 requires exactly 1 argument, got %d", len(n.args)
+                            )
                             raise ValueError("expm1 requires exactly 1 argument")
                         arg = require_expr(compile_sub(n.args[0]), "expm1 argument")
                         return arg.exp() - 1
@@ -456,11 +499,17 @@ class Filter:
                         "log10",
                     ):
                         if len(n.args) != 1:
+                            self.logger.warning(
+                                "%s requires exactly 1 argument, got %d",
+                                fn_name,
+                                len(n.args),
+                            )
                             raise ValueError(f"{fn_name} requires exactly 1 argument")
                         arg = require_expr(
                             compile_sub(n.args[0]), f"{fn_name} argument"
                         )
                         return getattr(arg, fn_name)()
+                    self.logger.warning("Unsupported function call: %s", fn_name)
                     raise ValueError(f"Unsupported function call: {fn_name}")
 
                 elif isinstance(n.func, ast.Attribute):
@@ -474,6 +523,10 @@ class Filter:
                         return require_expr(target, "notna target").is_not_null()
                     elif method_name == "contains":
                         if len(compiled_args) != 1:
+                            self.logger.warning(
+                                "contains requires exactly 1 argument, got %d",
+                                len(compiled_args),
+                            )
                             raise ValueError("contains requires exactly 1 argument")
                         pattern = require_expr(compiled_args[0], "contains pattern")
                         return require_expr(target, "contains target").str.contains(
@@ -481,6 +534,10 @@ class Filter:
                         )
                     elif method_name in ("startswith", "starts_with"):
                         if len(compiled_args) != 1:
+                            self.logger.warning(
+                                "startswith requires exactly 1 argument, got %d",
+                                len(compiled_args),
+                            )
                             raise ValueError("startswith requires exactly 1 argument")
                         prefix = require_expr(compiled_args[0], "startswith prefix")
                         return require_expr(
@@ -488,6 +545,10 @@ class Filter:
                         ).str.starts_with(prefix)
                     elif method_name in ("endswith", "ends_with"):
                         if len(compiled_args) != 1:
+                            self.logger.warning(
+                                "endswith requires exactly 1 argument, got %d",
+                                len(compiled_args),
+                            )
                             raise ValueError("endswith requires exactly 1 argument")
                         suffix = require_expr(compiled_args[0], "endswith suffix")
                         return require_expr(target, "endswith target").str.ends_with(
@@ -495,7 +556,9 @@ class Filter:
                         )
                     elif hasattr(target, method_name):
                         return getattr(target, method_name)(*compiled_args)
+                    self.logger.warning("Unsupported method call: %s", method_name)
                     raise ValueError(f"Unsupported method call: {method_name}")
+                self.logger.warning("Unsupported function call structure")
                 raise ValueError("Unsupported function call structure")
 
             elif isinstance(n, ast.Attribute):
@@ -505,6 +568,7 @@ class Filter:
                 elif n.attr == "notna":
                     obj = require_expr(compile_sub(n.value), "Attribute target")
                     return obj.is_not_null()
+                self.logger.warning("Unsupported attribute access: %s", n.attr)
                 raise ValueError(f"Unsupported attribute access: {n.attr}")
 
             elif isinstance(n, (ast.List, ast.Tuple)):
@@ -524,16 +588,25 @@ class Filter:
                             vals.append(name)
                     else:
                         value = compile_sub(el)
+                        self.logger.warning(
+                            "List/Tuple literal contains non-scalar value: %s",
+                            type(value).__name__,
+                        )
                         raise ValueError(
                             f"List/Tuple literals only support scalar values, got {type(value).__name__}"
                         )
                 return vals
 
+            self.logger.warning("Unsupported syntax node type: %s", type(n).__name__)
             raise ValueError(f"Unsupported syntax node: {type(n).__name__}")
 
         compiled = compile_sub(node)
 
         if not isinstance(compiled, pl.Expr):
+            self.logger.warning(
+                "Expression compiled to %s, not a Polars Expression",
+                type(compiled).__name__,
+            )
             raise ValueError("Expression must compile to a Polars Expression object.")
 
         return compiled
@@ -547,6 +620,7 @@ class Filter:
         if name is None:
             name = self.name
 
+        self.logger.debug("Duplicating filter '%s' as '%s'", self.name, name)
         new_instance = Filter(uid=uid, name=name, query=self.query)
         new_instance.used_columns = list(self.used_columns)
         new_instance.filter_expr = self.filter_expr

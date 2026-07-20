@@ -162,6 +162,12 @@ class DataRepository(BaseRepository):
             DataImportError: If validation fails or file doesn't exist.
             KeyError: If data_source_id doesn't exist.
         """
+        if data_source_id not in self.data_sources:
+            self.logger.warning(
+                "Attempted to update non-existent data source ID %s", data_source_id
+            )
+            raise KeyError(f"Data source ID '{data_source_id}' not found.")
+
         data_source = self.data_sources[data_source_id]
         self.logger.info(
             "Updating data source ID %s. Current Label: %s, Current File: %s",
@@ -284,8 +290,12 @@ class DataRepository(BaseRepository):
             lazy_frames.append(lf)
 
         if not lazy_frames:
+            self.logger.debug("No valid sources, returning empty LazyFrame")
             return pl.LazyFrame()
 
+        self.logger.debug(
+            "Building combined LazyFrame from %d sources", len(lazy_frames)
+        )
         return pl.concat(lazy_frames, how="diagonal_relaxed")
 
     # Methods for retrieving common columns across data sources

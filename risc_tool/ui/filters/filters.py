@@ -4,6 +4,9 @@ from risc_tool.data.session import Session
 from risc_tool.ui.components.load_data_prompt import load_data_prompt
 from risc_tool.ui.filters.filter_editor import filter_editor
 from risc_tool.ui.filters.filter_list import filter_list
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def filters():
@@ -12,9 +15,11 @@ def filters():
     filter_editor_vm = session.filter_editor_view_model
 
     if not filter_editor_vm.data_loaded:
+        logger.debug("No data loaded; showing load data prompt in filters page")
         load_data_prompt()
         return
 
+    logger.debug("Filters page in mode: %s", filter_editor_vm.mode)
     if filter_editor_vm.mode == "view":
         filter_list()
     else:

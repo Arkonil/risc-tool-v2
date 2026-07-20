@@ -12,7 +12,7 @@ def home_view():
 
     Displays a welcome message and navigation hint.
     """
-    logger.info("Rendering Home view")
+    logger.debug("Rendering Home view")
     st.title("Home")
     st.write(
         "Welcome to the RisC Tool (Risk Identifier and Segmentation Creator). "
@@ -29,4 +29,3 @@ home_page = st.Page(
 
 
 __all__ = ["home_page"]
-

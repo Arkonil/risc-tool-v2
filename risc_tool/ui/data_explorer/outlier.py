@@ -14,6 +14,9 @@ from risc_tool.data.models.enums import (
 )
 from risc_tool.data.models.types import FilterID
 from risc_tool.data.session import Session
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def show_boxplot(variable: str):
@@ -30,6 +33,7 @@ def show_boxplot(variable: str):
     )
 
     if df is None or perc_df is None:
+        logger.error("Failed to generate boxplot for '%s': data was None", variable)
         st.error(f"Error generating boxplot for variable {variable}.")
         return
 
@@ -129,6 +133,7 @@ def show_quantile_table(variable: str, quantiles: list[float]):
     )
 
     if df is None or df.empty:
+        logger.error("Failed to generate quantile table for '%s'", variable)
         st.error(f"Error generating quantile table for variable {variable}.")
         return
 
@@ -237,6 +242,9 @@ def outlier_rule_input(
                             [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99],
                         )
                 except Exception as e:
+                    logger.exception(
+                        "Error rendering distribution for '%s'", new_variable_name
+                    )
                     st.error(f"Error rendering distribution: {e}")
 
             save_button_disabled = (variable_name, comparison_op, comparison_base) == (
@@ -256,6 +264,7 @@ def outlier_rule_input(
                     if save_button_disabled
                     else ":material/save:",
                 ):
+                    logger.info("User saved outlier rule for '%s'", new_variable_name)
                     de_view_model.save_outlier(
                         outlier_id,
                         new_variable_name,
@@ -272,6 +281,7 @@ def outlier_rule_input(
                         icon=":material/delete:",
                         width="stretch",
                     ):
+                        logger.info("User deleted outlier rule ID %s", outlier_id)
                         de_view_model.delete_outlier_rule(outlier_id)
                         st.rerun()
 

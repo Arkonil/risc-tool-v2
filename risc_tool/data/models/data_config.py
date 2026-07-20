@@ -5,6 +5,9 @@ import polars as pl
 from risc_tool.data.models.data_source import DataSource
 from risc_tool.data.models.enums import VariableType
 from risc_tool.data.models.types import DataSourceID
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class DataConfig:
@@ -43,9 +46,12 @@ class DataConfig:
         valid_data_sources = [ds for ds in data_sources if ds.is_valid]
 
         if not valid_data_sources:
+            logger.debug("No valid data sources; schema cleared")
             self._schemas = {}
             self._schema = pl.Schema()
             return
+
+        logger.info("Updating unified schema from %d valid sources", len(valid_data_sources))
 
         self._schemas = {
             ds.uid: ds.lazyframe.collect_schema() for ds in valid_data_sources
@@ -73,6 +79,7 @@ class DataConfig:
         ]
 
         if not selected_schemas:
+            logger.debug("No matching schemas found for provided data source IDs")
             return set()
 
         common_cols = set(selected_schemas[0].keys())
@@ -89,4 +96,5 @@ class DataConfig:
             )
             result.add((col, var_type))
 
+        logger.debug("Available columns across %d sources: %d common columns", len(data_source_ids), len(result))
         return result

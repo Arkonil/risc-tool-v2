@@ -17,11 +17,12 @@ def data_explorer_view():
 
     Provides functionality for analyzing variable strength (IV).
     """
-    logger.info("Rendering Data Explorer view")
+    logger.debug("Rendering Data Explorer view")
     session: Session = st.session_state["session"]
     de_view_model = session.data_explorer_view_model
 
     if not de_view_model.data_loaded:
+        logger.debug("Data not loaded; showing load data prompt in Data Explorer")
         load_data_prompt()
         return
 
@@ -37,6 +38,7 @@ def data_explorer_view():
         if not tab.open:
             continue
 
+        logger.debug("Rendering Data Explorer tab: %s", name.value)
         if name == DataExplorerTabName.IV_ANALYSIS:
             iv_analysis()
             break

@@ -4,6 +4,9 @@ import streamlit as st
 
 from risc_tool.data.models.asset_path import AssetPath
 from risc_tool.ui.data_importer.data_importer import data_importer_page
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def load_data_prompt(key: int = 0):
@@ -32,6 +35,7 @@ def load_data_prompt(key: int = 0):
             key=key,
             type="primary",
         ):
+            logger.info("User requested to load data from prompt")
             st.switch_page(data_importer_page)
 
 

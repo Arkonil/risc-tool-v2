@@ -58,6 +58,7 @@ class FilterRepository(BaseRepository):
     def __update_user_defined_filters(self) -> None:
         """Update and recompile expressions when the schema or data repository changes."""
         if not self.__data_repository.has_valid_sources:
+            self.logger.debug("Clearing all filters: no valid data sources")
             self.filters.clear()
             return
 
@@ -81,6 +82,7 @@ class FilterRepository(BaseRepository):
             except InvalidFilterError:
                 filter_ids_to_remove.append(filter_id)
 
+        self.logger.info("Removed %d invalid filters", len(filter_ids_to_remove))
         for filter_id in filter_ids_to_remove:
             del self.filters[filter_id]
 
@@ -105,6 +107,9 @@ class FilterRepository(BaseRepository):
     def validate_filter(self, name: str, query: str) -> Filter:
         """Validate filter syntax and column presence, returning verified Filter."""
         if query in self.__verified_filters:
+            self.logger.debug(
+                "Returning cached validated filter for query: '%s'", query
+            )
             return self.__verified_filters[query].duplicate(name=name)
 
         new_filter = Filter(uid=FilterID.TEMPORARY, name=name, query=query)
@@ -119,6 +124,12 @@ class FilterRepository(BaseRepository):
                     new_filter.filter_expr
                 ).collect()
             except Exception as e:
+                self.logger.warning(
+                    "Filter execution check failed for '%s': %s",
+                    query,
+                    e,
+                    exc_info=True,
+                )
                 raise InvalidFilterError(
                     query, f"Filter expression is valid but failed execution check: {e}"
                 )
@@ -151,6 +162,9 @@ class FilterRepository(BaseRepository):
             ValueError: If the filter_id is not found in the repository.
         """
         if filter_id not in self.filters:
+            self.logger.warning(
+                "Attempted to modify non-existent filter ID %s", filter_id
+            )
             raise ValueError(f"Filter '{filter_id}' not found.")
 
         self.logger.info("Modifying filter ID %s to name='%s'", filter_id, name)
@@ -177,6 +191,11 @@ class FilterRepository(BaseRepository):
             filter_id: The ID of the filter to duplicate.
         """
         self.logger.info("Duplicating filter ID %s", filter_id)
+        if filter_id not in self.filters:
+            self.logger.warning(
+                "Attempted to duplicate non-existent filter ID %s", filter_id
+            )
+            return
         filter_name = self.filters[filter_id].name
         existing_names = set(m.name for m in self.filters.values())
         new_name = create_duplicate_name(filter_name, existing_names)
@@ -213,11 +232,17 @@ class FilterRepository(BaseRepository):
         all_column_names = [col for col, _ in all_columns]
 
         if variable_name not in all_column_names:
+            self.logger.warning("Column '%s' not found for outlier rule", variable_name)
             raise ValueError(f"Column '{variable_name}' is not found in the data.")
 
         # Outliers are only supported for numerical columns
         dtype = self.__data_repository.data_config.schema[variable_name]
         if not dtype.is_numeric():
+            self.logger.warning(
+                "Non-numeric column '%s' (type=%s) cannot be used for outlier rules",
+                variable_name,
+                dtype,
+            )
             raise ValueError(
                 f"Only numeric variables are supported for outliers. Column '{variable_name}' is of type {dtype}."
             )
@@ -266,6 +291,9 @@ class FilterRepository(BaseRepository):
             ValueError: If the filter_id is not found in the repository.
         """
         if filter_id not in self.filters:
+            self.logger.warning(
+                "Attempted to modify non-existent outlier rule ID %s", filter_id
+            )
             raise ValueError(f"Filter '{filter_id}' not found.")
 
         self.logger.info("Modifying outlier rule ID %s", filter_id)
@@ -298,6 +326,7 @@ class FilterRepository(BaseRepository):
             active_ids.extend(self.outlier_rule_ids)
 
         if not active_ids:
+            self.logger.debug("No active filters to combine; returning None")
             return None
 
         combined_expr: pl.Expr | None = None

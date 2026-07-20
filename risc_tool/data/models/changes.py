@@ -106,6 +106,7 @@ class ChangeTracker(ABC):
         has_changed = self._has_changed(change_ids)
 
         if has_changed:
+            self.logger.debug("Dependency update received: %d change IDs", len(change_ids))
             self._add_changes(change_ids)
             self.on_dependency_update(change_ids)
 
@@ -168,6 +169,7 @@ class ChangeNotifier(ChangeTracker):
         new_callback_id = uuid4()
 
         self._subscribers[new_callback_id] = callback
+        self.logger.debug("Subscriber registered: %s", new_callback_id)
 
         return new_callback_id
 
@@ -179,6 +181,7 @@ class ChangeNotifier(ChangeTracker):
         """
         if callback_id in self._subscribers:
             del self._subscribers[callback_id]
+            self.logger.debug("Subscriber %s unsubscribed", callback_id)
 
     def notify_subscribers(self, change_ids: ChangeIDs | None = None):
         """Notify all subscribers of a change.
@@ -195,6 +198,7 @@ class ChangeNotifier(ChangeTracker):
         else:
             all_change_ids: ChangeIDs = change_ids | {new_change_id}
 
+        self.logger.debug("Notifying %d subscribers", len(self._subscribers))
         for callback in self._subscribers.values():
             callback(all_change_ids)
 

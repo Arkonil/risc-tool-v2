@@ -7,6 +7,9 @@ showing a sample of the data as a Streamlit dataframe.
 import streamlit as st
 
 from risc_tool.data.session import Session
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def data_viewer():
@@ -22,11 +25,13 @@ def data_viewer():
     data_importer_view_model = session.data_importer_view_model
 
     if data_importer_view_model.is_empty:
+        logger.debug("Data viewer skipped: no data sources")
         return
 
     current_ds_id = data_importer_view_model.current_ds_id
 
     if current_ds_id is None:
+        logger.debug("Data viewer skipped: no data source selected")
         return
 
     data_source_views = data_importer_view_model.data_source_views
@@ -44,6 +49,7 @@ def data_viewer():
 
     for ds_id, tab in zip(ds_ids, tabs):
         if tab.open:
+            logger.debug("Showing data preview for source ID %s", ds_id)
             sample_df = data_source_views[ds_id].data_source.lazyframe
             st.dataframe(sample_df, key="data-viewer-dataframe")
             break

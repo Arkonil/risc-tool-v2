@@ -98,6 +98,7 @@ class FilterViewModel(ChangeTracker):
         self.__view_mode = mode
         self.__errors.clear()
         self.is_verified = False
+        self.logger.debug("Setting UI mode to '%s' (filter_id=%s)", mode, filter_id)
 
         if mode == "edit":
             if filter_id == FilterID.EMPTY:
@@ -212,9 +213,11 @@ class FilterViewModel(ChangeTracker):
             self.__filter_cache.name,
         )
         if not self.is_verified or self.__errors:
+            self.logger.warning("Save rejected: filter not verified (is_verified=%s, errors=%d)", self.is_verified, len(self.__errors))
             raise RuntimeError("Filter is not verified")
 
         if self.__filter_cache.uid == FilterID.TEMPORARY:
+            self.logger.error("Save rejected: filter has TEMPORARY ID")
             raise RuntimeError("FilterID should not be TEMPORARY.")
 
         if self.__filter_cache.uid == FilterID.EMPTY:
@@ -229,6 +232,7 @@ class FilterViewModel(ChangeTracker):
                 query=self.__filter_cache.query,
             )
 
+        self.logger.info("Filter '%s' saved successfully", self.__filter_cache.name)
         self.set_mode("view")
 
     @property

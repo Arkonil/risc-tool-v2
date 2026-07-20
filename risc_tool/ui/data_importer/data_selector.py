@@ -15,6 +15,9 @@ from risc_tool.data.models.data_source import ReadConfig, ReadMode
 from risc_tool.data.models.types import DataSourceID
 from risc_tool.data.session import Session
 from risc_tool.ui.data_importer.data_importer_vm import DataSourceViewModel
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def data_label_input_widget(key: str, label: str = "") -> str:
@@ -273,6 +276,7 @@ def file_selector(
         )
 
         def import_button_clicked():
+            logger.info("User initiated import for data source ID %s", data_source_uid)
             data_importer_view_model.update_data_source(
                 data_source_id=data_source_uid,
                 filepath=filepath,
@@ -286,6 +290,7 @@ def file_selector(
             )
 
         def delete_button_clicked():
+            logger.info("User deleted data source ID %s", data_source_uid)
             data_importer_view_model.delete_data_source(data_source_uid)
 
         import_button_container.button(

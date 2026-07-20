@@ -3,6 +3,9 @@
 import streamlit as st
 
 from risc_tool.data.models.asset_path import AssetPath
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def set_page_config() -> None:
@@ -16,8 +19,11 @@ def set_page_config() -> None:
     else:
         logo_path = AssetPath.APP_LOGO_LIGHT
 
-    with open(logo_path, "r") as fp:
-        st.logo(fp.read(), size="large")
+    try:
+        with open(logo_path, "r") as fp:
+            st.logo(fp.read(), size="large")
+    except Exception:
+        logger.exception("Failed to read app logo from %s", logo_path)
 
     st.set_page_config(
         page_title="RisC Tool",
@@ -25,5 +31,8 @@ def set_page_config() -> None:
         layout="wide",
     )
 
-    with open(AssetPath.STYLESHEET, encoding="utf-8") as file:
-        st.html(f"<style>{file.read()}</style>")
+    try:
+        with open(AssetPath.STYLESHEET, encoding="utf-8") as file:
+            st.html(f"<style>{file.read()}</style>")
+    except Exception:
+        logger.exception("Failed to read stylesheet from %s", AssetPath.STYLESHEET)

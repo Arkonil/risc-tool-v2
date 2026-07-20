@@ -14,7 +14,7 @@ def iterations_view():
     risk-tiering strategies with instant feedback on population volumes
     and performance metrics.
     """
-    logger.info("Rendering Iterations view")
+    logger.debug("Rendering Iterations view")
     st.title("Iterations")
     st.write(
         "Combine metrics and filters to prototype and simulate risk-tiering strategies. "

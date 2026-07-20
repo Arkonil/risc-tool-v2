@@ -7,7 +7,9 @@ from pathlib import Path
 import streamlit as st
 
 from risc_tool.data.session import Session
-from risc_tool.utils.logging import configure_logging
+from risc_tool.utils.logging import configure_logging, get_logger
+
+logger = get_logger(__name__)
 
 LOGS_DIR = Path(__file__).resolve().parent.parent.parent / "logs"
 
@@ -42,4 +44,10 @@ def set_session_state(log_level: int = logging.INFO, log_file: bool = True) -> N
     configure_logging(
         log_level=log_level,
         log_file=st.session_state["session_log_file"] if log_file else None,
+    )
+
+    logger.info(
+        "Session state initialized with log_level=%s, log_file=%s",
+        logging.getLevelName(log_level),
+        st.session_state["session_log_file"] if log_file else None,
     )

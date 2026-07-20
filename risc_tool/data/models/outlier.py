@@ -66,8 +66,8 @@ class OutlierRule(Filter):
                 .collect()
             )
             mode = mode_df.item(0, 0) if mode_df.height > 0 else None
-        except Exception as e:
-            self.logger.error("Failed to compute mode: %s", e)
+        except Exception:
+            self.logger.exception("Failed to compute mode")
             mode = None
 
         self.mode = mode
@@ -91,8 +91,8 @@ class OutlierRule(Filter):
                     col_expr.quantile(perc_val, interpolation="linear")
                 ).collect()
                 threshold_val = q_df.item(0, 0) if q_df.height > 0 else 0.0
-            except Exception as e:
-                self.logger.error("Failed to compute percentile quantile: %s", e)
+            except Exception:
+                self.logger.exception("Failed to compute percentile quantile")
                 threshold_val = 0.0
 
             # Update name based on resolved percentile value
@@ -121,8 +121,8 @@ class OutlierRule(Filter):
                 (~self.filter_expr).sum().alias("outlier_count")
             ).collect()
             self.frequency = freq_df.item(0, 0) if freq_df.height > 0 else 0
-        except Exception as e:
-            self.logger.error("Failed to compute outlier count (frequency): %s", e)
+        except Exception:
+            self.logger.exception("Failed to compute outlier count (frequency)")
             self.frequency = 0
 
     def duplicate(

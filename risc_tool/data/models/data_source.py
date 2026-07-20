@@ -84,12 +84,14 @@ class DataSource(BaseModel):
                 or if the read mode is unsupported.
         """
         self._logger.debug(
-            f"Validating read config for {self.label} with read mode {self.read_config.read_mode}"
+            "Validating read config for %s with read mode %s",
+            self.label,
+            self.read_config.read_mode,
         )
 
         if not self.filepath or not self.filepath.is_file():
             self._logger.error(
-                f"Filepath {self.filepath} does not exist or is not a file"
+                "Filepath %s does not exist or is not a file", self.filepath
             )
             raise FileNotFoundError(
                 f"Filepath {self.filepath} does not exist or is not a file"
@@ -98,14 +100,14 @@ class DataSource(BaseModel):
         if self.read_config.read_mode == "CSV":
             if not self.filepath.suffix.lower() == ".csv":
                 self._logger.error(
-                    f"Filepath {self.filepath} does not match read mode CSV"
+                    "Filepath %s does not match read mode CSV", self.filepath
                 )
                 raise ValueError(
                     f"Filepath {self.filepath} does not match read mode CSV"
                 )
 
         else:
-            self._logger.error(f"Unsupported read mode: {self.read_config.read_mode}")
+            self._logger.error("Unsupported read mode: %s", self.read_config.read_mode)
             raise ValueError(f"Unsupported read mode: {self.read_config.read_mode}")
 
     @property
@@ -131,7 +133,9 @@ class DataSource(BaseModel):
             ValueError: If the read mode is unsupported.
         """
         self._logger.debug(
-            f"Inferring schema for {self.filepath} with read mode {self.read_config.read_mode}"
+            "Inferring schema for %s with read mode %s",
+            self.filepath,
+            self.read_config.read_mode,
         )
 
         if self.read_config.read_mode == "CSV":
@@ -144,7 +148,7 @@ class DataSource(BaseModel):
             ).collect_schema()
 
         else:
-            self._logger.error(f"Unsupported read mode: {self.read_config.read_mode}")
+            self._logger.error("Unsupported read mode: %s", self.read_config.read_mode)
             raise ValueError(f"Unsupported read mode: {self.read_config.read_mode}")
 
         return self._pl_schema
@@ -159,13 +163,15 @@ class DataSource(BaseModel):
         Raises:
             ValueError: If the read mode is unsupported.
         """
-        self._logger.debug(f"Reading data from {self.filepath} as a lazyframe property")
+        self._logger.debug(
+            "Reading data from %s as a lazyframe property", self.filepath
+        )
 
         current_key = (self.filepath, self.read_config)
 
         if self._cache_lf is None or self._cache_lf_key != current_key:
             self._logger.debug(
-                f"Generating sample pandas DataFrame for {self.filepath}"
+                "Generating sample pandas DataFrame for %s", self.filepath
             )
 
             if not self._pl_schema:
@@ -180,14 +186,16 @@ class DataSource(BaseModel):
                 )
             else:
                 self._logger.error(
-                    f"Unsupported read mode: {self.read_config.read_mode}"
+                    "Unsupported read mode: %s", self.read_config.read_mode
                 )
                 raise ValueError(f"Unsupported read mode: {self.read_config.read_mode}")
 
             self._cache_lf_key = current_key
         else:
             self._logger.debug(
-                f"Using cached LazyFrame for {self.filepath} with read config {self.read_config}"
+                "Using cached LazyFrame for %s with read config %s",
+                self.filepath,
+                self.read_config,
             )
 
         return self._cache_lf

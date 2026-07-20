@@ -15,6 +15,9 @@ from risc_tool.data.models.completion import Completion
 from risc_tool.data.models.filter import Filter
 from risc_tool.data.session import Session
 from risc_tool.ui.components.query_editor import query_editor
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 math_functions = [
     "sin",
@@ -52,6 +55,7 @@ def back_button():
         icon=":material/arrow_back_ios:",
         type="primary",
     ):
+        logger.debug("User navigated back from filter editor to list view")
         filter_editor_vm.set_mode("view")
         st.rerun()
 
@@ -115,6 +119,7 @@ def pie_chart_widget(filter_obj: Filter | None):
         })
 
     except Exception as e:
+        logger.exception("Failed to calculate distribution chart")
         st.error(f"Failed to calculate distribution chart: {e}")
         return
 
@@ -161,6 +166,7 @@ def on_save():
     try:
         filter_editor_vm.save_filter()
     except RuntimeError as e:
+        logger.exception("Save filter failed with RuntimeError")
         st.toast(body=f"RuntimeError: {e}", icon=":material/error:")
 
 

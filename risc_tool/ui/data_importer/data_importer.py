@@ -20,7 +20,7 @@ def data_importer_view():
     Displays the data source selector and, if sources are configured,
     the data preview viewer.
     """
-    logger.info("Rendering Data Importer page")
+    logger.debug("Rendering Data Importer page")
     session: Session = st.session_state["session"]
     data_importer_view_model = session.data_importer_view_model
 

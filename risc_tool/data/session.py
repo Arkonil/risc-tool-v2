@@ -9,6 +9,9 @@ from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
 from risc_tool.ui.data_importer.data_importer_vm import DataImporterViewModel
 from risc_tool.ui.filters.filters_vm import FilterViewModel
+from risc_tool.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Session:
@@ -28,12 +31,14 @@ class Session:
     def __init__(self):
         """Initialize a new session with default repositories and view models."""
         self.reset()
+        logger.info("Session initialized with DataRepository, FilterRepository, and 3 view models")
 
     def reset(self):
         """Reset the session to its initial state.
 
         Creates a new DataRepository, FilterRepository, and respective view models.
         """
+        logger.debug("Resetting session: recreating all repositories and view models")
 
         # Repositories
         self.data_repository = DataRepository()

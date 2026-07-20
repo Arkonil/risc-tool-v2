@@ -120,6 +120,11 @@ class DataImporterViewModel(ChangeTracker):
         if Signature.DATA_REPOSITORY in changed_dependencies:
             existing_ds_ids = set(self.__data_repository.data_sources.keys())
             removed_ds_ids = set(self.data_source_views.keys()) - existing_ds_ids
+            self.logger.debug(
+                "Syncing data source views: %d existing, %d removed",
+                len(existing_ds_ids),
+                len(removed_ds_ids),
+            )
 
             for ds_id in existing_ds_ids:
                 self.data_source_views[ds_id] = DataSourceViewModel(
@@ -223,6 +228,7 @@ class DataImporterViewModel(ChangeTracker):
                 )
                 self.showing_empty_data_source = False
                 self.empty_data_source_view = DataSourceViewModel()
+                self.logger.info("New data source '%s' created with ID %s", label, new_data_source.uid)
             except DataImportError as e:
                 self.logger.error("Import error adding new data source: %s", e)
                 eds = self.empty_data_source_view.data_source
@@ -244,6 +250,7 @@ class DataImporterViewModel(ChangeTracker):
                     label=label,
                     read_config=read_config,
                 )
+                self.logger.info("Data source ID %s updated successfully", data_source_id)
                 self._current_ds_id = new_data_source.uid
             except DataImportError as e:
                 self.logger.error(
@@ -263,6 +270,7 @@ class DataImporterViewModel(ChangeTracker):
         """
         self.logger.warning("Request to delete data source ID %s", data_source_id)
         if data_source_id == DataSourceID.EMPTY:
+            self.logger.debug("Hiding empty data source form (user cancelled)")
             self.showing_empty_data_source = False
             self.empty_data_source_view = DataSourceViewModel()
             return
@@ -284,5 +292,6 @@ class DataImporterViewModel(ChangeTracker):
 
     def show_empty_data_source(self):
         """Show the empty data source form for adding a new source."""
+        self.logger.debug("Showing empty data source form")
         self.showing_empty_data_source = True
         self.empty_data_source_view = DataSourceViewModel()

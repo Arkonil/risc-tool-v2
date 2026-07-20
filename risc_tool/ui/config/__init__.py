@@ -13,7 +13,7 @@ def config_view():
     Displays a placeholder for managing global settings, modeling options,
     and scalar constants.
     """
-    logger.info("Rendering Configuration view")
+    logger.debug("Rendering Configuration view")
     st.title("Configuration")
     st.write(
         "Manage global settings, define modeling options, and configure scalar constants."
