@@ -1,13 +1,16 @@
 """Repository for managing data sources and their configurations."""
 
+import re
 from collections import OrderedDict
 from pathlib import Path
 
+import polars as pl
 from pydantic import ValidationError
 
+from risc_tool.data.models.completion import Completion
 from risc_tool.data.models.data_config import DataConfig
 from risc_tool.data.models.data_source import DataSource, ReadConfig
-from risc_tool.data.models.enums import Signature
+from risc_tool.data.models.enums import Signature, VariableType
 from risc_tool.data.models.exceptions import DataImportError
 from risc_tool.data.models.types import ChangeIDs, DataSourceID
 from risc_tool.data.repositories.base import BaseRepository
@@ -33,25 +36,6 @@ class DataRepository(BaseRepository):
         """
         return Signature.DATA_REPOSITORY
 
-    @property
-    def _signature(self) -> Signature:
-        """Internal signature property for change tracking.
-
-        Returns:
-            Signature.DATA_REPOSITORY
-        """
-        return Signature.DATA_REPOSITORY
-
-    @property
-    def has_valid_sources(self) -> bool:
-        """Check if there is at least one valid data source configured.
-
-        Returns:
-            True if at least one data source has a loaded schema, False otherwise.
-        """
-        return bool(self.data_config.schemas)
-
-
     def __init__(self) -> None:
         """Initialize an empty DataRepository."""
         super().__init__()
@@ -68,6 +52,16 @@ class DataRepository(BaseRepository):
         """
         pass
 
+    @property
+    def has_valid_sources(self) -> bool:
+        """Check if there is at least one valid data source configured.
+
+        Returns:
+            True if at least one data source has a loaded schema, False otherwise.
+        """
+        return any(ds.is_valid for ds in self.data_sources.values())
+
+    # Data Source Management Methods (add, update, delete) are implemented below
     def add_data_source(
         self,
         label: str,
@@ -134,7 +128,7 @@ class DataRepository(BaseRepository):
         self.data_sources[data_source.uid] = data_source
         self.logger.info("Data source registered with ID %s.", data_source.uid)
 
-        self.data_config.update_source(data_source)
+        self.data_config.update_schema(self.data_sources.values())
         self.logger.info(
             "Data source %s added successfully. Notifying subscribers.", label
         )
@@ -212,7 +206,7 @@ class DataRepository(BaseRepository):
         self.data_sources[data_source_id] = new_data_source
 
         # Update the schema for this source in the data config
-        self.data_config.update_source(new_data_source)
+        self.data_config.update_schema(self.data_sources.values())
 
         # Notify subscribers
         self.logger.info(
@@ -246,9 +240,94 @@ class DataRepository(BaseRepository):
         self.logger.debug(
             "Refreshing configuration after deletion of source %s", data_source_id
         )
-        self.data_config.remove_source(data_source_id)
+        self.data_config.update_schema(self.data_sources.values())
 
         self.logger.info(
             "Data source ID %s deleted. Notifying subscribers.", data_source_id
         )
         self.notify_subscribers()
+
+    # Methods for retrieving combined LazyFrames from valid data sources
+    def get_lazyframe(
+        self,
+        data_source_ids: list[DataSourceID] | None = None,
+        limit_per_source: int | None = None,
+    ):
+        """Get a combined LazyFrame for the specified data sources.
+
+        Args:
+            data_source_ids: List of data source IDs to include. If None, all valid sources are included.
+            limit_per_source: Optional limit on the number of rows to read from each source.
+
+        Returns:
+            A combined LazyFrame for the specified data sources.
+        """
+        if data_source_ids is None:
+            data_source_ids = list(self.data_sources.keys())
+
+        lazy_frames: list[pl.LazyFrame] = []
+
+        for ds_id in data_source_ids:
+            if ds_id not in self.data_sources:
+                continue
+
+            ds = self.data_sources[ds_id]
+
+            if not ds.is_valid:
+                continue
+
+            lf = ds.lazyframe
+
+            if limit_per_source is not None:
+                lf = lf.limit(limit_per_source)
+
+            lazy_frames.append(lf)
+
+        if not lazy_frames:
+            return pl.LazyFrame()
+
+        return pl.concat(lazy_frames, how="diagonal_relaxed")
+
+    # Methods for retrieving common columns across data sources
+    def common_columns(
+        self, data_source_ids: list[DataSourceID] | None = None
+    ) -> set[tuple[str, VariableType]]:
+        """Get the intersection of columns and their types across specified sources.
+
+        Args:
+            data_source_ids: List of data source IDs to intersect. If None, all data sources are considered.
+
+        Returns:
+            A set of (column_name, VariableType) tuples representing common columns.
+        """
+        if data_source_ids is None:
+            data_source_ids = list(self.data_sources.keys())
+
+        return self.data_config.available_columns(data_source_ids)
+
+    def get_completions_for_columns(
+        self, data_source_ids: list[DataSourceID] | None = None
+    ) -> list[Completion]:
+        """Get column name completions for auto-complete in the UI.
+
+        Args:
+            data_source_ids: List of data source IDs to consider. If None, all data sources are considered.
+
+        Returns:
+            A list of dictionaries with column name completions for the specified data sources.
+        """
+        if data_source_ids is None:
+            data_source_ids = list(self.data_sources.keys())
+
+        completions: list[Completion] = []
+        for col_name, var_type in self.data_config.available_columns(data_source_ids):
+            completions.append(
+                Completion(
+                    caption=col_name,
+                    value=f"`{col_name}`" if re.search(r"\s+", col_name) else col_name,
+                    meta=f"{var_type.value} Column",
+                    name=col_name,
+                    score=100,
+                )
+            )
+        return completions
