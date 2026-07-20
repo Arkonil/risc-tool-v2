@@ -1,6 +1,7 @@
 """Repository for managing data sources and their configurations."""
 
 import re
+import typing as t
 from collections import OrderedDict
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from risc_tool.data.models.data_config import DataConfig
 from risc_tool.data.models.data_source import DataSource, ReadConfig
 from risc_tool.data.models.enums import Signature, VariableType
 from risc_tool.data.models.exceptions import DataImportError
+from risc_tool.data.models.metric import Metric
 from risc_tool.data.models.types import ChangeIDs, DataSourceID
 from risc_tool.data.repositories.base import BaseRepository
 
@@ -341,3 +343,178 @@ class DataRepository(BaseRepository):
                 )
             )
         return completions
+
+    def get_summarized_metrics(
+        self,
+        groupby_variables: list[str | pl.Expr],
+        data_filter: pl.Expr | None = None,
+        metrics: list[Metric] | None = None,
+        with_columns: list[pl.Expr] | None = None,
+    ) -> pl.LazyFrame:
+        """Summarizes metrics grouped by variables and data source configurations.
+
+        All calculations are done lazily on Polars LazyFrames. Each metric is
+        evaluated strictly against its configured data_source_ids.
+
+        Args:
+            groupby_variables: List of column names or expressions to group by.
+            data_filter: Optional boolean expression to filter the data.
+            metrics: List of Metric objects to calculate.
+            with_columns: Optional list of expressions to apply to the LazyFrame
+                before grouping (e.g. to create derived segment columns).
+
+        Returns:
+            A Polars LazyFrame containing the grouped aggregations.
+        """
+        self.logger.info(
+            "Calculating summarized metrics (count=%d) grouped by %s",
+            len(metrics or []),
+            groupby_variables,
+        )
+
+        if not metrics:
+            return pl.LazyFrame()
+
+        # Group metrics by their tuple of data_source_ids
+        metric_groups: dict[tuple[DataSourceID, ...], list[Metric]] = {}
+        for metric in metrics:
+            if metric.metric_expr is not None:
+                key = tuple(sorted(metric.data_source_ids))
+                metric_groups.setdefault(key, []).append(metric)
+
+        if not metric_groups:
+            return pl.LazyFrame()
+
+        sub_lfs: list[pl.LazyFrame] = []
+
+        for ds_key, group_metrics in metric_groups.items():
+            ds_ids = list(ds_key)
+            lf = self.get_lazyframe(data_source_ids=ds_ids)
+
+            if data_filter is not None:
+                lf = lf.filter(data_filter)
+
+            if with_columns is not None:
+                lf = lf.with_columns(with_columns)
+
+            total_size = lf.select(pl.len()).collect().item(0, 0)
+            lf = lf.with_columns(pl.lit(total_size).alias("__TOTAL_SIZE__"))
+
+            aggregations = [
+                m.metric_expr.alias(m.pretty_name)
+                for m in group_metrics
+                if m.metric_expr is not None
+            ]
+
+            if groupby_variables:
+                grouped_lf = lf.group_by(groupby_variables).agg(aggregations)
+            else:
+                grouped_lf = lf.select(aggregations)
+
+            sub_lfs.append(grouped_lf)
+
+        if len(sub_lfs) == 1:
+            return sub_lfs[0]
+
+        if not groupby_variables:
+            return pl.concat(sub_lfs, how="horizontal_extend")
+
+        join_keys: list[str] = []
+        for g in groupby_variables:
+            if isinstance(g, str):
+                join_keys.append(g)
+            elif hasattr(g, "meta") and hasattr(g.meta, "output_name"):
+                join_keys.append(g.meta.output_name())
+
+        result_lf = sub_lfs[0]
+        for next_lf in sub_lfs[1:]:
+            result_lf = result_lf.join(next_lf, on=join_keys, how="full", coalesce=True)
+
+        return result_lf
+
+    def get_cumulative_metrics(
+        self,
+        groupby_variable: str,
+        ordered_groups: list[t.Any],
+        data_filter: pl.Expr | None = None,
+        metrics: list[Metric] | None = None,
+        with_columns: list[pl.Expr] | None = None,
+    ) -> pl.LazyFrame:
+        """Calculates cumulative metrics grouped by an ordered set of groups.
+
+        All calculations are done lazily on Polars LazyFrames by concatenating
+        queries over expanding subsets of ordered groups for each metric's
+        configured data_source_ids.
+
+        Args:
+            groupby_variable: Column name to filter/group by.
+            ordered_groups: List of group values in their sorted order.
+            data_filter: Optional boolean expression to filter the data.
+            metrics: List of Metric objects to calculate.
+            with_columns: Optional list of expressions to apply to the LazyFrame
+                before filtering.
+
+        Returns:
+            A Polars LazyFrame containing the cumulative metrics for each group.
+        """
+        self.logger.info(
+            "Calculating cumulative metrics (count=%d) grouped by '%s'",
+            len(metrics or []),
+            groupby_variable,
+        )
+
+        if not metrics:
+            return pl.LazyFrame()
+
+        metric_groups: dict[tuple[DataSourceID, ...], list[Metric]] = {}
+        for metric in metrics:
+            if metric.metric_expr is not None:
+                key = tuple(sorted(metric.data_source_ids))
+                metric_groups.setdefault(key, []).append(metric)
+
+        if not metric_groups:
+            return pl.LazyFrame()
+
+        sub_lfs: list[pl.LazyFrame] = []
+
+        for ds_key, group_metrics in metric_groups.items():
+            ds_ids = list(ds_key) if ds_key else None
+            lf = self.get_lazyframe(data_source_ids=ds_ids)
+
+            if data_filter is not None:
+                lf = lf.filter(data_filter)
+
+            if with_columns is not None:
+                lf = lf.with_columns(with_columns)
+
+            total_size = lf.select(pl.len()).collect().item(0, 0)
+            lf = lf.with_columns(pl.lit(total_size).alias("__TOTAL_SIZE__"))
+
+            queries: list[pl.LazyFrame] = []
+            for i, group_val in enumerate(ordered_groups):
+                allowed_vals = ordered_groups[: i + 1]
+                subset_lf = lf.filter(pl.col(groupby_variable).is_in(allowed_vals))
+
+                aggregations = [pl.lit(group_val).alias(groupby_variable)]
+                for m in group_metrics:
+                    if m.metric_expr is not None:
+                        aggregations.append(m.metric_expr.alias(m.pretty_name))
+
+                queries.append(subset_lf.select(aggregations))
+
+            if queries:
+                sub_lfs.append(pl.concat(queries))
+
+        if not sub_lfs:
+            return pl.LazyFrame()
+
+        if len(sub_lfs) == 1:
+            return sub_lfs[0]
+
+        result_lf = sub_lfs[0]
+        for next_lf in sub_lfs[1:]:
+            result_lf = result_lf.join(
+                next_lf, on=groupby_variable, how="full", coalesce=True
+            )
+
+        return result_lf
