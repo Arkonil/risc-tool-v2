@@ -5,10 +5,12 @@ import pandas as pd
 import polars as pl
 import streamlit as st
 
+from risc_tool.data.session import Session
+
 
 def data_source_selector():
     """Render the multiselect widget for choosing data sources."""
-    session = st.session_state["session"]
+    session: Session = st.session_state["session"]
     data_explorer_vm = session.data_explorer_view_model
 
     current_data_source_ids = data_explorer_vm.iv_data_sources
@@ -26,7 +28,6 @@ def data_source_selector():
         return
 
     data_explorer_vm.iv_data_sources = iv_data_sources
-    data_explorer_vm._update_iv_inputs()
     st.rerun()
 
 
@@ -80,7 +81,7 @@ def iv_bar_chart(dataframe: pd.DataFrame):
 
 def iv_analysis():
     """Render the IV Analysis section layout with controls and visualization."""
-    session = st.session_state["session"]
+    session: Session = st.session_state["session"]
     de_view_model = session.data_explorer_view_model
 
     chart_container, control_container = st.columns([2.5, 1])
@@ -112,6 +113,21 @@ def iv_analysis():
             default=de_view_model.iv_current_variables,
         )
 
+        # Filter Selector
+        all_filters = de_view_model.all_filters
+        filter_ids = st.multiselect(
+            label="Filters",
+            options=list(all_filters.keys()),
+            default=de_view_model.iv_current_filter_ids,
+            format_func=lambda filter_uid: all_filters[filter_uid].name,
+        )
+
+        remove_outliers = st.checkbox(
+            label="Remove Outliers",
+            value=de_view_model.iv_remove_outliers,
+            help="Remove all outlier instances from calculations",
+        )
+
         if st.button(
             label="Save Config",
             width="stretch",
@@ -121,22 +137,28 @@ def iv_analysis():
             if any([
                 de_view_model.iv_current_target != target_variable,
                 de_view_model.iv_current_variables != input_variables,
+                de_view_model.iv_current_filter_ids != filter_ids,
+                de_view_model.iv_remove_outliers != remove_outliers,
             ]):
                 de_view_model.iv_current_target = target_variable
                 de_view_model.iv_current_variables = input_variables
+                de_view_model.iv_current_filter_ids = filter_ids
+                de_view_model.iv_remove_outliers = remove_outliers
                 st.rerun()
 
     with chart_container:
         iv_df: pl.DataFrame | None = de_view_model.get_iv_df(
             target_variable=de_view_model.iv_current_target,
             input_variables=de_view_model.iv_current_variables,
+            filter_ids=de_view_model.iv_current_filter_ids,
+            remove_outliers=de_view_model.iv_remove_outliers,
         )
 
         if iv_df is not None:
             # Convert to Pandas right before rendering with Altair
             pandas_df = iv_df.to_pandas()
             chart = iv_bar_chart(pandas_df)
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
 
     with error_container:
         for error in de_view_model.iv_errors:

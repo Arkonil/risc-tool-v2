@@ -4,12 +4,21 @@ Manages data source, target variable, and input variable selections,
 and orchestrates the calculation of Information Value (IV) across sources.
 """
 
+import pandas as pd
 import polars as pl
 
 from risc_tool.data.models.changes import ChangeTracker
-from risc_tool.data.models.enums import Signature, VariableType
-from risc_tool.data.models.types import ChangeIDs, DataSourceID
+from risc_tool.data.models.enums import (
+    ComparisonOperation,
+    PercentileOptions,
+    Signature,
+    VariableType,
+)
+from risc_tool.data.models.filter import Filter
+from risc_tool.data.models.outlier import OutlierRule
+from risc_tool.data.models.types import ChangeIDs, DataSourceID, FilterID
 from risc_tool.data.repositories.data import DataRepository
+from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.services.iv_calculation import calculate_iv
 
 
@@ -28,32 +37,84 @@ class DataExplorerViewModel(ChangeTracker):
         """
         return Signature.DATA_EXPLORER_VIEW_MODEL
 
-    def __init__(self, data_repository: DataRepository) -> None:
+    def __init__(
+        self, data_repository: DataRepository, filter_repository: FilterRepository
+    ) -> None:
         """Initialize the DataExplorerViewModel.
 
         Args:
             data_repository: The DataRepository dependency.
+            filter_repository: The FilterRepository dependency.
         """
-        super().__init__(dependencies=[data_repository])
+        super().__init__(dependencies=[data_repository, filter_repository])
         self.data_repository = data_repository
+        self.filter_repository = filter_repository
 
         # Selections
-        self.iv_data_sources: list[DataSourceID] = []
+        self.__iv_data_sources: list[DataSourceID] = []
         self.iv_current_target: str | None = None
         self.iv_current_variables: list[str] = []
+        self.iv_current_filter_ids: list[FilterID] = []
+        self.iv_remove_outliers: bool = True
 
         # Error and Warning Tracking
         self.iv_errors: list[Exception] = []
         self.iv_warnings: list[str] = []
+        self.ol_errors: dict[FilterID, Exception] = {}
 
-        # IV Cache: {(target_col, input_col, sorted_sources_tuple): iv_value}
-        self.__iv_cache: dict[tuple[str, str, tuple[DataSourceID, ...]], float] = {}
+        # IV Cache: {(target_col, input_col, sorted_sources_tuple, filter_hash): iv_value}
+        self.__iv_cache: dict[
+            tuple[str, str, tuple[DataSourceID, ...], int], float
+        ] = {}
 
         # Auto-initialize inputs
         self._update_iv_inputs()
 
+    def _update_iv_inputs(self) -> None:
+        """Synchronize selections with current repository state and clear cache."""
+        # Remove selected sources that no longer exist
+        self.__iv_data_sources = list(
+            set(self.__iv_data_sources) & set(self.data_repository.data_sources)
+        )
+
+        # Reset target if it's no longer available
+        if self.iv_current_target not in self.available_target_columns:
+            self.iv_current_target = None
+
+        # Filter out input variables that are no longer available
+        self.iv_current_variables = list(
+            set(self.iv_current_variables) & set(self.available_input_columns)
+        )
+
+        # Sync filter ids
+        self.iv_current_filter_ids = list(
+            set(self.iv_current_filter_ids) & set(self.filter_repository.filters.keys())
+        )
+
+        # Prune outlier errors
+        all_filter_ids = self.filter_repository.filters.keys()
+        self.ol_errors = {
+            k: v
+            for k, v in self.ol_errors.items()
+            if k in all_filter_ids or k == FilterID.TEMPORARY
+        }
+
+        # Invalidate cache and clear messages
+        self.__iv_cache.clear()
+        self.iv_errors.clear()
+        self.iv_warnings.clear()
+
+    def on_dependency_update(self, change_ids: ChangeIDs) -> None:
+        """Handle updates from DataRepository or FilterRepository.
+
+        Args:
+            change_ids: Set of change IDs from the dependency.
+        """
+        self._update_iv_inputs()
+
+    # Common Properties for Data Explorer
     @property
-    def has_valid_sources(self) -> bool:
+    def data_loaded(self) -> bool:
         """Check if any data sources are successfully loaded and configured.
 
         Returns:
@@ -84,6 +145,26 @@ class DataExplorerViewModel(ChangeTracker):
         return str(data_source_id)
 
     @property
+    def common_columns(self):
+        return self.data_repository.common_columns()
+
+    @property
+    def all_filters(self) -> dict[FilterID, Filter]:
+        """Get user defined filters (excluding outliers)."""
+        return self.filter_repository.get_filters(outliers=False)
+
+    # IV Calculation Properties
+    @property
+    def iv_data_sources(self):
+        return self.__iv_data_sources
+
+    @iv_data_sources.setter
+    def iv_data_sources(self, value: list[DataSourceID]):
+        self.__iv_data_sources = value
+
+        self._update_iv_inputs()
+
+    @property
     def available_target_columns(self) -> list[str]:
         """Get columns available to be selected as the target variable.
 
@@ -92,11 +173,11 @@ class DataExplorerViewModel(ChangeTracker):
         Returns:
             List of column names.
         """
-        if not self.has_valid_sources or not self.iv_data_sources:
+        if not self.data_loaded or not self.__iv_data_sources:
             return []
 
         common_cols: set[tuple[str, VariableType]] = (
-            self.data_repository.data_config.available_columns(self.iv_data_sources)
+            self.data_repository.common_columns(self.__iv_data_sources)
         )
 
         targets: list[str] = []
@@ -114,59 +195,17 @@ class DataExplorerViewModel(ChangeTracker):
         Returns:
             List of column names.
         """
-        if not self.has_valid_sources or not self.iv_data_sources:
+        if not self.data_loaded or not self.__iv_data_sources:
             return []
 
-        common_cols = self.data_repository.data_config.available_columns(
-            self.iv_data_sources
-        )
+        common_cols = self.data_repository.common_columns(self.__iv_data_sources)
         return sorted([col for col, _ in common_cols])
-
-    def _update_iv_inputs(self) -> None:
-        """Synchronize selections with current repository state and clear cache."""
-        # Remove selected sources that no longer exist
-        self.iv_data_sources = [
-            ds_id
-            for ds_id in self.iv_data_sources
-            if ds_id in self.data_repository.data_sources
-        ]
-
-        # Default to selecting all data sources if none are selected
-        if not self.iv_data_sources and self.data_repository.data_sources:
-            self.iv_data_sources = list(self.data_repository.data_sources.keys())
-
-        # Reset target if it's no longer available
-        available_targets = self.available_target_columns
-        if self.iv_current_target not in available_targets:
-            self.iv_current_target = None
-
-        # Filter out input variables that are no longer available
-        available_inputs = self.available_input_columns
-        self.iv_current_variables = [
-            var for var in self.iv_current_variables if var in available_inputs
-        ]
-
-        # Invalidate cache and clear messages
-        self.__iv_cache.clear()
-        self.iv_errors.clear()
-        self.iv_warnings.clear()
-
-    def on_dependency_update(self, change_ids: ChangeIDs) -> None:
-        """Handle updates from the DataRepository dependency.
-
-        Args:
-            change_ids: Set of change IDs from the dependency.
-        """
-        changed_dependencies = {sig for sig, _ in change_ids}
-        if Signature.DATA_REPOSITORY in changed_dependencies:
-            self.logger.info("DataRepository updated, refreshing explorer inputs")
-            self._update_iv_inputs()
 
     def get_iv_df(
         self,
         target_variable: str | None,
         input_variables: list[str],
-        filter_ids: list[int] | None = None,
+        filter_ids: list[FilterID] | None = None,
         remove_outliers: bool = False,
     ) -> pl.DataFrame | None:
         """Calculate and return Information Value (IV) for input variables.
@@ -176,8 +215,8 @@ class DataExplorerViewModel(ChangeTracker):
         Args:
             target_variable: The binary target variable name.
             input_variables: List of independent variable names.
-            filter_ids: Optional filters list (ignored for now).
-            remove_outliers: Optional outlier removal flag (ignored for now).
+            filter_ids: Optional list of active Filters to apply.
+            remove_outliers: Optional outlier removal flag.
 
         Returns:
             A Polars DataFrame with columns ['variable', 'iv'] sorted by iv desc,
@@ -192,13 +231,13 @@ class DataExplorerViewModel(ChangeTracker):
             )
             return None
 
-        if not self.has_valid_sources:
+        if not self.data_loaded:
             self.iv_errors.append(
                 ValueError("No valid data sources loaded. Please import data first.")
             )
             return None
 
-        if not self.iv_data_sources:
+        if not self.__iv_data_sources:
             self.iv_errors.append(ValueError("Please select at least one data source."))
             return None
 
@@ -233,26 +272,36 @@ class DataExplorerViewModel(ChangeTracker):
             )
             return None
 
-        sources_key = tuple(sorted(self.iv_data_sources))
+        filter_ids_available: list[FilterID] = []
+        if filter_ids:
+            for fid in filter_ids:
+                if fid not in self.filter_repository.filters:
+                    self.iv_errors.append(ValueError(f"Filter `{fid}` is not found."))
+                else:
+                    filter_ids_available.append(fid)
+
+        # Retrieve combined filter expression
+        combined_expr = self.filter_repository.get_combined_expression(
+            filter_ids_available, remove_outliers=remove_outliers
+        )
+
+        # Hash filter expression config for caching
+        filter_hash = hash(str(combined_expr)) if combined_expr is not None else 0
+
+        sources_key = tuple(sorted(self.__iv_data_sources))
         iv_records: list[dict[str, str | float]] = []
 
         try:
-            # Optimize data loading: load only required columns from selected sources in one pass
-            cols_to_load = [target_variable] + input_cols_available
-            lazy_frames: list[pl.LazyFrame] = []
+            unified_lf = self.data_repository.get_lazyframe(self.__iv_data_sources)
+            if combined_expr is not None:
+                unified_lf = unified_lf.filter(combined_expr)
 
-            for ds_id in self.iv_data_sources:
-                ds = self.data_repository.data_sources[ds_id]
-
-                # Load full schema first and Select only the needed columns to minimize parsing overhead
-                lf = ds.get_lazyframe(self.data_repository.data_config.schema).select(
-                    cols_to_load
+            height: int = unified_lf.select(pl.len()).collect().item()
+            if height == 0:
+                self.iv_warnings.append(
+                    "The filter criteria left no records available for analysis."
                 )
-                lazy_frames.append(lf)
-
-            # Concatenate lazy frames and collect in a single pass
-            unified_lf = pl.concat(lazy_frames, how="vertical_relaxed")
-            df = unified_lf.collect()
+                return None
 
         except Exception as error:
             self.logger.error("Failed to load/concatenate data: %s", error)
@@ -262,7 +311,7 @@ class DataExplorerViewModel(ChangeTracker):
             return None
 
         # Validate target is binary (0 or 1)
-        target_series = df[target_variable]
+        target_series = unified_lf.select(target_variable).collect().to_series()
         if target_series.dtype == pl.Boolean:
             unique_targets = target_series.cast(pl.Int8).drop_nulls().unique().to_list()
         else:
@@ -280,11 +329,11 @@ class DataExplorerViewModel(ChangeTracker):
         # Calculate IV for each variable
         for input_col in input_cols_available:
             try:
-                cache_key = (target_variable, input_col, sources_key)
+                cache_key = (target_variable, input_col, sources_key, filter_hash)
                 if cache_key in self.__iv_cache:
                     iv = self.__iv_cache[cache_key]
                 else:
-                    var_series = df[input_col]
+                    var_series = unified_lf.select(input_col).collect().to_series()
 
                     # Warn if categorical column has more than 10 unique values
                     if (
@@ -311,3 +360,255 @@ class DataExplorerViewModel(ChangeTracker):
 
         # Return sorted Polars DataFrame
         return pl.DataFrame(iv_records).sort("iv", descending=True)
+
+    # Outlier Rule Properties
+    @property
+    def current_outlier_rules(self) -> list[OutlierRule]:
+        """Get all currently registered outlier rules."""
+        return [
+            r
+            for r in self.filter_repository.filters.values()
+            if isinstance(r, OutlierRule)
+        ]
+
+    @property
+    def total_outlier_count(self) -> int:
+        """Calculate the total outlier instances count across unified valid data sources."""
+        if not self.data_repository.has_valid_sources:
+            return 0
+
+        lf = self.data_repository.get_lazyframe()
+
+        combined_outliers_expr = self.filter_repository.get_combined_expression(
+            filter_ids=[], remove_outliers=True
+        )
+        if combined_outliers_expr is None:
+            return 0
+
+        try:
+            freq_df = lf.select(
+                (~combined_outliers_expr).sum().alias("outliers_count")
+            ).collect()
+            return freq_df.item(0, 0) if freq_df.height > 0 else 0
+        except Exception as e:
+            self.logger.error("Failed to compute total outlier count: %s", e)
+            return 0
+
+    def get_boxplot_data(
+        self, variable_name: str
+    ) -> tuple[pl.DataFrame, pl.DataFrame] | tuple[None, None]:
+        """Get data for boxplot visualization of a variable across selected sources.
+
+        Args:
+            variable_name: The name of the variable to visualize.
+            quantiles: List of quantiles to compute (e.g., [0.25, 0.5, 0.75]).
+
+        Returns:
+            A tuple containing two Polars DataFrames: the first for the boxplot data and the second for the quantile data, or None if the variable is not found.
+        """
+        if not self.data_loaded:
+            return None, None
+
+        common_cols = self.data_repository.common_columns()
+        if not any(
+            col == variable_name and dtype == VariableType.NUMERICAL
+            for col, dtype in common_cols
+        ):
+            return None, None
+
+        try:
+            lf = self.data_repository.get_lazyframe().select([variable_name])
+            boxplot_df = lf.select(pl.col(variable_name).alias("Value")).collect()
+
+            stats_df = lf.select(
+                pl.col(variable_name).mode().cast(pl.Float64).head(1).alias("mode"),
+                pl.col(variable_name).skew().cast(pl.Float64).head(1).alias("skew"),
+            ).collect()
+
+            mode: float | None = (
+                stats_df.item(0, "mode") if stats_df.height > 0 else None
+            )
+            skew: float | None = (
+                stats_df.item(0, "skew") if stats_df.height > 0 else None
+            )
+
+            if isinstance(skew, (int, float)) and skew > 0.1:
+                quantiles = [0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
+            elif isinstance(skew, (int, float)) and skew < -0.1:
+                quantiles = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75]
+            else:
+                quantiles = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
+
+            perc_df = (
+                lf
+                .filter(
+                    pl.col(variable_name).is_not_null()
+                    & (pl.col(variable_name) != mode)
+                )
+                .select(
+                    pl
+                    .col(variable_name)
+                    .quantile(quantiles, interpolation="linear")
+                    .explode()
+                    .alias("Value"),
+                    pl
+                    .lit(quantiles)
+                    .explode()
+                    .map_elements(lambda q: f"{q * 100}%", return_dtype=pl.Utf8)
+                    .alias("Percentile"),
+                )
+                .with_columns(
+                    pl
+                    .col("Value")
+                    .map_elements(lambda v: f"{v:.2f}", return_dtype=pl.Utf8)
+                    .alias("Value_Str")
+                )
+                .collect()
+            )
+
+            return boxplot_df, perc_df
+        except Exception as e:
+            self.logger.error(
+                "Failed to retrieve boxplot data for variable '%s': %s",
+                variable_name,
+                e,
+            )
+            return None, None
+
+    def get_quantile_table(
+        self, variable_name: str, quantiles: list[float]
+    ) -> pd.DataFrame | None:
+        """Get a table of specified quantiles for a variable across selected sources.
+
+        Args:
+            variable_name: The name of the variable to analyze.
+            quantiles: List of quantiles to compute (e.g., [0.25, 0.5, 0.75]).
+
+        Returns:
+            A Polars DataFrame containing the specified quantiles for the variable, or None if an error occurs.
+        """
+        if not self.data_loaded:
+            return None
+
+        common_cols = self.data_repository.common_columns()
+        if not any(
+            col == variable_name and dtype == VariableType.NUMERICAL
+            for col, dtype in common_cols
+        ):
+            return None
+
+        try:
+            lf = self.data_repository.get_lazyframe().select([variable_name])
+
+            mode = (
+                lf
+                .select(
+                    pl.col(variable_name).mode().cast(pl.Float64).head(1).alias("mode"),
+                )
+                .collect()
+                .item(0, "mode")
+            )
+            mode: float | None = mode if mode is not None else None
+
+            quantile_df = (
+                lf
+                .filter(
+                    pl.col(variable_name).is_not_null()
+                    & (pl.col(variable_name) != mode)
+                )
+                .select(
+                    pl
+                    .col(variable_name)
+                    .quantile(quantiles, interpolation="linear")
+                    .explode()
+                    .alias("Value"),
+                    pl
+                    .lit(quantiles)
+                    .explode()
+                    .map_elements(
+                        lambda q: f"{q * 100:.0f}th Percentile", return_dtype=pl.Utf8
+                    )
+                    .alias("Percentile"),
+                )
+                .collect()
+                .to_pandas()
+                .set_index("Percentile")
+                .T.rename_axis(index="Percentile")
+            )
+            return quantile_df
+        except Exception as e:
+            self.logger.error(
+                "Failed to retrieve quantile table for variable '%s': %s",
+                variable_name,
+                e,
+            )
+            return None
+
+    def validate_outlier(
+        self,
+        outlier_id: FilterID,
+        variable_name: str,
+        comparison_op: ComparisonOperation,
+        comparison_base: PercentileOptions | str,
+    ) -> OutlierRule:
+        if variable_name == "":
+            raise ValueError("Variable name cannot be empty.")
+
+        comparison_base_f: PercentileOptions | float
+        if isinstance(comparison_base, PercentileOptions):
+            comparison_base_f = comparison_base
+        else:
+            try:
+                comparison_base_f = float(comparison_base)
+            except ValueError:
+                raise ValueError(
+                    f"comparison_base is neither a PercentileEnum nor a float: {comparison_base}"
+                )
+
+        outlier_cache = self.filter_repository.validate_outlier_rule(
+            variable_name, comparison_op, comparison_base_f
+        )
+        outlier_cache.uid = outlier_id
+        return outlier_cache
+
+    def save_outlier(
+        self,
+        outlier_id: FilterID,
+        variable_name: str,
+        comparison_op: ComparisonOperation,
+        comparison_base: PercentileOptions | str,
+    ) -> None:
+        self.logger.info(
+            "Request to save outlier rule ID %s for variable '%s'",
+            outlier_id,
+            variable_name,
+        )
+        try:
+            validated_outlier_rule = self.validate_outlier(
+                outlier_id, variable_name, comparison_op, comparison_base
+            )
+        except Exception as e:
+            self.logger.error("Failed to save outlier rule ID %s: %s", outlier_id, e)
+            self.ol_errors[outlier_id] = e
+            return
+
+        if outlier_id == FilterID.TEMPORARY:
+            self.filter_repository.create_outlier_rule(
+                variable_name=validated_outlier_rule.variable_name,
+                comparison_op=validated_outlier_rule.comparison_op,
+                comparison_base=validated_outlier_rule.comparison_base,
+            )
+        else:
+            self.filter_repository.modify_outlier_rule(
+                filter_id=outlier_id,
+                variable_name=validated_outlier_rule.variable_name,
+                comparison_op=validated_outlier_rule.comparison_op,
+                comparison_base=validated_outlier_rule.comparison_base,
+            )
+
+        if outlier_id in self.ol_errors:
+            del self.ol_errors[outlier_id]
+
+    def delete_outlier_rule(self, outlier_id: FilterID) -> None:
+        self.logger.warning("Request to delete outlier rule ID %s", outlier_id)
+        self.filter_repository.remove_filter(outlier_id)
