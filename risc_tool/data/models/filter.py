@@ -13,13 +13,33 @@ CompiledValue = pl.Expr | list[ScalarValue]
 
 
 class FilterQueryValidator(ast.NodeVisitor):
-    """AST visitor to extract variable/column identifiers from a query."""
+    """AST visitor to extract variable/column identifiers from a query.
+
+    Attributes:
+        found_columns: Set of discovered column names from the AST.
+        placeholder_map: Mapping from placeholder names to original
+            backticked column names.
+    """
 
     def __init__(self, placeholder_map: dict[str, str]):
+        """Initialize the validator with a placeholder map for backticked names.
+
+        Args:
+            placeholder_map: A dictionary mapping placeholder identifiers
+                (e.g., __BACKTICKED_0__) to their original column names.
+        """
         self.found_columns: set[str] = set()
         self.placeholder_map = placeholder_map
 
     def _resolve_and_add_name(self, identifier: str):
+        """Resolve a name node to its original column name and add to found_columns.
+
+        Skips identifiers starting with '@' (variables) and unmapped
+        backtick placeholders.
+
+        Args:
+            identifier: The AST identifier string to resolve.
+        """
         if identifier.startswith("@"):
             return  # Exclude @-variables
 
@@ -33,9 +53,22 @@ class FilterQueryValidator(ast.NodeVisitor):
         self.found_columns.add(original_name)
 
     def visit_Name(self, node: ast.Name):
+        """Visit a Name AST node and add its resolved identifier to found_columns.
+
+        Args:
+            node: The AST Name node being visited.
+        """
         self._resolve_and_add_name(node.id)
 
     def visit_Attribute(self, node: ast.Attribute):
+        """Visit an Attribute AST node and extract the root object name.
+
+        Walks through chained attribute accesses (e.g., df.col.x) to find
+        the root Name node and resolves it.
+
+        Args:
+            node: The AST Attribute node being visited.
+        """
         current_obj = node
         while isinstance(current_obj, ast.Attribute):
             current_obj = current_obj.value
@@ -46,6 +79,14 @@ class FilterQueryValidator(ast.NodeVisitor):
             self.visit(current_obj)
 
     def visit_Call(self, node: ast.Call):
+        """Visit a Call AST node and visit its function arguments.
+
+        Skips the function itself if it is a simple Name (treated elsewhere).
+        Visits all positional arguments and keyword argument values.
+
+        Args:
+            node: The AST Call node being visited.
+        """
         if not isinstance(node.func, ast.Name):
             self.visit(node.func)
 
@@ -56,9 +97,27 @@ class FilterQueryValidator(ast.NodeVisitor):
 
 
 class Filter:
-    """Represents a filter condition in the application, calculated using Polars."""
+    """Represents a filter condition in the application, calculated using Polars.
+
+    Stores the raw query string, validates and compiles it into a Polars
+    expression, and tracks which columns the filter depends on.
+
+    Attributes:
+        uid: Unique identifier for this filter.
+        name: Human-readable name for display.
+        query: The raw filter expression string.
+        used_columns: List of column names that appear in the query.
+        filter_expr: Compiled Polars expression, or None if not yet validated.
+    """
 
     def __init__(self, uid: FilterID, name: str, query: str) -> None:
+        """Initialize a new Filter.
+
+        Args:
+            uid: Unique identifier for the filter.
+            name: Human-readable name.
+            query: The filter expression string in Python-like syntax.
+        """
         self.logger = get_logger(self.__class__.__name__)
         self.uid: FilterID = uid
         self.name: str = name
@@ -68,6 +127,11 @@ class Filter:
 
     @property
     def pretty_name(self) -> str:
+        """Return the display name of the filter.
+
+        Returns:
+            The filter name string.
+        """
         return self.name
 
     def validate_query(self, available_columns: list[str] | None = None) -> None:
@@ -177,7 +241,23 @@ class Filter:
     def _compile_expression(
         self, node: ast.AST, backticked_map: dict[str, str]
     ) -> pl.Expr:
-        """Recursively compile AST node into a Polars expression."""
+        """Recursively compile an AST node into a Polars expression.
+
+        Supports binary/unary operators, comparisons (including chained),
+        boolean logic, function calls, method calls, attribute access,
+        list/tuple literals, and backticked column identifiers.
+
+        Args:
+            node: The AST node to compile.
+            backticked_map: Mapping from placeholder names to original
+                backticked column names.
+
+        Returns:
+            A compiled Polars expression.
+
+        Raises:
+            ValueError: If the AST node type or operator is unsupported.
+        """
 
         def require_expr(value: CompiledValue, context: str) -> pl.Expr:
             if isinstance(value, pl.Expr):

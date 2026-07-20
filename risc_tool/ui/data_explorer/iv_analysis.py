@@ -9,7 +9,11 @@ from risc_tool.data.session import Session
 
 
 def data_source_selector():
-    """Render the multiselect widget for choosing data sources."""
+    """Render a multiselect widget for choosing data sources for IV analysis.
+
+    Updates the view model's selected data sources and triggers a rerun
+    when the selection changes.
+    """
     session: Session = st.session_state["session"]
     data_explorer_vm = session.data_explorer_view_model
 

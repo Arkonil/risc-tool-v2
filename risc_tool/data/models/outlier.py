@@ -36,7 +36,16 @@ class OutlierRule(Filter):
             self.name = f"{variable_name} {comparison_op.value} {comparison_base}"
 
     def recalculate_thresholds(self, lf: pl.LazyFrame) -> None:
-        """Run aggregation queries on the LazyFrame to calculate mode and thresholds."""
+        """Run aggregation queries on the LazyFrame to calculate mode and thresholds.
+
+        Computes the mode (most frequent value) and the threshold value
+        (percentile or fixed number) from the data, builds a query string
+        that flags rows as outliers, compiles it into a Polars expression,
+        and counts the number of outlier rows.
+
+        Args:
+            lf: A Polars LazyFrame containing the variable column.
+        """
         self.logger.info(
             "Recalculating outlier thresholds for variable '%s' (base=%s)",
             self.variable_name,
@@ -119,6 +128,16 @@ class OutlierRule(Filter):
     def duplicate(
         self, uid: FilterID | None = None, name: str | None = None
     ) -> "OutlierRule":
+        """Create a deep copy of this outlier rule with optional new ID and name.
+
+        Args:
+            uid: New FilterID for the copy. Defaults to the original ID.
+            name: New name for the copy. Defaults to the original name.
+
+        Returns:
+            A new OutlierRule instance with the same configuration and
+            computed values (mode, threshold, frequency, query, expression).
+        """
         if uid is None:
             uid = self.uid
         if name is None:
@@ -139,6 +158,12 @@ class OutlierRule(Filter):
         return new_instance
 
     def to_dict(self) -> dict[str, t.Any]:
+        """Serialize the outlier rule to a dictionary for storage or export.
+
+        Returns:
+            A dictionary with uid, name, query, used_columns, variable_name,
+            comparison_op, comparison_base, and is_outlier flag.
+        """
         return {
             "uid": int(self.uid),
             "name": self.name,

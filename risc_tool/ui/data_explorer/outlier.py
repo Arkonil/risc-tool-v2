@@ -1,3 +1,9 @@
+"""UI components for Outlier Rules management in the Data Explorer.
+
+Provides interactive widgets for creating, viewing, and modifying outlier
+rules, including boxplot visualization and quantile tables.
+"""
+
 import altair as alt
 import streamlit as st
 
@@ -11,6 +17,11 @@ from risc_tool.data.session import Session
 
 
 def show_boxplot(variable: str):
+    """Render an interactive boxplot with hoverable percentile markers.
+
+    Args:
+        variable: The name of the numerical variable to visualize.
+    """
     session: Session = st.session_state["session"]
     de_view_model = session.data_explorer_view_model
 
@@ -103,6 +114,12 @@ def show_boxplot(variable: str):
 
 
 def show_quantile_table(variable: str, quantiles: list[float]):
+    """Render a table of quantile values for a numerical variable.
+
+    Args:
+        variable: The name of the numerical variable to analyze.
+        quantiles: List of quantile thresholds (e.g., [0.25, 0.5, 0.75]).
+    """
     session: Session = st.session_state["session"]
     de_view_model = session.data_explorer_view_model
 
@@ -137,6 +154,18 @@ def outlier_rule_input(
     frequency: int = 0,
     show_dist_as_chart: bool = True,
 ):
+    """Render an outlier rule editor card with variable selector and save/delete actions.
+
+    Args:
+        outlier_id: The FilterID of the rule, or FilterID.TEMPORARY for a new rule.
+        variable_name: Currently selected variable name.
+        comparison_op: Currently selected comparison operator.
+        comparison_base: Currently selected percentile or threshold value.
+        key: Unique widget key suffix for Streamlit state management.
+        errors: Optional exception to display as an error message.
+        frequency: Count of outlier rows found by this rule.
+        show_dist_as_chart: If True, shows a boxplot; otherwise shows a quantile table.
+    """
     session: Session = st.session_state["session"]
     de_view_model = session.data_explorer_view_model
 
@@ -248,6 +277,12 @@ def outlier_rule_input(
 
 
 def outlier_rules():
+    """Render the Outlier Rules section of the Data Explorer page.
+
+    Displays existing outlier rules with their editors, a summary of total
+    outlier count, and a form to add new outlier rules. Supports toggling
+    between boxplot chart and quantile table display modes.
+    """
     session: Session = st.session_state["session"]
     de_view_model = session.data_explorer_view_model
 

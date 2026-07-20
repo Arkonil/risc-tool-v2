@@ -1,3 +1,9 @@
+"""UI components for the Filter Editor page in the Filters module.
+
+Provides Streamlit widgets for editing filter names and queries, including
+a code editor with autocomplete, pie chart preview, and quick reference docs.
+"""
+
 import math
 
 import altair as alt
@@ -34,6 +40,10 @@ math_functions = [
 
 
 def back_button():
+    """Render a button that navigates back to the filter list view.
+
+    When clicked, switches the view model to "view" mode and triggers a rerun.
+    """
     session: Session = st.session_state["session"]
     filter_editor_vm = session.filter_editor_view_model
 
@@ -47,6 +57,10 @@ def back_button():
 
 
 def sidebar_widgets():
+    """Render sidebar widgets for the filter editor.
+
+    Currently displays a link to the Polars expression documentation.
+    """
     st.link_button(
         label="Polars Documentation",
         url="https://docs.pola.rs/user-guide/expressions/",
@@ -55,6 +69,14 @@ def sidebar_widgets():
 
 
 def filter_name_selector(current_name: str) -> str:
+    """Render a text input for editing the filter name.
+
+    Args:
+        current_name: The current name value to display.
+
+    Returns:
+        The user-edited filter name string.
+    """
     edited_name = st.text_input(
         label="Filter Name",
         value=current_name,
@@ -65,6 +87,12 @@ def filter_name_selector(current_name: str) -> str:
 
 
 def pie_chart_widget(filter_obj: Filter | None):
+    """Render a donut pie chart showing the true/false ratio of the filter.
+
+    Args:
+        filter_obj: The Filter object with a compiled filter_expr to evaluate.
+            If None or lacking a filter_expr, nothing is rendered.
+    """
     if filter_obj is None or filter_obj.filter_expr is None:
         return
 
@@ -114,6 +142,7 @@ def pie_chart_widget(filter_obj: Filter | None):
 
 
 def quick_reference_widget():
+    """Render an expandable quick reference section for filter query syntax."""
     with open(AssetPath.FILTER_QUERY_REFERENCE) as fp:
         text = fp.read()
 
@@ -122,6 +151,10 @@ def quick_reference_widget():
 
 
 def on_save():
+    """Callback for the Save button that persists the verified filter.
+
+    Catches RuntimeError from the view model and displays a toast notification.
+    """
     session: Session = st.session_state["session"]
     filter_editor_vm = session.filter_editor_view_model
 
@@ -132,6 +165,12 @@ def on_save():
 
 
 def filter_editor():
+    """Render the Filter Editor page with code editor, controls, and preview.
+
+    Displays a code editor with autocomplete for column names and math
+    functions, a verify button, a pie chart preview of filter results,
+    a save button, error messages, and a quick reference expandable section.
+    """
     session: Session = st.session_state["session"]
     filter_editor_vm = session.filter_editor_view_model
 

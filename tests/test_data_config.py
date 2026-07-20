@@ -9,10 +9,25 @@ from risc_tool.data.repositories.data import DataRepository
 
 
 def write_csv(path: Path, contents: str) -> None:
+    """Write CSV content to a file for test setup.
+
+    Args:
+        path: The file path to write to.
+        contents: The CSV content string.
+    """
     path.write_text(contents, encoding="utf-8")
 
 
 def make_source(uid: int, path: Path) -> DataSource:
+    """Create a DataSource for testing with default ReadConfig.
+
+    Args:
+        uid: The numeric ID for the DataSourceID.
+        path: The file path for the data source.
+
+    Returns:
+        A new DataSource instance with default CSV read configuration.
+    """
     return DataSource(
         uid=DataSourceID(uid),
         label=path.stem,
@@ -22,6 +37,13 @@ def make_source(uid: int, path: Path) -> DataSource:
 
 
 def assert_dtype(schema: pl.Schema, field_name: str, expected: pl.DataType) -> None:
+    """Assert that a schema field has the expected data type.
+
+    Args:
+        schema: The Polars Schema to check.
+        field_name: The column name to look up.
+        expected: The expected Polars DataType.
+    """
     assert schema[field_name] == expected
 
 

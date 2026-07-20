@@ -1,3 +1,9 @@
+"""UI components for the Filter List view in the Filters module.
+
+Provides the list view showing all filters with edit, duplicate, delete
+actions and optional outlier filter display.
+"""
+
 import streamlit as st
 
 from risc_tool.data.models.outlier import OutlierRule
@@ -7,6 +13,10 @@ from risc_tool.ui.filters.no_filter_placeholder import no_filter_placeholder
 
 
 def sidebar_widgets():
+    """Render sidebar widgets for the filter list view.
+
+    Displays a button to create a new filter.
+    """
     session: Session = st.session_state["session"]
     filter_editor_vm = session.filter_editor_view_model
 
@@ -22,6 +32,11 @@ def sidebar_widgets():
 
 @st.dialog("Confirm Deletion")
 def delete_confirmation_dialog(filter_id: FilterID):
+    """Show a confirmation dialog before deleting a filter.
+
+    Args:
+        filter_id: The ID of the filter to confirm deletion for.
+    """
     session: Session = st.session_state["session"]
     filter_editor_vm = session.filter_editor_view_model
 
@@ -39,6 +54,12 @@ def delete_confirmation_dialog(filter_id: FilterID):
 
 
 def filter_list():
+    """Render the filter list view with all filters and management actions.
+
+    Displays each filter with its query, and provides edit, duplicate, and
+    delete buttons. Supports optionally showing outlier rules via a sidebar
+    checkbox. Falls back to a placeholder if no filters exist.
+    """
     session: Session = st.session_state["session"]
     filter_editor_vm = session.filter_editor_view_model
 

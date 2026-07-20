@@ -1,3 +1,9 @@
+"""Repository for managing filters and outlier rules with change notification.
+
+Provides CRUD operations for Filter and OutlierRule objects, validates
+queries against the current data schema, and notifies subscribers of changes.
+"""
+
 import typing as t
 
 import polars as pl
@@ -17,13 +23,33 @@ from risc_tool.utils.duplicate_name import create_duplicate_name
 
 
 class FilterRepository(BaseRepository):
-    """Repository for managing filters and outlier rules using Polars."""
+    """Repository for managing filters and outlier rules using Polars.
+
+    Provides methods for validating, creating, modifying, removing, and
+    duplicating filters. Also manages outlier rules derived from data
+    statistics. Automatically re-validates filters when the data schema
+    changes via the dependency on DataRepository.
+
+    Attributes:
+        filters: Dictionary mapping FilterID to Filter objects.
+    """
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.FILTER_REPOSITORY
+        """
         return Signature.FILTER_REPOSITORY
 
     def __init__(self, data_repository: DataRepository) -> None:
+        """Initialize the FilterRepository with a dependency on DataRepository.
+
+        Args:
+            data_repository: The DataRepository to use for schema lookups
+                and lazyframe access.
+        """
         super().__init__(dependencies=[data_repository])
         self.filters: dict[FilterID, Filter] = {}
         self.__verified_filters: dict[str, Filter] = {}
@@ -59,9 +85,15 @@ class FilterRepository(BaseRepository):
             del self.filters[filter_id]
 
     def __clear_cache(self) -> None:
+        """Clear the verified filter cache so filters are re-validated on next access."""
         self.__verified_filters.clear()
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
+        """Handle dependency updates by re-validating filters and clearing cache.
+
+        Args:
+            change_ids: Set of change IDs from the dependency.
+        """
         self.logger.info("DataRepository updated, updating filters")
 
         # Re-validate user-defined filters and outlier rules
@@ -95,6 +127,12 @@ class FilterRepository(BaseRepository):
         return new_filter
 
     def create_filter(self, name: str, query: str) -> None:
+        """Validate and create a new filter, then notify subscribers.
+
+        Args:
+            name: Human-readable name for the filter.
+            query: The filter expression string.
+        """
         self.logger.info("Creating new filter '%s'", name)
         new_filter = self.validate_filter(name, query)
         new_filter.uid = FilterID(self._get_new_id(current_ids=self.filters.keys()))
@@ -102,6 +140,16 @@ class FilterRepository(BaseRepository):
         self.notify_subscribers()
 
     def modify_filter(self, filter_id: FilterID, name: str, query: str) -> None:
+        """Modify an existing filter's name and/or query, then notify subscribers.
+
+        Args:
+            filter_id: The ID of the filter to modify.
+            name: New human-readable name for the filter.
+            query: New filter expression string.
+
+        Raises:
+            ValueError: If the filter_id is not found in the repository.
+        """
         if filter_id not in self.filters:
             raise ValueError(f"Filter '{filter_id}' not found.")
 
@@ -112,12 +160,22 @@ class FilterRepository(BaseRepository):
         self.notify_subscribers()
 
     def remove_filter(self, filter_id: FilterID) -> None:
+        """Remove a filter from the repository and notify subscribers.
+
+        Args:
+            filter_id: The ID of the filter to remove.
+        """
         self.logger.warning("Removing filter ID %s", filter_id)
         if filter_id in self.filters:
             del self.filters[filter_id]
         self.notify_subscribers()
 
     def duplicate_filter(self, filter_id: FilterID) -> None:
+        """Create a copy of a filter with a unique name and notify subscribers.
+
+        Args:
+            filter_id: The ID of the filter to duplicate.
+        """
         self.logger.info("Duplicating filter ID %s", filter_id)
         filter_name = self.filters[filter_id].name
         existing_names = set(m.name for m in self.filters.values())
@@ -133,6 +191,11 @@ class FilterRepository(BaseRepository):
     # Outliers
     @property
     def outlier_rule_ids(self) -> list[FilterID]:
+        """Get the IDs of all OutlierRule instances in the repository.
+
+        Returns:
+            A list of FilterIDs belonging to OutlierRule objects.
+        """
         return [
             filter_id
             for filter_id, filter_obj in self.filters.items()
@@ -191,6 +254,17 @@ class FilterRepository(BaseRepository):
         comparison_op: ComparisonOperation,
         comparison_base: PercentileOptions | float,
     ) -> None:
+        """Modify an existing outlier rule's parameters and notify subscribers.
+
+        Args:
+            filter_id: The ID of the outlier rule to modify.
+            variable_name: The column name the rule applies to.
+            comparison_op: The comparison operator (>, >=, <, <=).
+            comparison_base: The percentile option or fixed threshold value.
+
+        Raises:
+            ValueError: If the filter_id is not found in the repository.
+        """
         if filter_id not in self.filters:
             raise ValueError(f"Filter '{filter_id}' not found.")
 
@@ -206,7 +280,19 @@ class FilterRepository(BaseRepository):
     def get_combined_expression(
         self, filter_ids: t.Iterable[FilterID], remove_outliers: bool = False
     ) -> pl.Expr | None:
-        """Combine all selected filter and outlier expressions into a single pl.Expr."""
+        """Combine all selected filter and outlier expressions into a single pl.Expr.
+
+        Optionally includes outlier rule expressions. All expressions are
+        combined with logical AND.
+
+        Args:
+            filter_ids: Iterable of FilterIDs for the filters to include.
+            remove_outliers: If True, also include all outlier rule expressions.
+
+        Returns:
+            A single Polars expression combining all selected filters with AND,
+            or None if no filters are selected.
+        """
         active_ids = list(filter_ids)
         if remove_outliers:
             active_ids.extend(self.outlier_rule_ids)
@@ -230,7 +316,17 @@ class FilterRepository(BaseRepository):
     def get_filters(
         self, filter_ids: list[FilterID] | None = None, outliers: bool = False
     ) -> dict[FilterID, Filter]:
-        """Retrieve filters dict, filtered optionally by ID list and/or outlier status."""
+        """Retrieve filters dict, filtered optionally by ID list and/or outlier status.
+
+        Args:
+            filter_ids: Optional list of specific FilterIDs to retrieve.
+                If None, all filters are considered.
+            outliers: If False, outlier rules are excluded; if True, only
+                outlier rules are returned.
+
+        Returns:
+            A dictionary mapping FilterID to Filter matching the criteria.
+        """
         outliers_list = self.outlier_rule_ids
         if filter_ids is None:
             filter_ids = list(self.filters.keys())

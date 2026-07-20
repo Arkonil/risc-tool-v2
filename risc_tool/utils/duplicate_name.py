@@ -1,3 +1,10 @@
+"""Utility for generating unique duplicate names when conflicts occur.
+
+This module provides a function to create a new unique name based on an
+existing name by appending a copy suffix (e.g., "name - copy(1)"). It
+parses existing copy suffixes to increment the counter appropriately.
+"""
+
 import re
 import typing as t
 

@@ -15,7 +15,16 @@ from risc_tool.data.models.types import FilterID
 
 
 def _f(query: str, columns: list[str]) -> Filter:
-    """Build and validate a Filter, returning it ready for execution."""
+    """Build and validate a Filter, returning it ready for execution.
+
+    Args:
+        query: The filter expression string.
+        columns: List of available column names for validation.
+
+    Returns:
+        A Filter with uid=1, name="test", and the given query, validated
+        against the provided columns.
+    """
     f = Filter(FilterID(1), "test", query)
     f.validate_query(available_columns=columns)
     assert f.filter_expr is not None
@@ -23,7 +32,17 @@ def _f(query: str, columns: list[str]) -> Filter:
 
 
 def _apply(f: Filter, lf: pl.LazyFrame, col_name: str | None = None) -> list:
-    """Apply a filter to a LazyFrame and return the specified column as a list."""
+    """Apply a filter to a LazyFrame and return the specified column as a list.
+
+    Args:
+        f: The Filter with a compiled filter_expr.
+        lf: The Polars LazyFrame to filter.
+        col_name: Column name to extract from the result. Defaults to the
+            first column of the LazyFrame.
+
+    Returns:
+        A list of values from the specified column after filtering.
+    """
     if col_name is None:
         col_name = lf.collect_schema().names()[0]
     return lf.filter(f.filter_expr).collect()[col_name].to_list()

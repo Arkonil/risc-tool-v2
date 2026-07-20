@@ -7,6 +7,12 @@ from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
 
 
 def write_csv(path: Path, contents: str) -> None:
+    """Write CSV content to a file for test setup.
+
+    Args:
+        path: The file path to write to.
+        contents: The CSV content string.
+    """
     path.write_text(contents, encoding="utf-8")
 
 
