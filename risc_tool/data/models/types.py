@@ -94,3 +94,74 @@ class FilterID(SentinelInt):
 
 FilterID.TEMPORARY = FilterID(-1, name="TEMPORARY")
 FilterID.EMPTY = FilterID(-2, name="EMPTY")
+
+
+class MetricID(SentinelInt):
+    """Sentinel integer type for metric identifiers."""
+
+    TEMPORARY: "MetricID"
+    DEV_VOLUME: "MetricID"
+    DEV_UNT_BAD_RATE: "MetricID"
+    DEV_DLR_BAD_RATE: "MetricID"
+    TST_VOLUME: "MetricID"
+    TST_UNT_BAD_RATE: "MetricID"
+    TST_DLR_BAD_RATE: "MetricID"
+    EMPTY: "MetricID"
+
+    @classmethod
+    def validate_sentinel(cls, v: int) -> "MetricID":
+        if v == int(cls.TEMPORARY):
+            return cls.TEMPORARY
+        if v == int(cls.DEV_VOLUME):
+            return cls.DEV_VOLUME
+        if v == int(cls.DEV_UNT_BAD_RATE):
+            return cls.DEV_UNT_BAD_RATE
+        if v == int(cls.DEV_DLR_BAD_RATE):
+            return cls.DEV_DLR_BAD_RATE
+        if v == int(cls.TST_VOLUME):
+            return cls.TST_VOLUME
+        if v == int(cls.TST_UNT_BAD_RATE):
+            return cls.TST_UNT_BAD_RATE
+        if v == int(cls.TST_DLR_BAD_RATE):
+            return cls.TST_DLR_BAD_RATE
+        if v == int(cls.EMPTY):
+            return cls.EMPTY
+
+        return super().validate_sentinel(v)
+
+    @property
+    def is_default(self) -> bool:
+        return self in (
+            MetricID.DEV_VOLUME,
+            MetricID.DEV_UNT_BAD_RATE,
+            MetricID.DEV_DLR_BAD_RATE,
+            MetricID.TST_VOLUME,
+            MetricID.TST_UNT_BAD_RATE,
+            MetricID.TST_DLR_BAD_RATE,
+        )
+
+
+MetricID.TEMPORARY = MetricID(-1, name="TEMPORARY")
+MetricID.DEV_VOLUME = MetricID(-2, name="DEV_VOLUME")
+MetricID.DEV_UNT_BAD_RATE = MetricID(-3, name="DEV_UNT_BAD_RATE")
+MetricID.DEV_DLR_BAD_RATE = MetricID(-4, name="DEV_DLR_BAD_RATE")
+MetricID.TST_VOLUME = MetricID(-6, name="TST_VOLUME")
+MetricID.TST_UNT_BAD_RATE = MetricID(-7, name="TST_UNT_BAD_RATE")
+MetricID.TST_DLR_BAD_RATE = MetricID(-8, name="TST_DLR_BAD_RATE")
+MetricID.EMPTY = MetricID(-5, name="EMPTY")
+
+
+class IterationID(SentinelInt):
+    """Sentinel integer type for iteration identifiers."""
+
+    INVALID: "IterationID"
+
+    @classmethod
+    def validate_sentinel(cls, v: int) -> "IterationID":
+        if v == int(cls.INVALID):
+            return cls.INVALID
+
+        return super().validate_sentinel(v)
+
+
+IterationID.INVALID = IterationID(-1, name="INVALID")

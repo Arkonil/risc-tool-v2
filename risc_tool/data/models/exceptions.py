@@ -5,6 +5,30 @@ import textwrap
 from risc_tool.data.models.data_source import DataSource
 
 
+class MissingColumnError(Exception):
+    """Exception raised when a specified column is not found in the data."""
+
+    def __init__(self, column_name: str):
+        super().__init__(f"Column '{column_name}' not found in data.")
+
+
+class VariableNotNumericError(Exception):
+    """Exception raised when a variable is expected to be numeric but is not."""
+
+    def __init__(self, variable_name: str, actual_type: str):
+        super().__init__(
+            f"Variable '{variable_name}' is not numeric. Found type: {actual_type}."
+        )
+
+
+class SampleDataNotLoadedError(Exception):
+    """Exception raised when data sources are not loaded but are required."""
+
+    def __init__(self, message: str = "Sample data is not loaded."):
+        self.message = message
+        super().__init__(self.message)
+
+
 class DataImportError(Exception):
     """Exception raised when there is an error during data import.
 

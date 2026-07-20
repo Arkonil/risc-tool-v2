@@ -145,3 +145,25 @@ class PercentileOptions(StrEnum):
                 return f"{float(value):,}"
             except ValueError:
                 return value
+
+
+class DefaultMetricNames(StrEnum):
+    DEV_VOLUME = "Volume"
+    DEV_UNT_BAD_RATE = "# Annl. Bad Rate"
+    DEV_DLR_BAD_RATE = "$ Annl. Bad Rate"
+    TST_VOLUME = "Volume (Test)"
+    TST_UNT_BAD_RATE = "# Early Delq. Rate"
+    TST_DLR_BAD_RATE = "$ Early Delq. Rate"
+
+
+class MetricTemplates(StrEnum):
+    VOLUME = "Volume"
+    APPROVAL_RATE = "Approval Rate"
+    OVERALL_APPROVAL_RATE = "Overall Approval Rate"
+    DLR_BAD_RATE = "$ Bad Rate"
+    UNT_BAD_RATE = "# Bad Rate"
+
+
+class LossRateTypes(StrEnum):
+    DLR = "$ Bad Rate"
+    ULR = "# Bad Rate"
