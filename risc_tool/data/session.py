@@ -7,6 +7,7 @@ including repositories and view models.
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.metric import MetricRepository
+from risc_tool.ui.components.variable_selector_vm import VariableSelectorViewModel
 from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
 from risc_tool.ui.data_importer.data_importer_vm import DataImporterViewModel
 from risc_tool.ui.filters.filters_vm import FilterViewModel
@@ -60,6 +61,10 @@ class Session:
             self.filter_repository,
         )
         self.metric_editor_view_model = MetricViewModel(
+            self.data_repository,
+            self.metric_repository,
+        )
+        self.variable_selector_view_model = VariableSelectorViewModel(
             self.data_repository,
             self.metric_repository,
         )
