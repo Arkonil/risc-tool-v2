@@ -7,7 +7,10 @@ including repositories and view models.
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.metric import MetricRepository
+from risc_tool.data.repositories.options import OptionRepository
+from risc_tool.data.repositories.scalar import ScalarRepository
 from risc_tool.ui.components.variable_selector_vm import VariableSelectorViewModel
+from risc_tool.ui.config.config_vm import ConfigViewModel
 from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
 from risc_tool.ui.data_importer.data_importer_vm import DataImporterViewModel
 from risc_tool.ui.filters.filters_vm import FilterViewModel
@@ -20,28 +23,34 @@ logger = get_logger(__name__)
 class Session:
     """Container for the application's session state.
 
-    Holds references to the data repository and view models, allowing
+    Holds references to the repositories and view models, allowing
     them to persist across Streamlit reruns via session state.
 
     Attributes:
         data_repository: Repository for managing data sources.
         filter_repository: Repository for managing filters.
+        metric_repository: Repository for managing metrics.
+        option_repository: Repository for managing options and risk segments.
+        scalar_repository: Repository for managing loss rate scalars.
         data_importer_view_model: View model for the data importer UI.
         data_explorer_view_model: View model for the data explorer UI.
         filter_editor_view_model: View model for the filters UI.
+        metric_editor_view_model: View model for the metrics UI.
+        variable_selector_view_model: View model for variable selection UI.
+        config_view_model: View model for the configuration UI.
     """
 
     def __init__(self):
         """Initialize a new session with default repositories and view models."""
         self.reset()
         logger.info(
-            "Session initialized with DataRepository, FilterRepository, and 3 view models"
+            "Session initialized with Repositories and View Models"
         )
 
     def reset(self):
         """Reset the session to its initial state.
 
-        Creates a new DataRepository, FilterRepository, and respective view models.
+        Creates new repositories and respective view models.
         """
         logger.debug("Resetting session: recreating all repositories and view models")
 
@@ -49,6 +58,8 @@ class Session:
         self.data_repository = DataRepository()
         self.filter_repository = FilterRepository(self.data_repository)
         self.metric_repository = MetricRepository(self.data_repository)
+        self.option_repository = OptionRepository()
+        self.scalar_repository = ScalarRepository()
 
         # View Models
         self.data_importer_view_model = DataImporterViewModel(self.data_repository)
@@ -66,5 +77,10 @@ class Session:
         )
         self.variable_selector_view_model = VariableSelectorViewModel(
             self.data_repository,
+            self.metric_repository,
+        )
+        self.config_view_model = ConfigViewModel(
+            self.option_repository,
+            self.scalar_repository,
             self.metric_repository,
         )
