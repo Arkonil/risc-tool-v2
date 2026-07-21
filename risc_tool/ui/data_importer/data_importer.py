@@ -7,6 +7,7 @@ configure, and preview data sources.
 import streamlit as st
 
 from risc_tool.data.session import Session
+from risc_tool.ui.components.variable_selector import variable_selector
 from risc_tool.ui.data_importer.data_selector import data_selector
 from risc_tool.ui.data_importer.data_viewer import data_viewer
 from risc_tool.utils.logging import get_logger
@@ -39,8 +40,9 @@ def data_importer_view():
     st.space()
 
     st.subheader("Variable Selector")
-    # with st.container(border=True):
-    #     variable_selector()
+    with st.container(border=True):
+        variable_selector()
+        st.space()
 
 
 data_importer_page = st.Page(
