@@ -165,3 +165,6 @@ class IterationID(SentinelInt):
 
 
 IterationID.INVALID = IterationID(-1, name="INVALID")
+
+DataSourceType = typing.Literal["dev", "tst"]
+ColumnUsage = typing.Literal["unt_bad", "dlr_bad", "avg_bal"]
