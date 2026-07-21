@@ -167,3 +167,21 @@ class MetricTemplates(StrEnum):
 class LossRateTypes(StrEnum):
     DLR = "$ Bad Rate"
     ULR = "# Bad Rate"
+
+
+class RSDetCol(StrEnum):
+    SELECTED = "Selected"
+    ORIG_INDEX = "Original Index"
+    RISK_SEGMENT = "Risk Segment"
+    LOWER_RATE = "Lower Bad Rate"
+    UPPER_RATE = "Upper Bad Rate"
+    BG_COLOR = "Background Color"
+    FONT_COLOR = "Font Color"
+    MAF_ULR = "Maturity Adjustment Factor (ULR)"
+    MAF_DLR = "Maturity Adjustment Factor (DLR)"
+
+
+class ScalarTableColumn(StrEnum):
+    RISK_SEGMENT = "Risk Segment"
+    MAF = "Maturity Adjustment Factor"
+    RISK_SCALAR_FACTOR = "Risk Scalar Factor"
