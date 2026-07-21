@@ -19,3 +19,9 @@
 ## Architecture & Routing Invariants
 - Package entrypoints under `risc_tool/ui/<feature>/__init__.py` must remain empty. Define page routes and `st.Page` instances inside `risc_tool/ui/<feature>/<feature>.py` to avoid circular imports during session/view model initialization.
 - Test files under `tests/` must be organized into structured subpackages (`tests/data/models/`, `tests/data/services/`, `tests/ui/<feature>/`) mirroring the `risc_tool` codebase structure.
+
+## Streamlit & View Model Design Standards
+- View Models (`risc_tool/ui/<feature>/<feature>_vm.py`) must encapsulate all table formatting, pandas `Styler` construction (CSS colors, cell styles), unit scaling (e.g. % vs decimal), validation, and edit processing logic.
+- UI elements (`risc_tool/ui/<feature>/<feature>.py`) must remain presentation-only: they fetch preconfigured `Styler` objects from the View Model to display in `st.data_editor` and pass edited DataFrames directly to View Model handler methods without performing manual data loops or data juggling.
+- When type-annotating pandas Styler objects in Python code, import `from pandas.io.formats.style import Styler` directly to prevent `AttributeError: module 'pandas.io.formats' has no attribute 'style'` at runtime.
+
