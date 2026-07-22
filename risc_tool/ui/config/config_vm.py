@@ -125,10 +125,10 @@ class ConfigViewModel(ChangeTracker):
         return styler
 
     def validate_risk_segments(self, edited_df: pd.DataFrame) -> list[str]:
-        """Validate risk segment names in edited DataFrame.
+        """Validate risk segment names and upper bad rate monotonicity in edited DataFrame.
 
         Returns:
-            List of error messages if names are duplicate or empty.
+            List of error messages if validation fails.
         """
         errors: list[str] = []
         names: list[str] = (
@@ -149,6 +149,35 @@ class ConfigViewModel(ChangeTracker):
             errors.append(
                 f"Risk Segment Names must be unique. Repeated: {sorted(duplicates)}"
             )
+
+        # Monotonicity validation for Upper Bad Rate
+        def get_upper_rate_val(val: t.Any) -> float:
+            if pd.isna(val) or val is None:
+                return float("inf")
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                return float("inf")
+
+        rates = [
+            get_upper_rate_val(edited_df.at[idx, RSDetCol.UPPER_RATE])
+            for idx in range(len(edited_df))
+        ]
+
+        for idx in range(1, len(edited_df)):
+            prev_rate = rates[idx - 1]
+            curr_rate = rates[idx]
+            if curr_rate < prev_rate:
+                prev_name = str(edited_df.at[idx - 1, RSDetCol.RISK_SEGMENT]).strip()
+                curr_name = str(edited_df.at[idx, RSDetCol.RISK_SEGMENT]).strip()
+
+                prev_str = "None" if prev_rate == float("inf") else f"{prev_rate:.2f}%"
+                curr_str = "None" if curr_rate == float("inf") else f"{curr_rate:.2f}%"
+
+                errors.append(
+                    f"Upper Bad Rate of segment '{curr_name}' ({curr_str}) "
+                    f"cannot be lower than that of segment '{prev_name}' ({prev_str})."
+                )
 
         return errors
 

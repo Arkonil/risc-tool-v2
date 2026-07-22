@@ -81,14 +81,38 @@ def test_config_view_model_styler_and_edit_processing():
     assert len(errors_dup) == 1
     assert "must be unique" in errors_dup[0]
 
-    # 3. Test Risk Segment Edit processing
+    # Test monotonicity validation
+    # A. Valid monotonicity:
+    valid_mono_df = df.copy()
+    valid_mono_df.loc[0, RSDetCol.UPPER_RATE.value] = 2.0
+    valid_mono_df.loc[1, RSDetCol.UPPER_RATE.value] = 2.0
+    valid_mono_df.loc[2, RSDetCol.UPPER_RATE.value] = 3.0
+    errors_mono_valid = vm.validate_risk_segments(valid_mono_df)
+    assert len(errors_mono_valid) == 0
+
+    # B. Invalid monotonicity (value lower than previous segment):
+    invalid_mono_df = df.copy()
+    invalid_mono_df.loc[1, RSDetCol.UPPER_RATE.value] = 1.0  # 1B set to 1.0% (less than 1A's 2.0%)
+    errors_mono_invalid = vm.validate_risk_segments(invalid_mono_df)
+    assert len(errors_mono_invalid) == 1
+    assert "cannot be lower than that of segment" in errors_mono_invalid[0]
+
+    # C. Missing/None treated as infinity:
+    invalid_none_df = df.copy()
+    invalid_none_df.loc[4, RSDetCol.UPPER_RATE.value] = None  # 3A set to None (infinity)
+    # Subsequent segment 3B (idx 5) has upper rate 7.0%. Since 7.0% < inf, it should fail.
+    errors_none = vm.validate_risk_segments(invalid_none_df)
+    assert len(errors_none) > 0
+    assert "cannot be lower than that of segment" in errors_none[0]
+
+    # 3. Test Risk Segment Edit processing (using valid monotonic values)
     edited_df = df.copy()
     edited_df.loc[0, RSDetCol.RISK_SEGMENT.value] = "Renamed1A"
-    edited_df.loc[0, RSDetCol.UPPER_RATE.value] = 3.0  # 3.0% -> 0.03 decimal
+    edited_df.loc[0, RSDetCol.UPPER_RATE.value] = 1.5  # 1.5% -> 0.015 decimal
     has_changes = vm.process_risk_segment_edits(edited_df)
     assert has_changes is True
     assert vm.segments[0].name == "Renamed1A"
-    assert vm.segments[0].upper_rate == 0.03
+    assert vm.segments[0].upper_rate == 0.015
 
     # 4. Test Annualization Table & Edit processing
     ann_df = vm.get_annualization_df(LossRateTypes.DLR)
