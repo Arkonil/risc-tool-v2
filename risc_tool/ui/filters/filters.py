@@ -30,6 +30,7 @@ filter_page = st.Page(
     page=filters,
     title="Filters",
     icon=":material/filter_alt:",
+    url_path="/filters",
 )
 
 __all__ = [

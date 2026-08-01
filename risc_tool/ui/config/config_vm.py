@@ -1,20 +1,21 @@
 """View model for the Configuration UI page."""
 
 import typing as t
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
 from pandas.io.formats.style import Styler
 
 from risc_tool.data.models.changes import ChangeTracker
-from risc_tool.data.models.config import LossRateScalar, RiskSegment, RiskSegmentConfig
+from risc_tool.data.models.config import LossRateScalar
 from risc_tool.data.models.enums import (
     LossRateTypes,
     RSDetCol,
     ScalarTableColumn,
     Signature,
 )
-from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.types import ChangeIDs, RiskSegmentID
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.data.repositories.options import OptionRepository
 from risc_tool.data.repositories.scalar import ScalarRepository
@@ -76,53 +77,13 @@ class ConfigViewModel(ChangeTracker):
 
     # Risk Segment Details
     @property
-    def risk_segment_config(self) -> RiskSegmentConfig:
-        return self._option_repository.risk_segment_config
-
-    @property
-    def segments(self) -> list[RiskSegment]:
+    def segments(self):
         return self._option_repository.segments
-
-    @property
-    def risk_segment_details_df(self) -> pd.DataFrame:
-        """Generate DataFrame representation of risk segment details."""
-        records: list[dict[RSDetCol, t.Any]] = []
-        for seg in self.segments:
-            records.append({
-                RSDetCol.SELECTED: False,
-                RSDetCol.RISK_SEGMENT: seg.name,
-                RSDetCol.LOWER_RATE: seg.lower_rate * 100.0,
-                RSDetCol.UPPER_RATE: (seg.upper_rate * 100.0)
-                if seg.upper_rate is not None
-                else np.nan,
-                RSDetCol.FONT_COLOR: seg.font_color,
-                RSDetCol.BG_COLOR: seg.bg_color,
-            })
-        return pd.DataFrame(records)
 
     @property
     def risk_segment_details_styler(self) -> Styler:
         """Generate preconfigured pandas Styler for risk segment details table."""
-        df = self.risk_segment_details_df
-        styler = df.style
-
-        for row_idx in df.index:
-            font_color = df.loc[row_idx, RSDetCol.FONT_COLOR]
-            bg_color = df.loc[row_idx, RSDetCol.BG_COLOR]
-
-            # Apply text & background color styling to Font Color and Background Color cells
-            styler = styler.set_properties(
-                subset=(
-                    slice(row_idx, row_idx),
-                    slice(RSDetCol.FONT_COLOR.value, RSDetCol.BG_COLOR.value),
-                ),
-                **{
-                    "color": str(font_color),
-                    "background-color": str(bg_color),
-                },
-            )
-
-        return styler
+        return self._option_repository.risk_segments.to_pandas_styler()
 
     def validate_risk_segments(self, edited_df: pd.DataFrame) -> list[str]:
         """Validate risk segment names and upper bad rate monotonicity in edited DataFrame.
@@ -195,20 +156,23 @@ class ConfigViewModel(ChangeTracker):
             if idx >= len(self.segments):
                 break
 
-            orig_seg = self.segments[idx]
+            orig_seg = self.segments.get(RiskSegmentID(idx))
+            if orig_seg is None:
+                continue
+
             new_name = str(edited_df.at[idx, RSDetCol.RISK_SEGMENT]).strip()
             if new_name != orig_seg.name:
-                self.set_risk_seg_name(idx, new_name)
+                self.set_risk_seg_name(RiskSegmentID(idx), new_name)
                 needs_rerun = True
 
             new_upper_val = edited_df.at[idx, RSDetCol.UPPER_RATE]
             if pd.isna(new_upper_val):
-                new_upper = None
+                new_upper = float("inf")
             else:
                 new_upper = _coerce_to_float(new_upper_val) / 100.0
 
             if new_upper != orig_seg.upper_rate:
-                self.set_risk_seg_upper_rate(idx, new_upper)
+                self.set_risk_seg_upper_rate(RiskSegmentID(idx), new_upper)
                 needs_rerun = True
 
         return needs_rerun
@@ -216,31 +180,37 @@ class ConfigViewModel(ChangeTracker):
     def add_risk_seg_row(self) -> None:
         self._option_repository.add_risk_seg_row()
 
-    def delete_selected_risk_seg_rows(self, indices: list[int]) -> None:
-        self._option_repository.delete_selected_risk_seg_rows(indices)
+    def delete_selected_risk_seg_rows(self, segment_ids: list[RiskSegmentID]) -> None:
+        self._option_repository.delete_selected_risk_seg_rows(segment_ids)
 
-    def set_risk_seg_font_color(self, indices: list[int], color: str) -> None:
-        self._option_repository.set_risk_seg_font_color(indices, color)
+    def set_risk_seg_font_color(
+        self, segment_ids: list[RiskSegmentID], color: str
+    ) -> None:
+        self._option_repository.set_risk_seg_font_color(segment_ids, color)
 
-    def set_risk_seg_bg_color(self, indices: list[int], color: str) -> None:
-        self._option_repository.set_risk_seg_bg_color(indices, color)
+    def set_risk_seg_bg_color(
+        self, segment_ids: list[RiskSegmentID], color: str
+    ) -> None:
+        self._option_repository.set_risk_seg_bg_color(segment_ids, color)
 
     def set_risk_seg_default_values(self) -> None:
         self._option_repository.reset_risk_seg_defaults()
 
-    def set_risk_seg_name(self, index: int, name: str) -> None:
-        self._option_repository.set_risk_seg_name(index, name)
+    def set_risk_seg_name(self, segment_id: RiskSegmentID, name: str) -> None:
+        self._option_repository.set_risk_seg_name(segment_id, name)
 
-    def set_risk_seg_upper_rate(self, index: int, upper_rate: float | None) -> None:
-        self._option_repository.set_risk_seg_upper_rate(index, upper_rate)
+    def set_risk_seg_upper_rate(
+        self, segment_id: RiskSegmentID, upper_rate: float
+    ) -> None:
+        self._option_repository.set_risk_seg_upper_rate(segment_id, upper_rate)
 
     def set_risk_seg_maf(
-        self, index: int, maf: float, loss_rate_type: LossRateTypes
+        self, segment_id: RiskSegmentID, maf: float, loss_rate_type: LossRateTypes
     ) -> None:
-        self._option_repository.set_risk_seg_maf(index, maf, loss_rate_type)
+        self._option_repository.set_risk_seg_maf(segment_id, maf, loss_rate_type)
 
-    def get_color(self, segment_name: str) -> tuple[str, str]:
-        return self._option_repository.get_color(segment_name)
+    def get_color(self, segment_id: RiskSegmentID) -> tuple[str, str]:
+        return self._option_repository.get_color(segment_id)
 
     # Scalars & MOB
     @property
@@ -306,22 +276,25 @@ class ConfigViewModel(ChangeTracker):
     def get_risk_scalar_factor_styler(self, loss_rate_type: LossRateTypes) -> Styler:
         """Generate preconfigured pandas Styler for Risk Scalar Factor table."""
         scalar = self.get_scalar(loss_rate_type)
-        records: list[dict[ScalarTableColumn, float | str]] = []
-        for seg in self.segments:
+
+        records: OrderedDict[RiskSegmentID, dict[ScalarTableColumn, t.Any]] = (
+            OrderedDict()
+        )
+
+        for seg_id, seg in self.segments.items():
             maf = seg.maf_dlr if loss_rate_type == LossRateTypes.DLR else seg.maf_ulr
             rsf = max(maf * scalar.portfolio_scalar, 1.0)
-            records.append({
+            records[seg_id] = {
                 ScalarTableColumn.RISK_SEGMENT: seg.name,
                 ScalarTableColumn.MAF: maf * 100.0,
                 ScalarTableColumn.RISK_SCALAR_FACTOR: rsf,
-            })
+            }
 
-        df = pd.DataFrame(records)
+        df = pd.DataFrame.from_dict(records, orient="index")
         styler = df.style
 
         for row_idx in df.index:
-            seg_name = str(df.loc[row_idx, ScalarTableColumn.RISK_SEGMENT])
-            font_color, bg_color = self.get_color(seg_name)
+            font_color, bg_color = self.get_color(RiskSegmentID(row_idx))
             styler = styler.set_properties(
                 subset=(
                     slice(row_idx, row_idx),
@@ -347,7 +320,10 @@ class ConfigViewModel(ChangeTracker):
             if idx >= len(self.segments):
                 break
 
-            orig_seg = self.segments[idx]
+            orig_seg = self.segments.get(RiskSegmentID(idx))
+            if orig_seg is None:
+                continue
+
             curr_maf = (
                 orig_seg.maf_dlr
                 if loss_rate_type == LossRateTypes.DLR
@@ -356,7 +332,7 @@ class ConfigViewModel(ChangeTracker):
             new_maf = _coerce_to_float(edited_df.at[idx, ScalarTableColumn.MAF]) / 100.0
 
             if abs(new_maf - curr_maf) > 1e-6:
-                self.set_risk_seg_maf(idx, new_maf, loss_rate_type)
+                self.set_risk_seg_maf(RiskSegmentID(idx), new_maf, loss_rate_type)
                 needs_rerun = True
 
         return needs_rerun

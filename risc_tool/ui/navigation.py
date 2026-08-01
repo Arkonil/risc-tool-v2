@@ -9,7 +9,7 @@ from risc_tool.ui.documentation import documentation_page
 from risc_tool.ui.export import export_page
 from risc_tool.ui.filters.filters import filter_page
 from risc_tool.ui.home import home_page
-from risc_tool.ui.iterations import iterations_page
+from risc_tool.ui.iterations.iterations import iterations_page
 from risc_tool.ui.metrics.metrics import metrics_page
 from risc_tool.ui.summary import summary_page
 
