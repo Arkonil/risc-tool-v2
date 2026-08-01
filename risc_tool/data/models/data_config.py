@@ -51,7 +51,9 @@ class DataConfig:
             self._schema = pl.Schema()
             return
 
-        logger.info("Updating unified schema from %d valid sources", len(valid_data_sources))
+        logger.info(
+            "Updating unified schema from %d valid sources", len(valid_data_sources)
+        )
 
         self._schemas = {
             ds.uid: ds.lazyframe.collect_schema() for ds in valid_data_sources
@@ -96,5 +98,9 @@ class DataConfig:
             )
             result.add((col, var_type))
 
-        logger.debug("Available columns across %d sources: %d common columns", len(data_source_ids), len(result))
+        logger.debug(
+            "Available columns across %d sources: %d common columns",
+            len(data_source_ids),
+            len(result),
+        )
         return result

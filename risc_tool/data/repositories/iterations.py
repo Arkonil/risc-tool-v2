@@ -134,8 +134,7 @@ class IterationsRepository(BaseRepository):
             return default_groups
 
         quantile_exprs = [
-            pl
-            .col(variable_name)
+            pl.col(variable_name)
             .cast(pl.Float64)
             .quantile(i / group_count, interpolation="linear")
             .alias(f"q{i}")
@@ -144,8 +143,7 @@ class IterationsRepository(BaseRepository):
 
         if quantile_exprs:
             quantile_row = (
-                self.__data_repository
-                .get_lazyframe()
+                self.__data_repository.get_lazyframe()
                 .select(quantile_exprs)
                 .collect()
                 .row(0, named=True)
@@ -183,11 +181,9 @@ class IterationsRepository(BaseRepository):
             return default_groups
 
         unique_values = (
-            self.__data_repository
-            .get_lazyframe()
+            self.__data_repository.get_lazyframe()
             .select(
-                pl
-                .col(variable_name)
+                pl.col(variable_name)
                 .cast(pl.String)
                 .drop_nulls()
                 .unique()
@@ -582,8 +578,7 @@ class IterationsRepository(BaseRepository):
                 denominator = None
 
             parent_segments_present = (
-                base_lf
-                .select(pl.col(parent_col).drop_nulls().unique().sort())
+                base_lf.select(pl.col(parent_col).drop_nulls().unique().sort())
                 .collect()
                 .get_column(parent_col)
                 .to_list()
@@ -1199,11 +1194,13 @@ class IterationsRepository(BaseRepository):
         rows: list[dict[str, str]] = []
         for gid in target_rows:
             row = target_grid.get(gid, {})
-            rows.append({
-                column_name_map[parent_seg]: value_map.get(target_seg, "")
-                for parent_seg, target_seg in row.items()
-                if parent_seg in column_name_map
-            })
+            rows.append(
+                {
+                    column_name_map[parent_seg]: value_map.get(target_seg, "")
+                    for parent_seg, target_seg in row.items()
+                    if parent_seg in column_name_map
+                }
+            )
 
         return pd.DataFrame(rows, index=target_rows)
 
@@ -1590,8 +1587,7 @@ class IterationsRepository(BaseRepository):
 
             scalar_index = metric_df.index
             maf_dlr_series = (
-                pd
-                .Series(
+                pd.Series(
                     {idx: values[0] for idx, values in scalar_rows.items()},
                     index=scalar_index,
                     dtype=float,
@@ -1600,8 +1596,7 @@ class IterationsRepository(BaseRepository):
                 .fillna(1.0)
             )
             maf_ulr_series = (
-                pd
-                .Series(
+                pd.Series(
                     {idx: values[1] for idx, values in scalar_rows.items()},
                     index=scalar_index,
                     dtype=float,

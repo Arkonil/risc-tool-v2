@@ -117,7 +117,9 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
             other = dict(args[0])
             for key in other:
                 if key in self:
-                    logger.warning("Attempted to update existing key '%s' (forbidden)", key)
+                    logger.warning(
+                        "Attempted to update existing key '%s' (forbidden)", key
+                    )
                     raise ValueError(f"Key '{key}' already exists. Update forbidden.")
         elif len(args) > 1:
             logger.warning("update expected at most 1 argument, got %d", len(args))
@@ -126,7 +128,9 @@ class WriteOnceOrderedDict(OrderedDict[K, V]):
         # Check kwargs
         for key in kwargs:
             if key in self:
-                logger.warning("Attempted to update existing key '%s' via kwargs (forbidden)", key)
+                logger.warning(
+                    "Attempted to update existing key '%s' via kwargs (forbidden)", key
+                )
                 raise ValueError(f"Key '{key}' already exists. Update forbidden.")
 
         super().update(*args, **kwargs)

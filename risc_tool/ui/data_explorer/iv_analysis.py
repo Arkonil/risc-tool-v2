@@ -72,8 +72,7 @@ def iv_bar_chart(dataframe: pd.DataFrame):
     )
 
     text_labels = (
-        alt
-        .Chart(dataframe)
+        alt.Chart(dataframe)
         .mark_text(
             align="center",
             dy=-15,
@@ -142,12 +141,14 @@ def iv_analysis():
             type="primary",
             icon=":material/save:",
         ):
-            if any([
-                de_view_model.iv_current_target != target_variable,
-                de_view_model.iv_current_variables != input_variables,
-                de_view_model.iv_current_filter_ids != filter_ids,
-                de_view_model.iv_remove_outliers != remove_outliers,
-            ]):
+            if any(
+                [
+                    de_view_model.iv_current_target != target_variable,
+                    de_view_model.iv_current_variables != input_variables,
+                    de_view_model.iv_current_filter_ids != filter_ids,
+                    de_view_model.iv_remove_outliers != remove_outliers,
+                ]
+            ):
                 logger.info(
                     "User saved IV configuration (target=%s, variables=%d, filters=%d)",
                     target_variable,

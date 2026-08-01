@@ -228,7 +228,11 @@ class DataImporterViewModel(ChangeTracker):
                 )
                 self.showing_empty_data_source = False
                 self.empty_data_source_view = DataSourceViewModel()
-                self.logger.info("New data source '%s' created with ID %s", label, new_data_source.uid)
+                self.logger.info(
+                    "New data source '%s' created with ID %s",
+                    label,
+                    new_data_source.uid,
+                )
             except DataImportError as e:
                 self.logger.error("Import error adding new data source: %s", e)
                 eds = self.empty_data_source_view.data_source
@@ -250,7 +254,9 @@ class DataImporterViewModel(ChangeTracker):
                     label=label,
                     read_config=read_config,
                 )
-                self.logger.info("Data source ID %s updated successfully", data_source_id)
+                self.logger.info(
+                    "Data source ID %s updated successfully", data_source_id
+                )
                 self._current_ds_id = new_data_source.uid
             except DataImportError as e:
                 self.logger.error(

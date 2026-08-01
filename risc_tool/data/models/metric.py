@@ -148,11 +148,13 @@ class MetricQueryValidator(ast.NodeVisitor):
             return True
 
         if isinstance(expr_node, ast.BinOp):
-            return all([
-                isinstance(expr_node.op, self.allowed_operators),
-                self.is_result_scalar(expr_node.left),
-                self.is_result_scalar(expr_node.right),
-            ])
+            return all(
+                [
+                    isinstance(expr_node.op, self.allowed_operators),
+                    self.is_result_scalar(expr_node.left),
+                    self.is_result_scalar(expr_node.right),
+                ]
+            )
 
         if isinstance(expr_node, ast.Call):
             if isinstance(expr_node.func, ast.Name):

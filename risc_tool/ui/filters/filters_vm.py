@@ -213,7 +213,11 @@ class FilterViewModel(ChangeTracker):
             self.__filter_cache.name,
         )
         if not self.is_verified or self.__errors:
-            self.logger.warning("Save rejected: filter not verified (is_verified=%s, errors=%d)", self.is_verified, len(self.__errors))
+            self.logger.warning(
+                "Save rejected: filter not verified (is_verified=%s, errors=%d)",
+                self.is_verified,
+                len(self.__errors),
+            )
             raise RuntimeError("Filter is not verified")
 
         if self.__filter_cache.uid == FilterID.TEMPORARY:

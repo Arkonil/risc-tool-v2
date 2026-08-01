@@ -45,8 +45,7 @@ def show_boxplot(variable: str):
     )
 
     boxplot = (
-        alt
-        .Chart(df)
+        alt.Chart(df)
         .mark_boxplot(
             orient="horizontal",
             size=20,
@@ -57,8 +56,7 @@ def show_boxplot(variable: str):
     )
 
     anchors = (
-        alt
-        .Chart(perc_df)
+        alt.Chart(perc_df)
         .mark_point(size=300, opacity=0)
         .encode(
             x="Value:Q", tooltip=["Percentile:N", alt.Tooltip("Value:Q", format=".2f")]
@@ -67,8 +65,7 @@ def show_boxplot(variable: str):
     )
 
     arrows = (
-        alt
-        .Chart(perc_df)
+        alt.Chart(perc_df)
         .mark_text(text="▼", size=16, baseline="bottom", dy=0)
         .encode(
             x="Value:Q",
@@ -77,8 +74,7 @@ def show_boxplot(variable: str):
     )
 
     text_above = (
-        alt
-        .Chart(perc_df)
+        alt.Chart(perc_df)
         .mark_text(
             align="center",
             baseline="bottom",
@@ -94,8 +90,7 @@ def show_boxplot(variable: str):
     )
 
     text_below = (
-        alt
-        .Chart(perc_df)
+        alt.Chart(perc_df)
         .mark_text(
             align="center",
             baseline="top",

@@ -105,18 +105,22 @@ def pie_chart_widget(filter_obj: Filter | None):
     lf = filter_editor_vm.lazyframe
 
     try:
-        counts_df = lf.select([
-            filter_obj.filter_expr.sum().alias("True"),
-            (~filter_obj.filter_expr).sum().alias("False"),
-        ]).collect()
+        counts_df = lf.select(
+            [
+                filter_obj.filter_expr.sum().alias("True"),
+                (~filter_obj.filter_expr).sum().alias("False"),
+            ]
+        ).collect()
 
         satisfies = counts_df.item(0, "True")
         not_satisfies = counts_df.item(0, "False")
 
-        counts = pd.DataFrame({
-            "Condition Satisfies": ["True", "False"],
-            "Count": [satisfies, not_satisfies],
-        })
+        counts = pd.DataFrame(
+            {
+                "Condition Satisfies": ["True", "False"],
+                "Count": [satisfies, not_satisfies],
+            }
+        )
 
     except Exception as e:
         logger.exception("Failed to calculate distribution chart")

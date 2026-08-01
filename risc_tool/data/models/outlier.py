@@ -56,8 +56,7 @@ class OutlierRule(Filter):
         # 1. Compute Mode
         try:
             mode_df = (
-                lf
-                .select(col_expr)
+                lf.select(col_expr)
                 .drop_nulls()
                 .group_by(self.variable_name)
                 .len()

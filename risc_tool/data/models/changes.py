@@ -106,7 +106,9 @@ class ChangeTracker(ABC):
         has_changed = self._has_changed(change_ids)
 
         if has_changed:
-            self.logger.debug("Dependency update received: %d change IDs", len(change_ids))
+            self.logger.debug(
+                "Dependency update received: %d change IDs", len(change_ids)
+            )
             self._add_changes(change_ids)
             self.on_dependency_update(change_ids)
 

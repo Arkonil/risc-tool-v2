@@ -138,8 +138,7 @@ class MetricViewModel(ChangeTracker):
     def get_unique_values(self, column_name: str) -> list[str]:
         try:
             return (
-                self.__data_repository
-                .get_lazyframe(self.selected_data_source_ids)
+                self.__data_repository.get_lazyframe(self.selected_data_source_ids)
                 .select(column_name)
                 .unique()
                 .collect()

@@ -461,26 +461,22 @@ class DataExplorerViewModel(ChangeTracker):
                 quantiles = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
 
             perc_df = (
-                lf
-                .filter(
+                lf.filter(
                     pl.col(variable_name).is_not_null()
                     & (pl.col(variable_name) != mode)
                 )
                 .select(
-                    pl
-                    .col(variable_name)
+                    pl.col(variable_name)
                     .quantile(quantiles, interpolation="linear")
                     .explode()
                     .alias("Value"),
-                    pl
-                    .lit(quantiles)
+                    pl.lit(quantiles)
                     .explode()
                     .map_elements(lambda q: f"{q * 100}%", return_dtype=pl.Utf8)
                     .alias("Percentile"),
                 )
                 .with_columns(
-                    pl
-                    .col("Value")
+                    pl.col("Value")
                     .map_elements(lambda v: f"{v:.2f}", return_dtype=pl.Utf8)
                     .alias("Value_Str")
                 )
@@ -520,8 +516,7 @@ class DataExplorerViewModel(ChangeTracker):
             lf = self.data_repository.get_lazyframe().select([variable_name])
 
             mode = (
-                lf
-                .select(
+                lf.select(
                     pl.col(variable_name).mode().cast(pl.Float64).head(1).alias("mode"),
                 )
                 .collect()
@@ -530,19 +525,16 @@ class DataExplorerViewModel(ChangeTracker):
             mode: float | None = mode if mode is not None else None
 
             quantile_df = (
-                lf
-                .filter(
+                lf.filter(
                     pl.col(variable_name).is_not_null()
                     & (pl.col(variable_name) != mode)
                 )
                 .select(
-                    pl
-                    .col(variable_name)
+                    pl.col(variable_name)
                     .quantile(quantiles, interpolation="linear")
                     .explode()
                     .alias("Value"),
-                    pl
-                    .lit(quantiles)
+                    pl.lit(quantiles)
                     .explode()
                     .map_elements(
                         lambda q: f"{q * 100:.0f}th Percentile", return_dtype=pl.Utf8
