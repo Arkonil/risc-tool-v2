@@ -303,8 +303,17 @@ class IterationsViewModel(ChangeTracker):
         auto_band: bool,
         loss_rate_type: LossRateTypes,
         use_scalars: bool,
+        selected_segment_ids: list[RiskSegmentID] | None = None,
     ) -> list[str]:
         errors: list[str] = []
+
+        if selected_segment_ids is not None:
+            if not self.__options_repository.risk_segments.has_finite_upper_bound_segment(
+                selected_segment_ids
+            ):
+                errors.append(
+                    "At least 1 risk segment with a finite upper bound must be selected."
+                )
 
         if not self.data_loaded:
             errors.append("Data sources are not loaded.")

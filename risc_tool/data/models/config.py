@@ -4,6 +4,7 @@ This module defines models for risk segments, scalar options, and global applica
 providing strong type validation, serialization, and Polars expression generation.
 """
 
+import math
 import re
 import typing as t
 from collections import OrderedDict
@@ -228,6 +229,17 @@ class RiskSegmentConfig(BaseModel):
                 duplicates.add(seg.name)
             seen.add(seg.name)
         return sorted(duplicates)
+
+    def has_finite_upper_bound_segment(
+        self, segment_ids: list[RiskSegmentID] | None = None
+    ) -> bool:
+        """Return True if at least one selected segment has a finite upper rate bound."""
+        selected_segments = self.get_segments(segment_ids, original=True)
+        return any(
+            math.isfinite(seg.upper_rate)
+            for seg in selected_segments.values()
+        )
+
 
     def to_polars_expr(self, loss_rate_col: str) -> pl.Expr:
         """Build Polars expression mapping loss_rate_col values to risk segment names.

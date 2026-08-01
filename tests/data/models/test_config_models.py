@@ -150,3 +150,18 @@ def test_options_config():
     opts = OptionsConfig()
     assert opts.max_iteration_depth == 10
     assert opts.max_categorical_unique == 20
+
+
+def test_has_finite_upper_bound_segment():
+    config = RiskSegmentConfig()
+    # By default, segments 0..7 have finite upper rates, 8 and 9 have inf
+    assert config.has_finite_upper_bound_segment() is True
+    assert (
+        config.has_finite_upper_bound_segment([RiskSegmentID(0), RiskSegmentID(8)])
+        is True
+    )
+    assert (
+        config.has_finite_upper_bound_segment([RiskSegmentID(8), RiskSegmentID(9)])
+        is False
+    )
+    assert config.has_finite_upper_bound_segment([]) is False

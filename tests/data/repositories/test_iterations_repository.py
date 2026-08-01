@@ -508,3 +508,55 @@ def test_double_var_grid_helpers_and_group_selection(tmp_path):
     after_groups = iter_repo.get_all_groups(child.uid)
     assert len(after_groups) == before_count + 1
     assert after_groups.iloc[-1][RSDetCol.SELECTED.value]
+
+
+def test_add_single_var_iteration_finite_upper_bound_validation(tmp_path):
+    data_repo = DataRepository()
+    csv_path = tmp_path / "data.csv"
+    pd.DataFrame({"score": [10, 20, 30]}).to_csv(csv_path, index=False)
+    data_repo.add_data_source("Dev Data", csv_path, ReadConfig())
+
+    filter_repo = FilterRepository(data_repo)
+    metric_repo = MetricRepository(data_repo)
+    option_repo = OptionRepository()
+    scalar_repo = ScalarRepository()
+    iter_repo = IterationsRepository(
+        data_repo,
+        filter_repo,
+        metric_repo,
+        option_repo,
+        scalar_repo,
+    )
+
+    # Selecting only segments with infinite upper rate (5A=8, 5B=9) must raise ValueError
+    with pytest.raises(
+        ValueError, match="at least 1 risk segment with a finite upper bound must be selected"
+    ):
+        iter_repo.add_single_var_iteration(
+            name="Invalid",
+            variable_name="score",
+            variable_dtype=VariableType.NUMERICAL,
+            selected_segment_ids=[RiskSegmentID(8), RiskSegmentID(9)],
+            loss_rate_type=LossRateTypes.DLR,
+            filter_ids=[],
+            auto_band=False,
+            use_scalar=False,
+            remove_outliers=False,
+        )
+
+    # Selecting empty segment IDs must also raise ValueError
+    with pytest.raises(
+        ValueError, match="at least 1 risk segment with a finite upper bound must be selected"
+    ):
+        iter_repo.add_single_var_iteration(
+            name="EmptySegments",
+            variable_name="score",
+            variable_dtype=VariableType.NUMERICAL,
+            selected_segment_ids=[],
+            loss_rate_type=LossRateTypes.DLR,
+            filter_ids=[],
+            auto_band=False,
+            use_scalar=False,
+            remove_outliers=False,
+        )
+

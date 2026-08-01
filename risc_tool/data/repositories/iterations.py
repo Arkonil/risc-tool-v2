@@ -367,6 +367,11 @@ class IterationsRepository(BaseRepository):
             )
         )
 
+        if not selected_segment_config.has_finite_upper_bound_segment():
+            raise ValueError(
+                "Cannot create single-variable iteration: at least 1 risk segment with a finite upper bound must be selected."
+            )
+
         if variable_dtype == VariableType.NUMERICAL:
             iteration = NumericalSingleVarIteration(
                 var_type=VariableType.NUMERICAL,

@@ -255,8 +255,15 @@ def iteration_creator() -> None:
     with col2:
         selected_segment_ids = risk_segment_details_selector()
 
+    is_single = iterations_vm.current_iteration_create_mode == IterationType.SINGLE
+
     errors = iterations_vm.validate_iter_create_params(
-        variable_name, variable_dtype, auto_band, loss_rate_type, use_scalars
+        variable_name,
+        variable_dtype,
+        auto_band,
+        loss_rate_type,
+        use_scalars,
+        selected_segment_ids=selected_segment_ids if is_single else None,
     )
 
     if errors:
