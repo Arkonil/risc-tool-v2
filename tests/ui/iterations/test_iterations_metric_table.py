@@ -20,11 +20,13 @@ from risc_tool.ui.iterations.iterations_vm import IterationsViewModel
 
 @pytest.fixture
 def session_env(tmp_path):
-    df = pd.DataFrame({
-        "score": [650, 700, 720, 800, 600, 750],
-        "bad": [1, 0, 0, 0, 1, 0],
-        "bal": [100.0, 200.0, 150.0, 300.0, 50.0, 250.0],
-    })
+    df = pd.DataFrame(
+        {
+            "score": [650, 700, 720, 800, 600, 750],
+            "bad": [1, 0, 0, 0, 1, 0],
+            "bal": [100.0, 200.0, 150.0, 300.0, 50.0, 250.0],
+        }
+    )
     csv_path = tmp_path / "test_data.csv"
     df.to_csv(csv_path, index=False)
 

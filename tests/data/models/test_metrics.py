@@ -40,12 +40,14 @@ def test_metric_compilation_and_execution() -> None:
 
 def test_element_wise_aggregations() -> None:
     # Test top-level horizontal functions
-    lf = pl.LazyFrame({
-        "a": [1.0, 10.0],
-        "b": [2.0, 20.0],
-        "c": [3.0, 30.0],
-        "__TOTAL_SIZE__": [2, 2],
-    })
+    lf = pl.LazyFrame(
+        {
+            "a": [1.0, 10.0],
+            "b": [2.0, 20.0],
+            "c": [3.0, 30.0],
+            "__TOTAL_SIZE__": [2, 2],
+        }
+    )
 
     # sum(a, b, c) -> horizontal sum
     m_sum = Metric(
@@ -88,11 +90,13 @@ def test_element_wise_aggregations() -> None:
 
 
 def test_series_methods_and_attributes() -> None:
-    lf = pl.LazyFrame({
-        "a": [1.0, 2.0, 3.0, 4.0],
-        "b": [2.0, 3.0, 5.0, 6.0],
-        "__TOTAL_SIZE__": [4, 4, 4, 4],
-    })
+    lf = pl.LazyFrame(
+        {
+            "a": [1.0, 2.0, 3.0, 4.0],
+            "b": [2.0, 3.0, 5.0, 6.0],
+            "__TOTAL_SIZE__": [4, 4, 4, 4],
+        }
+    )
 
     # covariance
     m_cov = Metric(
@@ -203,11 +207,13 @@ def test_invalid_metric_queries() -> None:
 
 def test_data_repository_summarized_and_cumulative_metrics(tmp_path) -> None:
     # Setup test file
-    df = pl.DataFrame({
-        "segment": ["Tier 1", "Tier 1", "Tier 2", "Tier 2", "Tier 3"],
-        "bad": [0, 0, 1, 0, 1],
-        "bal": [1000, 2000, 1500, 2500, 3000],
-    })
+    df = pl.DataFrame(
+        {
+            "segment": ["Tier 1", "Tier 1", "Tier 2", "Tier 2", "Tier 3"],
+            "bad": [0, 0, 1, 0, 1],
+            "bal": [1000, 2000, 1500, 2500, 3000],
+        }
+    )
     file_path = tmp_path / "test_data.csv"
     df.write_csv(file_path)
 
@@ -307,11 +313,13 @@ def test_multi_source_metrics_calculation(tmp_path) -> None:
 
 def test_summarized_metrics_edge_cases_and_filters(tmp_path) -> None:
     path = tmp_path / "data.csv"
-    pl.DataFrame({
-        "group": ["A", "A", "B", "B", "C"],
-        "val": [10, 20, 30, 40, 50],
-        "score": [100, 200, 300, 400, 500],
-    }).write_csv(path)
+    pl.DataFrame(
+        {
+            "group": ["A", "A", "B", "B", "C"],
+            "val": [10, 20, 30, 40, 50],
+            "score": [100, 200, 300, 400, 500],
+        }
+    ).write_csv(path)
 
     repo = DataRepository()
     from risc_tool.data.models.data_source import ReadConfig
@@ -344,8 +352,7 @@ def test_summarized_metrics_edge_cases_and_filters(tmp_path) -> None:
 
     # 2. Test data_filter
     res_filter = (
-        repo
-        .get_summarized_metrics(
+        repo.get_summarized_metrics(
             groupby_variables=["group"],
             data_filter=pl.col("val") > 15,
             metrics=[m_sum],
@@ -358,8 +365,7 @@ def test_summarized_metrics_edge_cases_and_filters(tmp_path) -> None:
 
     # 3. Test with_columns pre-aggregation
     res_with_cols = (
-        repo
-        .get_summarized_metrics(
+        repo.get_summarized_metrics(
             groupby_variables=["band"],
             with_columns=[(pl.col("score") >= 300).alias("band")],
             metrics=[m_sum],
@@ -394,8 +400,7 @@ def test_summarized_metrics_multi_source_outer_join(tmp_path) -> None:
 
     # 1. Grouped outer join
     res_df = (
-        repo
-        .get_summarized_metrics(
+        repo.get_summarized_metrics(
             groupby_variables=["group"],
             metrics=[m_dev, m_tst],
         )

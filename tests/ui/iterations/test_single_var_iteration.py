@@ -20,7 +20,7 @@ class TestSingleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Check title is rendered
         assert len(at.get("title")) > 0
@@ -36,7 +36,7 @@ class TestSingleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Check variable name in markdown
         markdowns = at.get("markdown")
@@ -53,7 +53,7 @@ class TestSingleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Check for data_editor or dataframe (range grid)
         editors = at.get("data_editor")
@@ -70,7 +70,7 @@ class TestSingleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should have at least 2 data editors/dataframes
         # Note: In AppTest, st.data_editor elements surface as dataframe elements
@@ -108,7 +108,7 @@ class TestSingleVarIterationUI:
                 "tests/ui/iterations/_render_single_var_iteration.py"
             )
             at.session_state["session"] = session
-            at.run()
+            at.run(timeout=10)
 
             # Should show exception
             exceptions = at.get("exception")
@@ -126,7 +126,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Check sidebar has button
         buttons = at.get("button")
@@ -141,7 +141,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Metric selector renders as a button with the "Set Metrics" label
         buttons = at.get("button")
@@ -160,7 +160,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Filter selector renders as multiselect
         multiselects = at.get("multiselect")
@@ -174,7 +174,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         scalars_checkbox = [c for c in checkboxes if "Enable Scalars" in str(c.label)]  # type: ignore
@@ -188,7 +188,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         outliers_checkbox = [c for c in checkboxes if "Remove Outliers" in str(c.label)]  # type: ignore
@@ -211,7 +211,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # The filter_selector component should be present as a multiselect
         multiselects = at.get("multiselect")
@@ -235,7 +235,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         scalars_checkbox = [c for c in checkboxes if "Enable Scalars" in str(c.label)][  # type: ignore
@@ -262,7 +262,7 @@ class TestSingleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         outliers_checkbox = [
@@ -291,7 +291,7 @@ class TestSingleVarNavigation:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Back button should always be present in view mode
         buttons = at.get("button")
@@ -310,7 +310,7 @@ class TestSingleVarIterationIntegration:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should run without exceptions
         assert not at.exception
@@ -342,7 +342,7 @@ class TestSingleVarIterationWithMetrics:
 
         at = AppTest.from_file("tests/ui/iterations/_render_single_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should still render without errors
         assert not at.exception

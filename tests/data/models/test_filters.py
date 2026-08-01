@@ -241,11 +241,13 @@ def test_comprehensive_equality_operations() -> None:
 
 def test_comprehensive_boolean_operations() -> None:
     # Test Boolean AND / OR and short-circuiting behaviour
-    lf = pl.LazyFrame({
-        "id": [1, 2, 3, 4],
-        "x": [True, True, False, False],
-        "y": [True, False, True, False],
-    })
+    lf = pl.LazyFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "x": [True, True, False, False],
+            "y": [True, False, True, False],
+        }
+    )
 
     f1 = _f("x and y", ["x", "y"])
     assert _apply(f1, lf) == [1]
@@ -300,10 +302,12 @@ def test_comprehensive_null_comparisons() -> None:
 
 def test_comprehensive_backtick_identifiers() -> None:
     # Test backticked names with spaces and special characters
-    lf = pl.LazyFrame({
-        "first name": ["Alice", "Bob", "Charlie"],
-        "age-years!": [25, 30, 35],
-    })
+    lf = pl.LazyFrame(
+        {
+            "first name": ["Alice", "Bob", "Charlie"],
+            "age-years!": [25, 30, 35],
+        }
+    )
 
     f1 = _f("`first name` == 'Bob'", ["first name"])
     assert _apply(f1, lf) == ["Bob"]
@@ -399,13 +403,15 @@ def test_arctan2_math_function() -> None:
 
 def test_complex_combined_queries() -> None:
     # Set up a dataset with diverse types and names
-    lf = pl.LazyFrame({
-        "id": [1, 2, 3, 4],
-        "x": [10, 20, 30, 40],
-        "y": [2.0, 5.0, None, 10.0],
-        "status": ["A", "B", "A", "C"],
-        "Score Value": [700, 650, 800, 500],
-    })
+    lf = pl.LazyFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "x": [10, 20, 30, 40],
+            "y": [2.0, 5.0, None, 10.0],
+            "status": ["A", "B", "A", "C"],
+            "Score Value": [700, 650, 800, 500],
+        }
+    )
 
     # Complex Query 1: Arithmetic + comparison + null check + membership check + boolean and
     f1 = _f(

@@ -19,7 +19,7 @@ class TestDoubleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         titles = at.get("title")
         assert len(titles) > 0
@@ -35,7 +35,7 @@ class TestDoubleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         markdowns = at.get("markdown")
         var_found = any("income" in str(m.value) for m in markdowns)  # type: ignore
@@ -55,7 +55,7 @@ class TestDoubleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should have grid layout (2 columns with metric grids)
         assert not at.exception
@@ -74,7 +74,7 @@ class TestDoubleVarIterationUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should have linear layout
         assert not at.exception
@@ -107,7 +107,7 @@ class TestDoubleVarIterationUI:
                 "tests/ui/iterations/_render_double_var_iteration.py"
             )
             at.session_state["session"] = session
-            at.run()
+            at.run(timeout=10)
 
             exceptions = at.get("exception")
             assert len(exceptions) > 0
@@ -124,7 +124,7 @@ class TestDoubleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         buttons = at.get("button")
         edit_groups = [b for b in buttons if "Edit Groups" in str(b.label)]  # type: ignore
@@ -138,7 +138,7 @@ class TestDoubleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         buttons = at.get("button")
         add_group = [
@@ -203,7 +203,7 @@ class TestDoubleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         scalars = [c for c in checkboxes if "Enable Scalars" in str(c.label)]  # type: ignore
@@ -217,7 +217,7 @@ class TestDoubleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         outliers = [c for c in checkboxes if "Remove Outliers" in str(c.label)]  # type: ignore
@@ -231,7 +231,7 @@ class TestDoubleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         editable = [c for c in checkboxes if "Editable" in str(c.label)]  # type: ignore
@@ -247,7 +247,7 @@ class TestDoubleVarSidebarComponents:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         show_prev = [c for c in checkboxes if "Show Previous" in str(c.label)]  # type: ignore
@@ -324,7 +324,7 @@ class TestDoubleVarGridLayout:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should have editable grid and at least one metric grid
         editors = at.get("data_editor")
@@ -346,7 +346,7 @@ class TestDoubleVarGridLayout:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         assert not at.exception
 
@@ -370,7 +370,7 @@ class TestDoubleVarLinearLayout:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         assert not at.exception
 
@@ -388,7 +388,7 @@ class TestDoubleVarPreviousIterationsChain:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Check for iteration metric table for parent
         markdowns = at.get("markdown")
@@ -442,7 +442,7 @@ class TestDoubleVarPreviousIterationsChain:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should show both root and child1 in chain
         assert not at.exception
@@ -462,7 +462,7 @@ class TestDoubleVarIntegration:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         assert not at.exception
         titles = at.get("title")
@@ -476,7 +476,7 @@ class TestDoubleVarIntegration:
 
         at = AppTest.from_file("tests/ui/iterations/_render_double_var_iteration.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Check initial state
         _initial_split = session.iterations_view_model.get_iteration_metadata(

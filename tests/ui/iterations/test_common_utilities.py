@@ -304,7 +304,8 @@ class TestIterationSidebarComponents:
             # Add group button (icon-only button with key add-group-{iteration_id})
             button_calls = mock_button.call_args_list
             add_button = [
-                c for c in button_calls
+                c
+                for c in button_calls
                 if c.kwargs.get("key") == f"add-group-{double_var_iteration.uid}"
             ]
             assert len(add_button) > 0
@@ -538,7 +539,9 @@ class TestEditableGridWidget:
 class TestNavigationWidgets:
     """Tests for navigation_widgets."""
 
-    def test_navigation_renders_buttons(self, session, single_var_iteration, patch_columns):
+    def test_navigation_renders_buttons(
+        self, session, single_var_iteration, patch_columns
+    ):
         """Test navigation widgets render buttons."""
         from risc_tool.ui.iterations.navigation import navigation_widgets
 
