@@ -6,7 +6,23 @@ components to subscribe to changes from specific dependencies.
 """
 
 import re
-from enum import StrEnum, auto
+from enum import IntEnum, StrEnum, auto
+
+
+class RowIndex(IntEnum):
+    TOTAL = 9999
+
+
+class Colors(StrEnum):
+    F_TABLE_TOTAL_LIGHT = "#7D8088"
+    B_TABLE_TOTAL_LIGHT = "#F8F9FB"
+    F_TABLE_TOTAL_DARK = "#A0A1A4"
+    B_TABLE_TOTAL_DARK = "#1A1C24"
+
+
+class IterationType(StrEnum):
+    SINGLE = "single"
+    DOUBLE = "double"
 
 
 class Signature(StrEnum):
@@ -185,3 +201,18 @@ class ScalarTableColumn(StrEnum):
     RISK_SEGMENT = "Risk Segment"
     MAF = "Maturity Adjustment Factor"
     RISK_SCALAR_FACTOR = "Risk Scalar Factor"
+
+
+class RangeColumn(StrEnum):
+    SELECTED = RSDetCol.SELECTED
+    RISK_SEGMENT = RSDetCol.RISK_SEGMENT
+    GROUPS = "Groups"
+    LOWER_BOUND = "Lower Bound"
+    UPPER_BOUND = "Upper Bound"
+    CATEGORIES = "Categories"
+
+
+class GridColumn(StrEnum):
+    PREV_RISK_SEGMENT = f"Previous {RSDetCol.RISK_SEGMENT}"
+    CURR_RISK_SEGMENT = f"Current {RSDetCol.RISK_SEGMENT}"
+    GROUP_INDEX = "Group Index"

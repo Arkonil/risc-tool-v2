@@ -504,7 +504,7 @@ class MetricRepository(BaseRepository):
             first_column,
             self.tst_data_source_ids,
             uid=MetricID.TST_VOLUME,
-            name=f"Volume ({self.__get_ds_labels(self.tst_data_source_ids)})",
+            name=f"Volume [Test] ({self.__get_ds_labels(self.tst_data_source_ids)})",
         )
         metric.validate_query(available_columns=[col for col, _ in available_cols])
 

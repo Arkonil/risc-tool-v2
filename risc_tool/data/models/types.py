@@ -166,5 +166,84 @@ class IterationID(SentinelInt):
 
 IterationID.INVALID = IterationID(-1, name="INVALID")
 
+
+class RiskSegmentID(SentinelInt):
+    """Sentinel integer type for risk segment identifiers."""
+
+    INVALID: "RiskSegmentID"
+
+    @classmethod
+    def validate_sentinel(cls, v: int) -> "RiskSegmentID":
+        if v == int(cls.INVALID):
+            return cls.INVALID
+
+        return super().validate_sentinel(v)
+
+
+RiskSegmentID.INVALID = RiskSegmentID(-1, name="INVALID")
+
+
+class GroupID(SentinelInt):
+    """Sentinel integer type for iteration group identifiers."""
+
+    INVALID: "GroupID"
+
+    @classmethod
+    def validate_sentinel(cls, v: int) -> "GroupID":
+        if v == int(cls.INVALID):
+            return cls.INVALID
+
+        return super().validate_sentinel(v)
+
+
+GroupID.INVALID = GroupID(-1, name="INVALID")
+
+
 DataSourceType = typing.Literal["dev", "tst"]
 ColumnUsage = typing.Literal["unt_bad", "dlr_bad", "avg_bal"]
+
+IterationView = typing.Literal["graph", "view", "create"]
+ColorTheme = typing.Literal["light", "dark"]
+
+
+class GridMetricSummary(typing.TypedDict):
+    metric_grid: typing.Any
+    metric_name: str
+    data_source_names: list[str]
+
+
+class GridMetricView(typing.TypedDict):
+    metric_styler: typing.Any
+    metric_name: str
+    data_source_names: list[str]
+
+
+class GridEditorViewComponents(typing.TypedDict):
+    styler: typing.Any
+    lower_bound_pos: int | None
+    upper_bound_pos: int | None
+    categories_pos: int | None
+    risk_segment_grid_col_pos: list[int]
+    grid_options: list[str]
+    show_prev_iter_details: bool
+
+
+__all__ = [
+    "Callback",
+    "CallbackID",
+    "ChangeID",
+    "ChangeIDs",
+    "ColorTheme",
+    "ColumnUsage",
+    "DataSourceID",
+    "DataSourceType",
+    "FilterID",
+    "GridEditorViewComponents",
+    "GridMetricSummary",
+    "GridMetricView",
+    "GroupID",
+    "IterationID",
+    "IterationView",
+    "MetricID",
+    "RiskSegmentID",
+]

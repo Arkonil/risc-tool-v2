@@ -93,6 +93,11 @@ class SentinelInt(int):
         """Allow use in sets and as dictionary keys."""
         return super().__hash__()
 
+    @property
+    def value(self) -> int:
+        """Return the underlying integer value."""
+        return int(self)
+
     @classmethod
     def validate_sentinel(cls, v: int) -> t.Self:
         """Validate a sentinel value during Pydantic validation.

@@ -307,7 +307,7 @@ class FilterRepository(BaseRepository):
     # Query Helper
     def get_combined_expression(
         self, filter_ids: t.Iterable[FilterID], remove_outliers: bool = False
-    ) -> pl.Expr | None:
+    ) -> pl.Expr:
         """Combine all selected filter and outlier expressions into a single pl.Expr.
 
         Optionally includes outlier rule expressions. All expressions are
@@ -326,19 +326,16 @@ class FilterRepository(BaseRepository):
             active_ids.extend(self.outlier_rule_ids)
 
         if not active_ids:
-            self.logger.debug("No active filters to combine; returning None")
-            return None
+            self.logger.debug("No active filters to combine; returning True expression")
+            return pl.lit(True)  # No filters, so return a literal True expression
 
-        combined_expr: pl.Expr | None = None
+        combined_expr: pl.Expr = pl.lit(True)  # Start with a literal True expression
         for fid in active_ids:
             if fid not in self.filters:
                 continue
             f_obj = self.filters[fid]
             if f_obj.filter_expr is not None:
-                if combined_expr is None:
-                    combined_expr = f_obj.filter_expr
-                else:
-                    combined_expr = combined_expr & f_obj.filter_expr
+                combined_expr = combined_expr & f_obj.filter_expr
 
         return combined_expr
 

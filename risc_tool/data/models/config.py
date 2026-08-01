@@ -5,11 +5,18 @@ providing strong type validation, serialization, and Polars expression generatio
 """
 
 import re
+import typing as t
+from collections import OrderedDict
+from itertools import pairwise
 
+import numpy as np
+import pandas as pd
 import polars as pl
+from pandas.io.formats.style import Styler
 from pydantic import BaseModel, Field, field_validator
 
-from risc_tool.data.models.enums import LossRateTypes
+from risc_tool.data.models.enums import LossRateTypes, RSDetCol
+from risc_tool.data.models.types import RiskSegmentID
 
 
 def is_valid_hex_color(color: str) -> bool:
@@ -31,8 +38,8 @@ class RiskSegment(BaseModel):
     """
 
     name: str
-    lower_rate: float = 0.0
-    upper_rate: float | None = None
+    lower_rate: float
+    upper_rate: float
     bg_color: str = "#3D8F3D"
     font_color: str = "#FFFFFF"
     maf_dlr: float = 1.0
@@ -56,128 +63,167 @@ class RiskSegment(BaseModel):
             raise ValueError("MAF value must be non-negative")
         return v
 
+    def maf(self, loss_rate_type: LossRateTypes) -> float:
+        """Return the appropriate MAF based on the loss rate type."""
+        if loss_rate_type == LossRateTypes.DLR:
+            return self.maf_dlr
+        elif loss_rate_type == LossRateTypes.ULR:
+            return self.maf_ulr
+        else:
+            raise ValueError(f"Unsupported loss rate type: {loss_rate_type}")
 
-def get_default_risk_segments() -> list[RiskSegment]:
+
+def get_default_risk_segments() -> OrderedDict[RiskSegmentID, RiskSegment]:
     """Generate default list of risk segments."""
-    return [
-        RiskSegment(
-            name="1A",
-            lower_rate=0.0,
-            upper_rate=0.02,
-            bg_color="#3D8F3D",
-            font_color="#FFFFFF",
-            maf_dlr=1.3,
-            maf_ulr=1.3,
+    return OrderedDict([
+        (
+            RiskSegmentID(0),
+            RiskSegment(
+                name="1A",
+                lower_rate=0.0,
+                upper_rate=0.02,
+                bg_color="#3D8F3D",
+                font_color="#FFFFFF",
+                maf_dlr=1.3,
+                maf_ulr=1.3,
+            ),
         ),
-        RiskSegment(
-            name="1B",
-            lower_rate=0.0,
-            upper_rate=0.02,
-            bg_color="#3D8F3D",
-            font_color="#FFFFFF",
-            maf_dlr=1.3,
-            maf_ulr=1.3,
+        (
+            RiskSegmentID(1),
+            RiskSegment(
+                name="1B",
+                lower_rate=0.0,
+                upper_rate=0.02,
+                bg_color="#3D8F3D",
+                font_color="#FFFFFF",
+                maf_dlr=1.3,
+                maf_ulr=1.3,
+            ),
         ),
-        RiskSegment(
-            name="2A",
-            lower_rate=0.02,
-            upper_rate=0.04,
-            bg_color="#7D9438",
-            font_color="#FFFFFF",
-            maf_dlr=1.15,
-            maf_ulr=1.15,
+        (
+            RiskSegmentID(2),
+            RiskSegment(
+                name="2A",
+                lower_rate=0.02,
+                upper_rate=0.04,
+                bg_color="#7D9438",
+                font_color="#FFFFFF",
+                maf_dlr=1.15,
+                maf_ulr=1.15,
+            ),
         ),
-        RiskSegment(
-            name="2B",
-            lower_rate=0.02,
-            upper_rate=0.04,
-            bg_color="#7D9438",
-            font_color="#FFFFFF",
-            maf_dlr=1.15,
-            maf_ulr=1.15,
+        (
+            RiskSegmentID(3),
+            RiskSegment(
+                name="2B",
+                lower_rate=0.02,
+                upper_rate=0.04,
+                bg_color="#7D9438",
+                font_color="#FFFFFF",
+                maf_dlr=1.15,
+                maf_ulr=1.15,
+            ),
         ),
-        RiskSegment(
-            name="3A",
-            lower_rate=0.04,
-            upper_rate=0.07,
-            bg_color="#948238",
-            font_color="#FFFFFF",
-            maf_dlr=1.0,
-            maf_ulr=1.0,
+        (
+            RiskSegmentID(4),
+            RiskSegment(
+                name="3A",
+                lower_rate=0.04,
+                upper_rate=0.07,
+                bg_color="#948238",
+                font_color="#FFFFFF",
+                maf_dlr=1.0,
+                maf_ulr=1.0,
+            ),
         ),
-        RiskSegment(
-            name="3B",
-            lower_rate=0.04,
-            upper_rate=0.07,
-            bg_color="#948238",
-            font_color="#FFFFFF",
-            maf_dlr=1.0,
-            maf_ulr=1.0,
+        (
+            RiskSegmentID(5),
+            RiskSegment(
+                name="3B",
+                lower_rate=0.04,
+                upper_rate=0.07,
+                bg_color="#948238",
+                font_color="#FFFFFF",
+                maf_dlr=1.0,
+                maf_ulr=1.0,
+            ),
         ),
-        RiskSegment(
-            name="4A",
-            lower_rate=0.07,
-            upper_rate=0.10,
-            bg_color="#8F663D",
-            font_color="#FFFFFF",
-            maf_dlr=0.9,
-            maf_ulr=0.9,
+        (
+            RiskSegmentID(6),
+            RiskSegment(
+                name="4A",
+                lower_rate=0.07,
+                upper_rate=0.10,
+                bg_color="#8F663D",
+                font_color="#FFFFFF",
+                maf_dlr=0.9,
+                maf_ulr=0.9,
+            ),
         ),
-        RiskSegment(
-            name="4B",
-            lower_rate=0.07,
-            upper_rate=0.10,
-            bg_color="#8F663D",
-            font_color="#FFFFFF",
-            maf_dlr=0.9,
-            maf_ulr=0.9,
+        (
+            RiskSegmentID(7),
+            RiskSegment(
+                name="4B",
+                lower_rate=0.07,
+                upper_rate=0.10,
+                bg_color="#8F663D",
+                font_color="#FFFFFF",
+                maf_dlr=0.9,
+                maf_ulr=0.9,
+            ),
         ),
-        RiskSegment(
-            name="5A",
-            lower_rate=0.10,
-            upper_rate=None,
-            bg_color="#8F3D3D",
-            font_color="#FFFFFF",
-            maf_dlr=0.8,
-            maf_ulr=0.8,
+        (
+            RiskSegmentID(8),
+            RiskSegment(
+                name="5A",
+                lower_rate=0.10,
+                upper_rate=float("inf"),
+                bg_color="#8F3D3D",
+                font_color="#FFFFFF",
+                maf_dlr=0.8,
+                maf_ulr=0.8,
+            ),
         ),
-        RiskSegment(
-            name="5B",
-            lower_rate=0.10,
-            upper_rate=None,
-            bg_color="#8F3D3D",
-            font_color="#FFFFFF",
-            maf_dlr=0.8,
-            maf_ulr=0.8,
+        (
+            RiskSegmentID(9),
+            RiskSegment(
+                name="5B",
+                lower_rate=0.10,
+                upper_rate=float("inf"),
+                bg_color="#8F3D3D",
+                font_color="#FFFFFF",
+                maf_dlr=0.8,
+                maf_ulr=0.8,
+            ),
         ),
-    ]
+    ])
 
 
 class RiskSegmentConfig(BaseModel):
     """Collection of risk segments with boundary integrity and Polars expression support."""
 
-    segments: list[RiskSegment] = Field(default_factory=get_default_risk_segments)
+    segments: OrderedDict[RiskSegmentID, RiskSegment] = Field(
+        default_factory=get_default_risk_segments
+    )
 
     def recalculate_lower_bounds(self) -> None:
         """Recalculate lower rate bounds to maintain contiguous risk tier boundaries."""
-        for i, segment in enumerate(self.segments):
+        for i, (seg_id, segment) in enumerate(self.segments.items()):
             if i == 0:
                 segment.lower_rate = 0.0
                 continue
 
-            prev_segment = self.segments[i - 1]
+            prev_segment = self.segments[list(self.segments.keys())[i - 1]]
             if segment.upper_rate == prev_segment.upper_rate:
                 segment.lower_rate = prev_segment.lower_rate
-            elif prev_segment.upper_rate is not None:
-                segment.lower_rate = prev_segment.upper_rate
             else:
-                segment.lower_rate = 0.0
+                segment.lower_rate = prev_segment.upper_rate
 
     def get_duplicate_names(self) -> list[str]:
         """Return list of duplicate segment names if any exist."""
         seen: set[str] = set()
         duplicates: set[str] = set()
-        for seg in self.segments:
+        for seg in self.segments.values():
             if seg.name in seen:
                 duplicates.add(seg.name)
             seen.add(seg.name)
@@ -195,11 +241,8 @@ class RiskSegmentConfig(BaseModel):
         expr: pl.Expr | None = None
         col_expr = pl.col(loss_rate_col)
 
-        for seg in self.segments:
-            if seg.upper_rate is None:
-                cond = col_expr >= seg.lower_rate
-            else:
-                cond = (col_expr >= seg.lower_rate) & (col_expr < seg.upper_rate)
+        for seg in self.segments.values():
+            cond = (col_expr >= seg.lower_rate) & (col_expr < seg.upper_rate)
 
             if expr is None:
                 expr = pl.when(cond).then(pl.lit(seg.name))
@@ -210,6 +253,124 @@ class RiskSegmentConfig(BaseModel):
             return pl.lit(None)
 
         return expr.otherwise(None)
+
+    def to_pandas_styler(
+        self,
+        apply_colors_to_name_col: bool = False,
+        format_numbers: bool = False,
+        all_selected: bool = False,
+    ) -> Styler:
+        records: OrderedDict[RiskSegmentID, dict[RSDetCol, t.Any]] = OrderedDict()
+
+        for seg_id, seg in self.segments.items():
+            records[seg_id] = {
+                RSDetCol.SELECTED: all_selected,
+                RSDetCol.RISK_SEGMENT: seg.name,
+                RSDetCol.LOWER_RATE: seg.lower_rate * 100.0,
+                RSDetCol.UPPER_RATE: seg.upper_rate * 100.0
+                if seg.upper_rate != float("inf")
+                else None,
+                RSDetCol.FONT_COLOR: seg.font_color,
+                RSDetCol.BG_COLOR: seg.bg_color,
+            }
+
+            if format_numbers:
+                records[seg_id][RSDetCol.LOWER_RATE] = (
+                    f"{records[seg_id][RSDetCol.LOWER_RATE]:.2f}%"
+                )
+
+                if records[seg_id][RSDetCol.UPPER_RATE] is not None and not np.isnan(
+                    records[seg_id][RSDetCol.UPPER_RATE]
+                ):
+                    records[seg_id][RSDetCol.UPPER_RATE] = (
+                        f"{records[seg_id][RSDetCol.UPPER_RATE]:.2f}%"
+                    )
+                else:
+                    records[seg_id][RSDetCol.UPPER_RATE] = "∞"
+
+        df = pd.DataFrame.from_dict(records, orient="index")
+        styler = df.style
+
+        for row_idx in df.index:
+            font_color = df.loc[row_idx, RSDetCol.FONT_COLOR]
+            bg_color = df.loc[row_idx, RSDetCol.BG_COLOR]
+
+            # Apply text & background color styling to Font Color and Background Color cells
+            styler = styler.set_properties(
+                subset=(
+                    slice(row_idx, row_idx),
+                    slice(RSDetCol.FONT_COLOR.value, RSDetCol.BG_COLOR.value),
+                ),
+                **{
+                    "color": str(font_color),
+                    "background-color": str(bg_color),
+                },
+            )
+
+            if apply_colors_to_name_col:
+                # Apply text & background color styling to Risk Segment Name cells
+                styler = styler.set_properties(
+                    subset=(
+                        slice(row_idx, row_idx),
+                        slice(RSDetCol.RISK_SEGMENT.value, RSDetCol.RISK_SEGMENT.value),
+                    ),
+                    **{
+                        "color": str(font_color),
+                        "background-color": str(bg_color),
+                    },
+                )
+
+        return styler
+
+    def get_segments(
+        self, segment_ids: list[RiskSegmentID] | None = None, original: bool = True
+    ) -> OrderedDict[RiskSegmentID, RiskSegment]:
+        if segment_ids is None:
+            segment_ids = list(self.segments.keys())
+
+        if original:
+            return OrderedDict(
+                (seg_id, self.segments[seg_id])
+                for seg_id in segment_ids
+                if seg_id in self.segments
+            )
+
+        result: OrderedDict[RiskSegmentID, RiskSegment] = OrderedDict()
+
+        common_upper_rate_map: OrderedDict[float, list[RiskSegmentID]] = OrderedDict()
+        for seg_id in segment_ids:
+            if seg_id not in self.segments:
+                continue
+
+            seg = self.segments[seg_id]
+            common_upper_rate_map.setdefault(seg.upper_rate, []).append(seg_id)
+
+        max_diff = 0.0
+
+        for upper_rate, seg_ids in common_upper_rate_map.items():
+            lower_rate = min(self.segments[seg_id].lower_rate for seg_id in seg_ids)
+
+            pw = pairwise(
+                np.linspace(
+                    lower_rate,
+                    upper_rate if upper_rate < float("inf") else lower_rate + max_diff,
+                    num=len(seg_ids) + 1,
+                    retstep=False,
+                )
+            )
+
+            for seg_id, (lower_rate_1, upper_rate_1) in zip(seg_ids, pw):
+                seg = self.segments[seg_id]
+                result[seg_id] = seg.model_copy(
+                    update={
+                        "lower_rate": lower_rate_1,
+                        "upper_rate": upper_rate_1,
+                    }
+                )
+
+            max_diff = max(max_diff, upper_rate - lower_rate)
+
+        return result
 
 
 class LossRateScalar(BaseModel):

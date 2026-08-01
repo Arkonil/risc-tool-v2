@@ -387,6 +387,9 @@ class DataRepository(BaseRepository):
 
         sub_lfs: list[pl.LazyFrame] = []
 
+        if with_columns is None:
+            with_columns = []
+
         for ds_key, group_metrics in metric_groups.items():
             ds_ids = list(ds_key)
             lf = self.get_lazyframe(data_source_ids=ds_ids)
@@ -394,14 +397,14 @@ class DataRepository(BaseRepository):
             if data_filter is not None:
                 lf = lf.filter(data_filter)
 
-            if with_columns is not None:
-                lf = lf.with_columns(with_columns)
+            for expr in with_columns:
+                lf = lf.with_columns(expr)
 
             total_size = lf.select(pl.len()).collect().item(0, 0)
             lf = lf.with_columns(pl.lit(total_size).alias("__TOTAL_SIZE__"))
 
             aggregations = [
-                m.metric_expr.alias(m.pretty_name)
+                m.metric_expr.mul(100 if m.is_percentage else 1).alias(m.pretty_name)
                 for m in group_metrics
                 if m.metric_expr is not None
             ]
@@ -477,6 +480,9 @@ class DataRepository(BaseRepository):
 
         sub_lfs: list[pl.LazyFrame] = []
 
+        if with_columns is None:
+            with_columns = []
+
         for ds_key, group_metrics in metric_groups.items():
             ds_ids = list(ds_key) if ds_key else None
             lf = self.get_lazyframe(data_source_ids=ds_ids)
@@ -484,8 +490,8 @@ class DataRepository(BaseRepository):
             if data_filter is not None:
                 lf = lf.filter(data_filter)
 
-            if with_columns is not None:
-                lf = lf.with_columns(with_columns)
+            for expr in with_columns:
+                lf = lf.with_columns(expr)
 
             total_size = lf.select(pl.len()).collect().item(0, 0)
             lf = lf.with_columns(pl.lit(total_size).alias("__TOTAL_SIZE__"))
@@ -498,7 +504,11 @@ class DataRepository(BaseRepository):
                 aggregations = [pl.lit(group_val).alias(groupby_variable)]
                 for m in group_metrics:
                     if m.metric_expr is not None:
-                        aggregations.append(m.metric_expr.alias(m.pretty_name))
+                        aggregations.append(
+                            m.metric_expr.mul(100 if m.is_percentage else 1).alias(
+                                m.pretty_name
+                            )
+                        )
 
                 queries.append(subset_lf.select(aggregations))
 
