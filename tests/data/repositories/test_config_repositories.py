@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 from risc_tool.data.models.enums import LossRateTypes
+from risc_tool.data.models.types import RiskSegmentID
 from risc_tool.data.repositories.options import OptionRepository
 from risc_tool.data.repositories.scalar import ScalarRepository
 
@@ -12,7 +13,7 @@ def test_option_repository_init():
     assert len(repo.segments) == 10
     assert repo.max_iteration_depth == 10
     assert repo.max_categorical_unique == 20
-    assert repo.get_color("1A") == ("#FFFFFF", "#3D8F3D")
+    assert repo.get_color(RiskSegmentID(0)) == ("#FFFFFF", "#3D8F3D")
 
 
 def test_option_repository_mutations():
@@ -23,53 +24,53 @@ def test_option_repository_mutations():
     # 1. Add row
     repo.add_risk_seg_row()
     assert len(repo.segments) == 11
-    assert repo.segments[-1].name == ""
+    assert repo.segments[RiskSegmentID(10)].name == ""
     assert (
-        repo.segments[-1].lower_rate == 0.10
+        repo.segments[RiskSegmentID(10)].lower_rate == 0.10
     )  # Recalculated based on previous upper rate (none -> 0)
     assert subscriber.call_count == 1
 
     # 2. Set name
-    repo.set_risk_seg_name(10, "NewTier")
-    assert repo.segments[10].name == "NewTier"
+    repo.set_risk_seg_name(RiskSegmentID(10), "NewTier")
+    assert repo.segments[RiskSegmentID(10)].name == "NewTier"
     assert subscriber.call_count == 2
 
     # 3. Set upper rate
-    repo.set_risk_seg_upper_rate(10, 0.15)
-    assert repo.segments[10].upper_rate == 0.15
+    repo.set_risk_seg_upper_rate(RiskSegmentID(10), 0.15)
+    assert repo.segments[RiskSegmentID(10)].upper_rate == 0.15
     assert subscriber.call_count == 3
 
     # 4. Set colors
-    repo.set_risk_seg_bg_color([10], "#000000")
-    repo.set_risk_seg_font_color([10], "#FFFF00")
-    assert repo.segments[10].bg_color == "#000000"
-    assert repo.segments[10].font_color == "#FFFF00"
+    repo.set_risk_seg_bg_color([RiskSegmentID(10)], "#000000")
+    repo.set_risk_seg_font_color([RiskSegmentID(10)], "#FFFF00")
+    assert repo.segments[RiskSegmentID(10)].bg_color == "#000000"
+    assert repo.segments[RiskSegmentID(10)].font_color == "#FFFF00"
     assert subscriber.call_count == 5
 
     # 5. Set MAF
-    repo.set_risk_seg_maf(10, 1.25, LossRateTypes.DLR)
-    assert repo.segments[10].maf_dlr == 1.25
+    repo.set_risk_seg_maf(RiskSegmentID(10), 1.25, LossRateTypes.DLR)
+    assert repo.segments[RiskSegmentID(10)].maf_dlr == 1.25
     assert subscriber.call_count == 6
 
     # 6. Delete row
-    repo.delete_selected_risk_seg_rows([10])
+    repo.delete_selected_risk_seg_rows([RiskSegmentID(10)])
     assert len(repo.segments) == 10
     assert subscriber.call_count == 7
 
 
 def test_option_repository_reset_and_serialization():
     repo = OptionRepository()
-    repo.set_risk_seg_name(0, "Modified")
+    repo.set_risk_seg_name(RiskSegmentID(0), "Modified")
 
     # Reset
     repo.reset_risk_seg_defaults()
-    assert repo.segments[0].name == "1A"
+    assert repo.segments[RiskSegmentID(0)].name == "1A"
 
     # Serialization
-    repo.set_risk_seg_name(0, "Custom1")
+    repo.set_risk_seg_name(RiskSegmentID(0), "Custom1")
     serialized = repo.to_dict()
     new_repo = OptionRepository.from_dict(serialized)
-    assert new_repo.segments[0].name == "Custom1"
+    assert new_repo.segments[RiskSegmentID(0)].name == "Custom1"
     assert new_repo.max_iteration_depth == 10
 
 

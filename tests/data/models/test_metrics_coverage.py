@@ -1,4 +1,5 @@
 import math
+from typing import Any
 
 import polars as pl
 import pytest
@@ -29,12 +30,12 @@ def _m(
     return m
 
 
-def _eval(m: Metric, lf: pl.LazyFrame) -> object:
+def _eval(m: Metric, lf: pl.LazyFrame) -> Any:
     """Evaluate a metric expression against a LazyFrame and return the scalar result."""
     return lf.select(m.metric_expr).collect().item(0, 0)
 
 
-def _eval_grouped(m: Metric, lf: pl.LazyFrame, group_by: str) -> dict[str, object]:
+def _eval_grouped(m: Metric, lf: pl.LazyFrame, group_by: str) -> dict[str, Any]:
     """Evaluate a metric grouped by a column, returning a {group: value} dict."""
     return dict(
         lf.group_by(group_by).agg(m.metric_expr).sort(group_by).collect().iter_rows()

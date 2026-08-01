@@ -1,8 +1,10 @@
 """Unit tests for ConfigViewModel in risc_tool.ui.config.config_vm."""
 
+import pandas as pd
 from pandas.io.formats.style import Styler
 
 from risc_tool.data.models.enums import LossRateTypes, RSDetCol, ScalarTableColumn
+from risc_tool.data.models.types import RiskSegmentID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.data.repositories.options import OptionRepository
@@ -26,24 +28,24 @@ def test_config_view_model():
     vm.add_risk_seg_row()
     assert len(vm.segments) == 11
 
-    vm.set_risk_seg_name(10, "TierX")
-    assert vm.segments[10].name == "TierX"
+    vm.set_risk_seg_name(RiskSegmentID(10), "TierX")
+    assert vm.segments[RiskSegmentID(10)].name == "TierX"
 
-    vm.set_risk_seg_upper_rate(10, 0.20)
-    assert vm.segments[10].upper_rate == 0.20
+    vm.set_risk_seg_upper_rate(RiskSegmentID(10), 0.20)
+    assert vm.segments[RiskSegmentID(10)].upper_rate == 0.20
 
-    vm.set_risk_seg_font_color([10], "#111111")
-    vm.set_risk_seg_bg_color([10], "#222222")
-    assert vm.get_color("TierX") == ("#111111", "#222222")
+    vm.set_risk_seg_font_color([RiskSegmentID(10)], "#111111")
+    vm.set_risk_seg_bg_color([RiskSegmentID(10)], "#222222")
+    assert vm.get_color(RiskSegmentID(10)) == ("#111111", "#222222")
 
-    vm.set_risk_seg_maf(10, 1.4, LossRateTypes.DLR)
-    assert vm.segments[10].maf_dlr == 1.4
+    vm.set_risk_seg_maf(RiskSegmentID(10), 1.4, LossRateTypes.DLR)
+    assert vm.segments[RiskSegmentID(10)].maf_dlr == 1.4
 
-    vm.delete_selected_risk_seg_rows([10])
+    vm.delete_selected_risk_seg_rows([RiskSegmentID(10)])
     assert len(vm.segments) == 10
 
     vm.set_risk_seg_default_values()
-    assert vm.segments[0].name == "1A"
+    assert vm.segments[RiskSegmentID(0)].name == "1A"
 
     # Test scalars through VM
     vm.set_current_rate(LossRateTypes.DLR, 0.04)
@@ -64,7 +66,7 @@ def test_config_view_model_styler_and_edit_processing():
     # 1. Test Styler creation
     styler = vm.risk_segment_details_styler
     assert isinstance(styler, Styler)
-    df = styler.data
+    df: pd.DataFrame = styler.data  # type: ignore
     assert len(df) == 10
     assert RSDetCol.RISK_SEGMENT.value in df.columns
 
@@ -92,14 +94,18 @@ def test_config_view_model_styler_and_edit_processing():
 
     # B. Invalid monotonicity (value lower than previous segment):
     invalid_mono_df = df.copy()
-    invalid_mono_df.loc[1, RSDetCol.UPPER_RATE.value] = 1.0  # 1B set to 1.0% (less than 1A's 2.0%)
+    invalid_mono_df.loc[1, RSDetCol.UPPER_RATE.value] = (
+        1.0  # 1B set to 1.0% (less than 1A's 2.0%)
+    )
     errors_mono_invalid = vm.validate_risk_segments(invalid_mono_df)
     assert len(errors_mono_invalid) == 1
     assert "cannot be lower than that of segment" in errors_mono_invalid[0]
 
     # C. Missing/None treated as infinity:
     invalid_none_df = df.copy()
-    invalid_none_df.loc[4, RSDetCol.UPPER_RATE.value] = None  # 3A set to None (infinity)
+    invalid_none_df.loc[4, RSDetCol.UPPER_RATE.value] = (
+        None  # 3A set to None (infinity)
+    )
     # Subsequent segment 3B (idx 5) has upper rate 7.0%. Since 7.0% < inf, it should fail.
     errors_none = vm.validate_risk_segments(invalid_none_df)
     assert len(errors_none) > 0
@@ -111,8 +117,8 @@ def test_config_view_model_styler_and_edit_processing():
     edited_df.loc[0, RSDetCol.UPPER_RATE.value] = 1.5  # 1.5% -> 0.015 decimal
     has_changes = vm.process_risk_segment_edits(edited_df)
     assert has_changes is True
-    assert vm.segments[0].name == "Renamed1A"
-    assert vm.segments[0].upper_rate == 0.015
+    assert vm.segments[RiskSegmentID(0)].name == "Renamed1A"
+    assert vm.segments[RiskSegmentID(0)].upper_rate == 0.015
 
     # 4. Test Annualization Table & Edit processing
     ann_df = vm.get_annualization_df(LossRateTypes.DLR)
@@ -128,9 +134,9 @@ def test_config_view_model_styler_and_edit_processing():
     # 5. Test Risk Scalar Factor Styler & MAF Edit processing
     rsf_styler = vm.get_risk_scalar_factor_styler(LossRateTypes.DLR)
     assert isinstance(rsf_styler, Styler)
-    rsf_df = rsf_styler.data
+    rsf_df: pd.DataFrame = rsf_styler.data  # type: ignore
     edited_rsf_df = rsf_df.copy()
     edited_rsf_df.loc[0, ScalarTableColumn.MAF.value] = 140.0  # 140% -> 1.4
     has_maf_changes = vm.process_maf_edits(LossRateTypes.DLR, edited_rsf_df)
     assert has_maf_changes is True
-    assert vm.segments[0].maf_dlr == 1.4
+    assert vm.segments[RiskSegmentID(0)].maf_dlr == 1.4

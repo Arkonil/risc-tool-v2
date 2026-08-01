@@ -110,7 +110,7 @@ def test_repository_updates_and_clears_cached_source_schemas(tmp_path: Path) -> 
     write_csv(missing_path, "value\ntemp\n")
 
     repository = DataRepository()
-    ds1 = repository.add_data_source("first", first_path, ReadConfig())
+    _ = repository.add_data_source("first", first_path, ReadConfig())
     ds2 = repository.add_data_source("second", second_path, ReadConfig())
     _ = repository.add_data_source("missing", missing_path, ReadConfig())
 

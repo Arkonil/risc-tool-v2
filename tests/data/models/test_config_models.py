@@ -1,5 +1,7 @@
 """Unit tests for configuration Pydantic models in risc_tool.data.models.config."""
 
+from collections import OrderedDict
+
 import polars as pl
 import pytest
 from pydantic import ValidationError
@@ -12,6 +14,7 @@ from risc_tool.data.models.config import (
     is_valid_hex_color,
 )
 from risc_tool.data.models.enums import LossRateTypes
+from risc_tool.data.models.types import RiskSegmentID
 
 
 def test_hex_color_validation():
@@ -19,45 +22,56 @@ def test_hex_color_validation():
     assert is_valid_hex_color("#FFF") is True
     assert is_valid_hex_color("INVALID") is False
 
-    seg = RiskSegment(name="1A", bg_color="3d8f3d", font_color="#ffffff")
+    seg = RiskSegment(
+        name="1A",
+        lower_rate=0.0,
+        upper_rate=1.0,
+        bg_color="3d8f3d",
+        font_color="#ffffff",
+    )
     assert seg.bg_color == "#3D8F3D"
     assert seg.font_color == "#FFFFFF"
 
     with pytest.raises(ValidationError):
-        RiskSegment(name="1A", bg_color="invalid_color")
+        RiskSegment(name="1A", lower_rate=0.0, upper_rate=1.0, bg_color="invalid_color")
 
 
 def test_maf_validation():
-    seg = RiskSegment(name="1A", maf_dlr=1.5, maf_ulr=1.2)
+    seg = RiskSegment(
+        name="1A", lower_rate=0.0, upper_rate=1.0, maf_dlr=1.5, maf_ulr=1.2
+    )
     assert seg.maf_dlr == 1.5
     assert seg.maf_ulr == 1.2
 
     with pytest.raises(ValidationError):
-        RiskSegment(name="1A", maf_dlr=-0.5)
+        RiskSegment(name="1A", lower_rate=0.0, upper_rate=1.0, maf_dlr=-0.5)
 
 
 def test_risk_segment_config_defaults():
     config = RiskSegmentConfig()
     assert len(config.segments) == 10
-    assert config.segments[0].name == "1A"
-    assert config.segments[0].lower_rate == 0.0
-    assert config.segments[0].upper_rate == 0.02
-    assert config.segments[-1].name == "5B"
-    assert config.segments[-1].upper_rate is None
+    assert config.segments[RiskSegmentID(0)].name == "1A"
+    assert config.segments[RiskSegmentID(0)].lower_rate == 0.0
+    assert config.segments[RiskSegmentID(0)].upper_rate == 0.02
+    assert config.segments[RiskSegmentID(9)].name == "5B"
+    assert config.segments[RiskSegmentID(9)].upper_rate == float("inf")
 
 
 def test_recalculate_lower_bounds():
-    segments = [
-        RiskSegment(name="Tier 1", lower_rate=0.0, upper_rate=0.05),
-        RiskSegment(name="Tier 2", lower_rate=0.0, upper_rate=0.10),
-        RiskSegment(name="Tier 3", lower_rate=0.0, upper_rate=None),
-    ]
+    segments: OrderedDict[RiskSegmentID, RiskSegment] = OrderedDict([
+        (RiskSegmentID(0), RiskSegment(name="Tier 1", lower_rate=0.0, upper_rate=0.05)),
+        (RiskSegmentID(1), RiskSegment(name="Tier 2", lower_rate=0.0, upper_rate=0.10)),
+        (
+            RiskSegmentID(2),
+            RiskSegment(name="Tier 3", lower_rate=0.0, upper_rate=float("inf")),
+        ),
+    ])
     config = RiskSegmentConfig(segments=segments)
     config.recalculate_lower_bounds()
 
-    assert config.segments[0].lower_rate == 0.0
-    assert config.segments[1].lower_rate == 0.05
-    assert config.segments[2].lower_rate == 0.10
+    assert config.segments[RiskSegmentID(0)].lower_rate == 0.0
+    assert config.segments[RiskSegmentID(1)].lower_rate == 0.05
+    assert config.segments[RiskSegmentID(2)].lower_rate == 0.10
 
 
 def test_duplicate_names():
@@ -65,21 +79,36 @@ def test_duplicate_names():
     assert config.get_duplicate_names() == []
 
     dup_config = RiskSegmentConfig(
-        segments=[
-            RiskSegment(name="1A", lower_rate=0.0, upper_rate=0.02),
-            RiskSegment(name="1A", lower_rate=0.02, upper_rate=0.04),
-        ]
+        segments=OrderedDict([
+            (
+                RiskSegmentID(0),
+                RiskSegment(name="1A", lower_rate=0.00, upper_rate=0.02),
+            ),
+            (
+                RiskSegmentID(1),
+                RiskSegment(name="1A", lower_rate=0.02, upper_rate=0.04),
+            ),
+        ])
     )
     assert dup_config.get_duplicate_names() == ["1A"]
 
 
 def test_risk_segment_polars_expr():
     config = RiskSegmentConfig(
-        segments=[
-            RiskSegment(name="Low", lower_rate=0.0, upper_rate=0.03),
-            RiskSegment(name="Med", lower_rate=0.03, upper_rate=0.07),
-            RiskSegment(name="High", lower_rate=0.07, upper_rate=None),
-        ]
+        segments=OrderedDict([
+            (
+                RiskSegmentID(0),
+                RiskSegment(name="Low", lower_rate=0.0, upper_rate=0.03),
+            ),
+            (
+                RiskSegmentID(1),
+                RiskSegment(name="Med", lower_rate=0.03, upper_rate=0.07),
+            ),
+            (
+                RiskSegmentID(2),
+                RiskSegment(name="High", lower_rate=0.07, upper_rate=float("inf")),
+            ),
+        ])
     )
 
     df = pl.DataFrame({"bad_rate": [0.01, 0.03, 0.05, 0.07, 0.12]})

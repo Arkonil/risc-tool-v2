@@ -246,7 +246,8 @@ def test_data_repository_summarized_and_cumulative_metrics(tmp_path) -> None:
     # Let's check how the compiled expression behaves.
     # The expression is: (`bad`.sum() / `bal`.sum()) * (12 / 12)
     # 2.0 / 10000.0 * 1 = 0.0002.
-    assert abs(res_overall.item(0, "Dollar Bad Rate") - 0.0002) < 1e-6
+    # 0.0002 * 100 = 0.02. So the final value is 0.02, which is 0.02% in formatted form.
+    assert abs(res_overall.item(0, "Dollar Bad Rate") - 0.02) < 1e-6
 
     # Test get_summarized_metrics grouped by segment
     res_lf_grouped = repo.get_summarized_metrics(

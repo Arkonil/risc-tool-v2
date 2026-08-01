@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -17,8 +18,14 @@ def write_csv(path: Path, contents: str) -> None:
 def _make_csv_pair(tmp_path: Path) -> tuple[Path, Path]:
     csv_a = tmp_path / "dev.csv"
     csv_b = tmp_path / "tst.csv"
-    write_csv(csv_a, "id,num_col,cat_col,unt_bad,dlr_bad,avg_bal\n1,10.0,A,100,1000,500\n2,20.0,B,200,2000,1000\n")
-    write_csv(csv_b, "id,num_col,cat_col,unt_bad,dlr_bad,avg_bal\n3,30.0,A,300,3000,1500\n4,40.0,B,400,4000,2000\n")
+    write_csv(
+        csv_a,
+        "id,num_col,cat_col,unt_bad,dlr_bad,avg_bal\n1,10.0,A,100,1000,500\n2,20.0,B,200,2000,1000\n",
+    )
+    write_csv(
+        csv_b,
+        "id,num_col,cat_col,unt_bad,dlr_bad,avg_bal\n3,30.0,A,300,3000,1500\n4,40.0,B,400,4000,2000\n",
+    )
     return csv_a, csv_b
 
 
@@ -95,14 +102,16 @@ class TestVariableSelectorViewModel:
     def test_set_data_source_ids_invalid_type(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
         ids = vm.all_data_source_ids
+        invalid = cast(Any, "invalid")
 
         with pytest.raises(ValueError, match="Invalid data source type"):
-            vm.set_data_source_ids("invalid", ids)
+            vm.set_data_source_ids(invalid, ids)
 
     def test_selected_data_source_ids_invalid_type(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
+        invalid = cast(Any, "invalid")
         with pytest.raises(ValueError, match="Invalid data source type"):
-            vm.selected_data_source_ids("invalid")
+            vm.selected_data_source_ids(invalid)
 
     def test_get_variable_defaults(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
@@ -116,11 +125,12 @@ class TestVariableSelectorViewModel:
 
     def test_get_variable_invalid(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
+        invalid = cast(Any, "invalid")
 
         with pytest.raises(ValueError, match="Invalid data source type"):
-            vm.get_variable("invalid", "unt_bad")
+            vm.get_variable(invalid, "unt_bad")
         with pytest.raises(ValueError, match="Invalid data source type or usage"):
-            vm.get_variable("dev", "invalid")
+            vm.get_variable("dev", invalid)
 
     def test_set_and_get_variable(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
@@ -159,13 +169,15 @@ class TestVariableSelectorViewModel:
 
     def test_set_variable_invalid_ds_type(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
+        invalid = cast(Any, "invalid")
         with pytest.raises(ValueError, match="Invalid data source type or usage"):
-            vm.set_variable("invalid", "unt_bad", "x")
+            vm.set_variable(invalid, "unt_bad", "x")
 
     def test_set_variable_invalid_usage(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
+        invalid = cast(Any, "invalid")
         with pytest.raises(ValueError, match="Invalid data source type or usage"):
-            vm.set_variable("dev", "invalid", "x")
+            vm.set_variable("dev", invalid, "x")
 
     def test_set_variable_unknown_column_raises(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
@@ -182,7 +194,8 @@ class TestVariableSelectorViewModel:
 
     def test_get_mob_invalid_type(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
-        assert vm.get_mob("invalid") is None
+        invalid = cast(Any, "invalid")
+        assert vm.get_mob(invalid) is None
 
     def test_set_and_get_mob(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
@@ -224,8 +237,9 @@ class TestVariableSelectorViewModel:
 
     def test_get_available_columns_invalid_ds_type(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
+        invalid = cast(Any, "invalid")
         with pytest.raises(ValueError, match="Invalid data source type"):
-            vm.get_available_columns("invalid")
+            vm.get_available_columns(invalid)
 
     def test_signature(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
@@ -233,4 +247,4 @@ class TestVariableSelectorViewModel:
 
     def test_on_dependency_update_noop(self, tmp_path: Path):
         _, _, vm = _make_repos_and_vm(tmp_path)
-        vm.on_dependency_update(set())
+        assert vm.on_dependency_update(set()) is None
