@@ -258,10 +258,7 @@ class IterationsViewModel(ChangeTracker):
         return self.__iterations_repository.graph
 
     def can_have_child(self, iteration_id: IterationID) -> bool:
-        return (
-            self.iteration_graph.iteration_depth(iteration_id)
-            < self.__options_repository.max_iteration_depth
-        )
+        return iteration_id in self.iterations
 
     def delete_iteration(self, iteration_id: IterationID) -> None:
         self.__iterations_repository.delete_iteration(iteration_id)
@@ -584,8 +581,7 @@ class IterationsViewModel(ChangeTracker):
             lf = self.__data_repository.get_lazyframe()
             if iteration.variable_name in self.__data_repository.data_config.schema:
                 unique_vals = (
-                    lf
-                    .select(pl.col(iteration.variable_name).cast(pl.String))
+                    lf.select(pl.col(iteration.variable_name).cast(pl.String))
                     .unique()
                     .drop_nulls()
                     .collect()
@@ -712,14 +708,18 @@ class IterationsViewModel(ChangeTracker):
             )
             assert previous_iteration_id is not None
 
-            control_df_columns = pd.MultiIndex.from_arrays([
-                [" "] * len(control_df.columns),
-                control_df.columns.map(str).to_list(),
-            ])
-            risk_segment_grid_columns = pd.MultiIndex.from_arrays([
-                risk_segment_grid.columns.to_list(),
-                self._group_display_labels(previous_iteration_id),
-            ])
+            control_df_columns = pd.MultiIndex.from_arrays(
+                [
+                    [" "] * len(control_df.columns),
+                    control_df.columns.map(str).to_list(),
+                ]
+            )
+            risk_segment_grid_columns = pd.MultiIndex.from_arrays(
+                [
+                    risk_segment_grid.columns.to_list(),
+                    self._group_display_labels(previous_iteration_id),
+                ]
+            )
 
             final_df.columns = control_df_columns.append(risk_segment_grid_columns)
             styler_subset = risk_segment_grid_columns
@@ -754,10 +754,12 @@ class IterationsViewModel(ChangeTracker):
         iteration = self.__iterations_repository.get_iteration(iteration_id)
 
         if iteration.var_type == VariableType.NUMERICAL:
-            control_df_columns = pd.Index([
-                RangeColumn.LOWER_BOUND.value,
-                RangeColumn.UPPER_BOUND.value,
-            ])
+            control_df_columns = pd.Index(
+                [
+                    RangeColumn.LOWER_BOUND.value,
+                    RangeColumn.UPPER_BOUND.value,
+                ]
+            )
         else:
             control_df_columns = pd.Index([RangeColumn.CATEGORIES.value])
 
@@ -848,14 +850,18 @@ class IterationsViewModel(ChangeTracker):
             )
             assert previous_iteration_id is not None
 
-            control_df_columns = pd.MultiIndex.from_arrays([
-                [" "] * len(control_df.columns),
-                control_df.columns.map(str).to_list(),
-            ])
-            metric_grid_columns = pd.MultiIndex.from_arrays([
-                font_color_grid.columns.to_list(),
-                self._group_display_labels(previous_iteration_id),
-            ])
+            control_df_columns = pd.MultiIndex.from_arrays(
+                [
+                    [" "] * len(control_df.columns),
+                    control_df.columns.map(str).to_list(),
+                ]
+            )
+            metric_grid_columns = pd.MultiIndex.from_arrays(
+                [
+                    font_color_grid.columns.to_list(),
+                    self._group_display_labels(previous_iteration_id),
+                ]
+            )
             if show_total_column:
                 metric_grid_columns = metric_grid_columns.append(
                     pd.MultiIndex.from_arrays([[" "], ["Total"]])
@@ -894,11 +900,13 @@ class IterationsViewModel(ChangeTracker):
                 color_theme=theme,
             )
 
-            metric_df_views.append({
-                "metric_styler": metric_df_styled,
-                "metric_name": metric_summary["metric_name"],
-                "data_source_names": metric_summary["data_source_names"],
-            })
+            metric_df_views.append(
+                {
+                    "metric_styler": metric_df_styled,
+                    "metric_name": metric_summary["metric_name"],
+                    "data_source_names": metric_summary["data_source_names"],
+                }
+            )
 
         return metric_df_views, errors, warnings
 

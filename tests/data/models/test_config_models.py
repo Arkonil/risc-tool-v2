@@ -58,14 +58,22 @@ def test_risk_segment_config_defaults():
 
 
 def test_recalculate_lower_bounds():
-    segments: OrderedDict[RiskSegmentID, RiskSegment] = OrderedDict([
-        (RiskSegmentID(0), RiskSegment(name="Tier 1", lower_rate=0.0, upper_rate=0.05)),
-        (RiskSegmentID(1), RiskSegment(name="Tier 2", lower_rate=0.0, upper_rate=0.10)),
-        (
-            RiskSegmentID(2),
-            RiskSegment(name="Tier 3", lower_rate=0.0, upper_rate=float("inf")),
-        ),
-    ])
+    segments: OrderedDict[RiskSegmentID, RiskSegment] = OrderedDict(
+        [
+            (
+                RiskSegmentID(0),
+                RiskSegment(name="Tier 1", lower_rate=0.0, upper_rate=0.05),
+            ),
+            (
+                RiskSegmentID(1),
+                RiskSegment(name="Tier 2", lower_rate=0.0, upper_rate=0.10),
+            ),
+            (
+                RiskSegmentID(2),
+                RiskSegment(name="Tier 3", lower_rate=0.0, upper_rate=float("inf")),
+            ),
+        ]
+    )
     config = RiskSegmentConfig(segments=segments)
     config.recalculate_lower_bounds()
 
@@ -79,36 +87,40 @@ def test_duplicate_names():
     assert config.get_duplicate_names() == []
 
     dup_config = RiskSegmentConfig(
-        segments=OrderedDict([
-            (
-                RiskSegmentID(0),
-                RiskSegment(name="1A", lower_rate=0.00, upper_rate=0.02),
-            ),
-            (
-                RiskSegmentID(1),
-                RiskSegment(name="1A", lower_rate=0.02, upper_rate=0.04),
-            ),
-        ])
+        segments=OrderedDict(
+            [
+                (
+                    RiskSegmentID(0),
+                    RiskSegment(name="1A", lower_rate=0.00, upper_rate=0.02),
+                ),
+                (
+                    RiskSegmentID(1),
+                    RiskSegment(name="1A", lower_rate=0.02, upper_rate=0.04),
+                ),
+            ]
+        )
     )
     assert dup_config.get_duplicate_names() == ["1A"]
 
 
 def test_risk_segment_polars_expr():
     config = RiskSegmentConfig(
-        segments=OrderedDict([
-            (
-                RiskSegmentID(0),
-                RiskSegment(name="Low", lower_rate=0.0, upper_rate=0.03),
-            ),
-            (
-                RiskSegmentID(1),
-                RiskSegment(name="Med", lower_rate=0.03, upper_rate=0.07),
-            ),
-            (
-                RiskSegmentID(2),
-                RiskSegment(name="High", lower_rate=0.07, upper_rate=float("inf")),
-            ),
-        ])
+        segments=OrderedDict(
+            [
+                (
+                    RiskSegmentID(0),
+                    RiskSegment(name="Low", lower_rate=0.0, upper_rate=0.03),
+                ),
+                (
+                    RiskSegmentID(1),
+                    RiskSegment(name="Med", lower_rate=0.03, upper_rate=0.07),
+                ),
+                (
+                    RiskSegmentID(2),
+                    RiskSegment(name="High", lower_rate=0.07, upper_rate=float("inf")),
+                ),
+            ]
+        )
     )
 
     df = pl.DataFrame({"bad_rate": [0.01, 0.03, 0.05, 0.07, 0.12]})
@@ -148,7 +160,6 @@ def test_risk_scalar_factor_polars_expr():
 
 def test_options_config():
     opts = OptionsConfig()
-    assert opts.max_iteration_depth == 10
     assert opts.max_categorical_unique == 20
 
 

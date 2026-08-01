@@ -11,7 +11,6 @@ from risc_tool.data.repositories.scalar import ScalarRepository
 def test_option_repository_init():
     repo = OptionRepository()
     assert len(repo.segments) == 10
-    assert repo.max_iteration_depth == 10
     assert repo.max_categorical_unique == 20
     assert repo.get_color(RiskSegmentID(0)) == ("#FFFFFF", "#3D8F3D")
 
@@ -71,7 +70,6 @@ def test_option_repository_reset_and_serialization():
     serialized = repo.to_dict()
     new_repo = OptionRepository.from_dict(serialized)
     assert new_repo.segments[RiskSegmentID(0)].name == "Custom1"
-    assert new_repo.max_iteration_depth == 10
 
 
 def test_scalar_repository_mutations_and_serialization():

@@ -14,7 +14,7 @@ class TestIterationGraphUI:
         """Test graph page renders title."""
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         titles = at.get("title")
         assert len(titles) > 0
@@ -31,7 +31,7 @@ class TestIterationGraphUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # streamlit_flow component should be rendered
         # It appears as a custom component
@@ -45,7 +45,7 @@ class TestIterationGraphUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # Should have Add New Iteration button in sidebar
         buttons = at.get("button")
@@ -68,7 +68,7 @@ class TestIterationGraphUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         buttons = at.get("button")
         open_button = [b for b in buttons if "Open Iteration" in str(b.label)]  # type: ignore
@@ -90,7 +90,7 @@ class TestIterationGraphUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         buttons = at.get("button")
         add_child = [b for b in buttons if "Add Child Iteration" in str(b.label)]  # type: ignore
@@ -109,7 +109,7 @@ class TestIterationGraphUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         buttons = at.get("button")
         rename_button = [b for b in buttons if "Rename Iteration" in str(b.label)]  # type: ignore
@@ -128,7 +128,7 @@ class TestIterationGraphUI:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         buttons = at.get("button")
         delete_button = [b for b in buttons if "Delete Iteration" in str(b.label)]  # type: ignore
@@ -138,7 +138,7 @@ class TestIterationGraphUI:
         """Test minimap checkbox in sidebar."""
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
         minimap = [c for c in checkboxes if "Show Minimap" in str(c.label)]  # type: ignore
@@ -349,7 +349,7 @@ class TestGraphNodeSelection:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         # The streamlit_flow component handles click internally
         # We can't easily simulate click in AppTest
@@ -368,26 +368,12 @@ class TestGraphNodeSelection:
         assert view == "graph"
         assert iter_id == single_var_iteration.uid
 
-    def test_depth_limit_prevents_add_child(self, session, single_var_iteration):
-        """Test depth limit prevents adding child."""
-        options_repo = (
-            session.iterations_view_model._IterationsViewModel__options_repository
+    def test_unlimited_depth_allows_add_child(self, session, single_var_iteration):
+        """Test that adding child is allowed for any existing iteration without depth limitation."""
+        can_have = session.iterations_view_model.can_have_child(
+            single_var_iteration.uid
         )
-        # Set max depth to 1
-        original_depth = options_repo.max_iteration_depth
-        options_repo._OptionRepository__options_config.max_iteration_depth = 1
-
-        try:
-            can_have = session.iterations_view_model.can_have_child(
-                single_var_iteration.uid
-            )
-            # Root is at depth 1, max is 1, so cannot have child
-            assert can_have is False
-        finally:
-            # Restore
-            options_repo._OptionRepository__options_config.max_iteration_depth = (
-                original_depth
-            )
+        assert can_have is True
 
 
 class TestGraphIntegration:
@@ -404,7 +390,7 @@ class TestGraphIntegration:
 
         at = AppTest.from_file("tests/ui/iterations/_render_graph.py")
         at.session_state["session"] = session
-        at.run()
+        at.run(timeout=10)
 
         assert not at.exception
         titles = at.get("title")

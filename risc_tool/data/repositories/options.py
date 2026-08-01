@@ -36,10 +36,6 @@ class OptionRepository(BaseRepository):
         return self.risk_segments.segments
 
     @property
-    def max_iteration_depth(self) -> int:
-        return self.__options_config.max_iteration_depth
-
-    @property
     def max_categorical_unique(self) -> int:
         return self.__options_config.max_categorical_unique
 
