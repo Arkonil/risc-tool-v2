@@ -839,7 +839,9 @@ dependencies = [
     { name = "polars" },
     { name = "pydantic" },
     { name = "streamlit" },
+    { name = "streamlit-antd-components" },
     { name = "streamlit-code-editor" },
+    { name = "streamlit-flow-component" },
     { name = "streamlit-sortables" },
 ]
 
@@ -856,7 +858,9 @@ requires-dist = [
     { name = "polars", specifier = ">=1.42.1" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "streamlit", specifier = ">=1.59.2" },
+    { name = "streamlit-antd-components", specifier = ">=0.3.2" },
     { name = "streamlit-code-editor", specifier = ">=0.1.22" },
+    { name = "streamlit-flow-component", specifier = ">=1.6.1" },
     { name = "streamlit-sortables", specifier = ">=0.3.1" },
 ]
 
@@ -1054,6 +1058,17 @@ wheels = [
 ]
 
 [[package]]
+name = "streamlit-antd-components"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "streamlit" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/dc/1ed6266b606e3b494b9af3e2c310ea6cbe2e967aa18873d03c5b267b4c81/streamlit_antd_components-0.3.2-py3-none-any.whl", hash = "sha256:5ae28496127202ed266ea167649436a15f3d548a4805ee5d992c6fc0fe103fd6", size = 2805502, upload-time = "2024-01-19T07:11:42.614Z" },
+]
+
+[[package]]
 name = "streamlit-code-editor"
 version = "0.1.22"
 source = { registry = "https://pypi.org/simple" }
@@ -1063,6 +1078,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/67/6f/fc455957652d0f42124dbc3090fe58b8919ad5bcba575a36669499ded952/streamlit-code-editor-0.1.22.tar.gz", hash = "sha256:93e6ecb4060614bce99eaf758b4cb5c8ce2accc0eb5140cbbb23c05cb4e9d7f6", size = 3788010, upload-time = "2024-12-29T22:30:22.441Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/53/298050f856bfdd7dd47fbcd998af92ec47479a4c0fc1a89ff90c4f27a74a/streamlit_code_editor-0.1.22-py3-none-any.whl", hash = "sha256:31abe12a94abde64123f71049741c248cd52c9de7869decd32a8a5a96695fcf4", size = 4036058, upload-time = "2024-12-29T22:30:18.897Z" },
+]
+
+[[package]]
+name = "streamlit-flow-component"
+version = "1.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "streamlit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6f/96/67e4d8843debfdbb73ba6a66548e23f3296e0c6c990c65cb37698a94f856/streamlit-flow-component-1.6.1.tar.gz", hash = "sha256:16998d94731f494358d3ce03a73795e127c39fcefa0662666f524bd017493388", size = 2073059, upload-time = "2025-02-28T00:53:17.03Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/54/ae94d63815d7bbfd71d7406b43c56b7d666a2dd24702b50ddfdde9b0c724/streamlit_flow_component-1.6.1-py3-none-any.whl", hash = "sha256:1664fc081bf343443e4aca17942434a72808d59e4f55c19d520caa19779bf538", size = 2092632, upload-time = "2025-02-28T00:53:13.318Z" },
 ]
 
 [[package]]
