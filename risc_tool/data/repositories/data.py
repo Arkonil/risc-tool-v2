@@ -345,7 +345,7 @@ class DataRepository(BaseRepository):
 
     def get_summarized_metrics(
         self,
-        groupby_variables: list[str | pl.Expr],
+        groupby_variables: t.Sequence[str | pl.Expr],
         data_filter: pl.Expr | None = None,
         metrics: list[Metric] | None = None,
         with_columns: list[pl.Expr] | None = None,
