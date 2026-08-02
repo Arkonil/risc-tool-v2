@@ -238,9 +238,7 @@ class TestSingleVarSidebarComponents:
         at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
-        scalars_checkbox = [c for c in checkboxes if "Enable Scalars" in str(c.label)][  # type: ignore
-            0
-        ]
+        scalars_checkbox = next(c for c in checkboxes if "Enable Scalars" in str(c.label))
 
         # Toggle checkbox
         original_value = scalars_checkbox.value  # type: ignore
@@ -265,11 +263,11 @@ class TestSingleVarSidebarComponents:
         at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
-        outliers_checkbox = [
+        outliers_checkbox = next(
             c
             for c in checkboxes
             if "Remove Outliers" in str(c.label)  # type: ignore
-        ][0]
+        )
 
         original_value = outliers_checkbox.value  # type: ignore
         outliers_checkbox.set_value(not original_value).run()  # type: ignore

@@ -115,7 +115,7 @@ class TestCheckCurrentRSDetails:
             ) as mock_is_same,
             patch("streamlit.expander") as mock_expander,
             patch("streamlit.warning") as mock_warning,
-            patch("streamlit.button") as mock_button,
+            patch("streamlit.button"),
             patch("streamlit.session_state", {"session": session}),
         ):
             mock_is_same.return_value = "equal"
@@ -275,7 +275,7 @@ class TestIterationSidebarComponents:
             patch("streamlit.button") as mock_button,
             patch(
                 "risc_tool.ui.iterations.common.set_groups_dialog_widget"
-            ) as mock_dialog,
+            ),
             patch("streamlit.session_state", {"session": session}),
         ):
             mock_button.return_value = False
@@ -337,7 +337,7 @@ class TestIterationSidebarComponents:
         with (
             patch("risc_tool.ui.iterations.common.filter_selector") as mock_filter,
             patch("streamlit.button") as mock_button,
-            patch("streamlit.rerun") as mock_rerun,
+            patch("streamlit.rerun"),
             patch("streamlit.session_state", {"session": session}),
         ):
             mock_filter.return_value = []
@@ -355,7 +355,7 @@ class TestIterationSidebarComponents:
 
         with (
             patch("streamlit.checkbox") as mock_checkbox,
-            patch("streamlit.rerun") as mock_rerun,
+            patch("streamlit.rerun"),
             patch("streamlit.button") as mock_button,
             patch("streamlit.session_state", {"session": session}),
         ):
@@ -376,7 +376,7 @@ class TestIterationSidebarComponents:
 
         with (
             patch("streamlit.checkbox") as mock_checkbox,
-            patch("streamlit.rerun") as mock_rerun,
+            patch("streamlit.rerun"),
             patch("streamlit.button") as mock_button,
             patch("streamlit.session_state", {"session": session}),
         ):
@@ -397,7 +397,7 @@ class TestIterationSidebarComponents:
 
         with (
             patch("streamlit.checkbox") as mock_checkbox,
-            patch("streamlit.rerun") as mock_rerun,
+            patch("streamlit.rerun"),
             patch("streamlit.button") as mock_button,
             patch("streamlit.session_state", {"session": session}),
         ):
@@ -418,7 +418,7 @@ class TestIterationSidebarComponents:
 
         with (
             patch("streamlit.checkbox") as mock_checkbox,
-            patch("streamlit.rerun") as mock_rerun,
+            patch("streamlit.rerun"),
             patch("streamlit.button") as mock_button,
             patch("streamlit.session_state", {"session": session}),
         ):
@@ -582,7 +582,7 @@ class TestCommonUtilitiesIntegration:
             ) as mock_metric,
             patch("risc_tool.ui.iterations.common.variable_selector_dialog"),
             patch("streamlit_antd_components.segmented") as mock_segmented,
-            patch("streamlit.rerun") as mock_rerun,
+            patch("streamlit.rerun"),
             patch("streamlit.session_state", {"session": session}),
         ):
             mock_checkbox.return_value = True
@@ -637,7 +637,7 @@ class TestCommonUtilitiesIntegration:
         groups_before = session.iterations_view_model.get_all_groups(
             double_var_iteration.uid
         )
-        initial_selected = groups_before[
+        groups_before[
             groups_before[RangeColumn.SELECTED.value]
         ].index.tolist()
 

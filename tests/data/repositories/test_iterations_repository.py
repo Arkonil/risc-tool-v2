@@ -207,12 +207,10 @@ def test_rename_iteration_raises_for_missing_id(mock_session_repos):
 def test_add_double_var_iteration_non_auto_initializes_defaults(tmp_path):
     data_repo = DataRepository()
     csv_path = tmp_path / "double_non_auto.csv"
-    pd.DataFrame(
-        {
-            "root_score": [10, 20, 30, 40, 50, 60, 70, 80],
-            "child_band": [1, 1, 2, 2, 3, 3, 4, 4],
-        }
-    ).to_csv(csv_path, index=False)
+    pd.DataFrame({
+        "root_score": [10, 20, 30, 40, 50, 60, 70, 80],
+        "child_band": [1, 1, 2, 2, 3, 3, 4, 4],
+    }).to_csv(csv_path, index=False)
     data_repo.add_data_source("Dev Data", csv_path, ReadConfig())
 
     filter_repo = FilterRepository(data_repo)
@@ -269,12 +267,10 @@ def test_add_double_var_iteration_non_auto_initializes_defaults(tmp_path):
 def test_add_double_var_iteration_auto_band_requires_limits(tmp_path):
     data_repo = DataRepository()
     csv_path = tmp_path / "double_requires_limits.csv"
-    pd.DataFrame(
-        {
-            "root_score": [10, 20, 30, 40],
-            "child_score": [100, 200, 300, 400],
-        }
-    ).to_csv(csv_path, index=False)
+    pd.DataFrame({
+        "root_score": [10, 20, 30, 40],
+        "child_score": [100, 200, 300, 400],
+    }).to_csv(csv_path, index=False)
     data_repo.add_data_source("Dev Data", csv_path, ReadConfig())
 
     filter_repo = FilterRepository(data_repo)
@@ -321,14 +317,12 @@ def test_add_double_var_iteration_auto_band_requires_limits(tmp_path):
 def test_add_double_var_iteration_auto_band_respects_upgrade_downgrade_limits(tmp_path):
     data_repo = DataRepository()
     csv_path = tmp_path / "double_auto_limits.csv"
-    pd.DataFrame(
-        {
-            "root_score": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-            "child_score": [3, 7, 11, 15, 19, 23, 27, 31, 35, 39],
-            "dlr_bad": [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],
-            "avg_bal": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
-        }
-    ).to_csv(csv_path, index=False)
+    pd.DataFrame({
+        "root_score": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+        "child_score": [3, 7, 11, 15, 19, 23, 27, 31, 35, 39],
+        "dlr_bad": [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],
+        "avg_bal": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
+    }).to_csv(csv_path, index=False)
     data_repo.add_data_source("Dev Data", csv_path, ReadConfig())
 
     filter_repo = FilterRepository(data_repo)
@@ -391,13 +385,11 @@ def test_add_double_var_iteration_auto_band_respects_upgrade_downgrade_limits(tm
 def test_add_double_var_iteration_auto_band_categorical_initializes_grid(tmp_path):
     data_repo = DataRepository()
     csv_path = tmp_path / "double_auto_categorical.csv"
-    pd.DataFrame(
-        {
-            "root_score": [10, 20, 30, 40, 50, 60, 70, 80],
-            "child_bucket": ["A", "A", "B", "B", "C", "C", "D", "D"],
-            "unt_bad": [0, 1, 0, 1, 2, 2, 3, 3],
-        }
-    ).to_csv(csv_path, index=False)
+    pd.DataFrame({
+        "root_score": [10, 20, 30, 40, 50, 60, 70, 80],
+        "child_bucket": ["A", "A", "B", "B", "C", "C", "D", "D"],
+        "unt_bad": [0, 1, 0, 1, 2, 2, 3, 3],
+    }).to_csv(csv_path, index=False)
     data_repo.add_data_source("Dev Data", csv_path, ReadConfig())
 
     filter_repo = FilterRepository(data_repo)
@@ -452,12 +444,10 @@ def test_add_double_var_iteration_auto_band_categorical_initializes_grid(tmp_pat
 def test_double_var_grid_helpers_and_group_selection(tmp_path):
     data_repo = DataRepository()
     csv_path = tmp_path / "double_grid_helpers.csv"
-    pd.DataFrame(
-        {
-            "root_score": [10, 20, 30, 40, 50, 60, 70, 80],
-            "child_band": [1, 1, 2, 2, 3, 3, 4, 4],
-        }
-    ).to_csv(csv_path, index=False)
+    pd.DataFrame({
+        "root_score": [10, 20, 30, 40, 50, 60, 70, 80],
+        "child_band": [1, 1, 2, 2, 3, 3, 4, 4],
+    }).to_csv(csv_path, index=False)
     data_repo.add_data_source("Dev Data", csv_path, ReadConfig())
 
     filter_repo = FilterRepository(data_repo)

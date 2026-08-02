@@ -150,7 +150,7 @@ class TestViewModelMetricGrids:
             double_var_iteration.uid, metric_ids=[MetricID.DEV_VOLUME]
         )
 
-        metric_views, errors, warnings = iterations_vm.get_metric_grids(
+        metric_views, _errors, _warnings = iterations_vm.get_metric_grids(
             double_var_iteration.uid,
             default=True,
             show_controls_idx="all",
@@ -181,7 +181,7 @@ class TestViewModelMetricGrids:
             ],
         )
 
-        metric_views, errors, warnings = iterations_vm.get_metric_grids(
+        metric_views, _errors, _warnings = iterations_vm.get_metric_grids(
             double_var_iteration.uid,
             default=True,
             show_controls_idx="alternate",
@@ -204,7 +204,7 @@ class TestViewModelMetricGrids:
             double_var_iteration.uid, metric_ids=[MetricID.DEV_VOLUME]
         )
 
-        metric_views, errors, warnings = iterations_vm.get_metric_grids(
+        metric_views, _errors, _warnings = iterations_vm.get_metric_grids(
             double_var_iteration.uid,
             default=True,
             show_controls_idx=[0],
@@ -219,7 +219,7 @@ class TestViewModelMetricGrids:
         """Test get_metric_grids with no metrics returns empty."""
         iterations_vm.set_metadata(double_var_iteration.uid, metric_ids=[])
 
-        metric_views, errors, warnings = iterations_vm.get_metric_grids(
+        metric_views, _errors, _warnings = iterations_vm.get_metric_grids(
             double_var_iteration.uid,
             default=True,
             show_controls_idx="all",
@@ -236,7 +236,7 @@ class TestViewModelMetricGrids:
             double_var_iteration.uid, metric_ids=[MetricID.DEV_VOLUME]
         )
 
-        metric_views, errors, warnings = iterations_vm.get_metric_grids(
+        metric_views, _errors, _warnings = iterations_vm.get_metric_grids(
             double_var_iteration.uid,
             default=True,
             show_controls_idx="all",

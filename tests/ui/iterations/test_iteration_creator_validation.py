@@ -332,14 +332,12 @@ class TestIterationCreatorUIComponents:
             # Mock the return value with selected segments
             import pandas as pd
 
-            mock_df = pd.DataFrame(
-                {
-                    "Selected": [True, False, True],
-                    "Risk Segment": ["Low", "Medium", "High"],
-                    "Lower Bad Rate": [0.0, 0.1, 0.3],
-                    "Upper Bad Rate": [0.1, 0.3, 1.0],
-                }
-            )
+            mock_df = pd.DataFrame({
+                "Selected": [True, False, True],
+                "Risk Segment": ["Low", "Medium", "High"],
+                "Lower Bad Rate": [0.0, 0.1, 0.3],
+                "Upper Bad Rate": [0.1, 0.3, 1.0],
+            })
             mock_editor.return_value = mock_df
 
             result = risk_segment_details_selector()

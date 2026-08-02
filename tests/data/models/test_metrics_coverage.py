@@ -46,12 +46,10 @@ def _eval_grouped(m: Metric, lf: pl.LazyFrame, group_by: str) -> dict[str, Any]:
 
 
 def test_unary_operators() -> None:
-    lf = pl.LazyFrame(
-        {
-            "val": [10.0, -20.0, 30.0, -40.0],
-            "flag": [True, False, True, False],
-        }
-    )
+    lf = pl.LazyFrame({
+        "val": [10.0, -20.0, 30.0, -40.0],
+        "flag": [True, False, True, False],
+    })
 
     # unary invert (~flag).sum() — count of True values
     m = _m("(~`flag`).sum()", ["flag"])
@@ -95,7 +93,7 @@ def test_binary_bitwise_operators_blocked_by_validator() -> None:
     #       but the validator's `allowed_operators` tuple excludes them (metric.py:53-61).
     #       This is an inconsistency — the validator should be updated to include them.
     for expr in ["(`b1` & `b2`).sum()", "(`b1` | `b2`).sum()", "(`b1` ^ `b2`).sum()"]:
-        with pytest.raises(ValueError, match="Unsupported binary operator"):
+        with pytest.raises(TypeError, match="Unsupported binary operator"):
             _m(expr, ["b1", "b2"])
 
 
@@ -187,13 +185,11 @@ def test_chained_comparison() -> None:
 
 
 def test_horizontal_functions() -> None:
-    lf = pl.LazyFrame(
-        {
-            "a": [1.0, 10.0],
-            "b": [2.0, 20.0],
-            "c": [3.0, 30.0],
-        }
-    )
+    lf = pl.LazyFrame({
+        "a": [1.0, 10.0],
+        "b": [2.0, 20.0],
+        "c": [3.0, 30.0],
+    })
 
     # horizontal min
     m = _m("min(a, b, c).sum()", ["a", "b", "c"])
@@ -283,13 +279,11 @@ def test_arctan2_math_function() -> None:
 
 @pytest.fixture
 def series_lf() -> pl.LazyFrame:
-    return pl.LazyFrame(
-        {
-            "a": [1.0, 2.0, 3.0, 4.0, 5.0],
-            "b": [2.0, 3.0, 5.0, 7.0, 11.0],
-            "__TOTAL_SIZE__": [5, 5, 5, 5, 5],
-        }
-    )
+    return pl.LazyFrame({
+        "a": [1.0, 2.0, 3.0, 4.0, 5.0],
+        "b": [2.0, 3.0, 5.0, 7.0, 11.0],
+        "__TOTAL_SIZE__": [5, 5, 5, 5, 5],
+    })
 
 
 def test_series_method_basic_aggregations(series_lf: pl.LazyFrame) -> None:
@@ -465,12 +459,10 @@ def test_special_name_missing() -> None:
 
 
 def test_special_name_total_size() -> None:
-    lf = pl.LazyFrame(
-        {
-            "val": [1.0, 2.0, 3.0],
-            "__TOTAL_SIZE__": [10, 10, 10],
-        }
-    )
+    lf = pl.LazyFrame({
+        "val": [1.0, 2.0, 3.0],
+        "__TOTAL_SIZE__": [10, 10, 10],
+    })
     m = _m("`val`.sum() / __TOTAL_SIZE__", ["val"])
     assert abs(_eval(m, lf) - 0.6) < 1e-6
 
@@ -479,13 +471,11 @@ def test_special_name_total_size() -> None:
 
 
 def test_backtick_special_characters() -> None:
-    lf = pl.LazyFrame(
-        {
-            "col name": [1.0, 2.0, 3.0],
-            "field.with.dots": [4.0, 5.0, 6.0],
-            "年收入": [7.0, 8.0, 9.0],
-        }
-    )
+    lf = pl.LazyFrame({
+        "col name": [1.0, 2.0, 3.0],
+        "field.with.dots": [4.0, 5.0, 6.0],
+        "年收入": [7.0, 8.0, 9.0],
+    })
 
     # Column name with space
     m = _m("`col name`.sum()", ["col name"])

@@ -13,12 +13,10 @@ class TestEditableGridEditHandler:
             double_var_iteration.uid, default=False, editable=True
         )
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                double_var_iteration.uid,
-                False,
-            )
-        )
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            double_var_iteration.uid,
+            False,
+        ))
         assert cached_df is not None
 
         # Call handler with same data
@@ -33,12 +31,10 @@ class TestEditableGridEditHandler:
             double_var_iteration.uid, default=False, editable=True
         )
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                double_var_iteration.uid,
-                False,
-            )
-        ).copy()
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            double_var_iteration.uid,
+            False,
+        )).copy()
 
         # Get parent segment columns (risk segment grid columns)
         parent_segments = list(
@@ -47,9 +43,8 @@ class TestEditableGridEditHandler:
             ).segments.keys()
         )
         parent_segment_names = [
-            iterations_vm._IterationsViewModel__iterations_repository.get_risk_segment_details(
-                double_var_iteration.uid
-            )
+            iterations_vm._IterationsViewModel__iterations_repository
+            .get_risk_segment_details(double_var_iteration.uid)
             .segments[seg]
             .name
             for seg in parent_segments
@@ -86,12 +81,10 @@ class TestEditableGridEditHandler:
             double_var_iteration.uid, default=False, editable=True
         )
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                double_var_iteration.uid,
-                False,
-            )
-        ).copy()
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            double_var_iteration.uid,
+            False,
+        )).copy()
 
         # Edit lower bound for first group
         first_group = cached_df.index[0]
@@ -117,12 +110,10 @@ class TestEditableGridEditHandler:
             double_var_iteration.uid, default=False, editable=True
         )
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                double_var_iteration.uid,
-                False,
-            )
-        ).copy()
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            double_var_iteration.uid,
+            False,
+        )).copy()
 
         first_group = cached_df.index[0]
         if RangeColumn.UPPER_BOUND.value in cached_df.columns:
@@ -146,12 +137,10 @@ class TestEditableGridEditHandler:
             double_var_iteration.uid, default=False, editable=True
         )
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                double_var_iteration.uid,
-                False,
-            )
-        ).copy()
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            double_var_iteration.uid,
+            False,
+        )).copy()
 
         first_group = cached_df.index[0]
 
@@ -168,9 +157,8 @@ class TestEditableGridEditHandler:
             ).segments.keys()
         )
         parent_segment_names = [
-            iterations_vm._IterationsViewModel__iterations_repository.get_risk_segment_details(
-                double_var_iteration.uid
-            )
+            iterations_vm._IterationsViewModel__iterations_repository
+            .get_risk_segment_details(double_var_iteration.uid)
             .segments[seg]
             .name
             for seg in parent_segments
@@ -233,12 +221,10 @@ class TestEditableGridEditHandler:
 
         iterations_vm.get_editable_grid(child.uid, default=False, editable=True)
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                child.uid,
-                False,
-            )
-        ).copy()
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            child.uid,
+            False,
+        )).copy()
 
         first_group = cached_df.index[0]
         if RangeColumn.CATEGORIES.value in cached_df.columns:
@@ -263,12 +249,10 @@ class TestEditableGridEditHandler:
             double_var_iteration.uid, default=True, editable=False
         )
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                double_var_iteration.uid,
-                True,
-            )
-        ).copy()
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            double_var_iteration.uid,
+            True,
+        )).copy()
 
         first_group = cached_df.index[0]
         if RangeColumn.LOWER_BOUND.value in cached_df.columns:
@@ -286,12 +270,10 @@ class TestEditableGridEditHandler:
             double_var_iteration.uid, default=False, editable=True
         )
 
-        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get(
-            (
-                double_var_iteration.uid,
-                False,
-            )
-        ).copy()
+        cached_df = iterations_vm._IterationsViewModel__editable_grid_cache.get((
+            double_var_iteration.uid,
+            False,
+        )).copy()
 
         # Add non-existent group
         cached_df.loc[999, RangeColumn.LOWER_BOUND.value] = 100.0

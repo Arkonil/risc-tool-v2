@@ -20,13 +20,11 @@ from risc_tool.ui.iterations.iterations_vm import IterationsViewModel
 
 @pytest.fixture
 def session_env(tmp_path):
-    df = pd.DataFrame(
-        {
-            "score": [650, 700, 720, 800, 600, 750],
-            "bad": [1, 0, 0, 0, 1, 0],
-            "bal": [100.0, 200.0, 150.0, 300.0, 50.0, 250.0],
-        }
-    )
+    df = pd.DataFrame({
+        "score": [650, 700, 720, 800, 600, 750],
+        "bad": [1, 0, 0, 0, 1, 0],
+        "bal": [100.0, 200.0, 150.0, 300.0, 50.0, 250.0],
+    })
     csv_path = tmp_path / "test_data.csv"
     df.to_csv(csv_path, index=False)
 
@@ -60,7 +58,7 @@ def session_env(tmp_path):
 
 
 def test_get_iteration_metric_table_single_var(session_env):
-    vm, iter_repo, metric_repo = session_env
+    vm, iter_repo, _metric_repo = session_env
 
     iter_obj = iter_repo.add_single_var_iteration(
         name="Score Iteration",
@@ -93,7 +91,7 @@ def test_get_iteration_metric_table_single_var(session_env):
     assert isinstance(warnings, list)
     assert not errors
 
-    raw_df = cast(pd.DataFrame, getattr(styler, "data"))
+    raw_df = cast(pd.DataFrame, styler.data)
     assert "Risk Segment" in raw_df.columns
     assert "Lower Bound" in raw_df.columns
     assert "Upper Bound" in raw_df.columns
@@ -156,5 +154,5 @@ def test_get_metric_grids_double_var(session_env):
     assert isinstance(warnings, list)
     assert len(metric_views) == 1
 
-    raw_df = cast(pd.DataFrame, getattr(metric_views[0]["metric_styler"], "data"))
+    raw_df = cast(pd.DataFrame, metric_views[0]["metric_styler"].data)
     assert "Total" in raw_df.columns.get_level_values(-1).tolist()

@@ -549,13 +549,15 @@ class TestMetricGridsRendering:
         )
 
         # Test default
-        metric_views, errors, warnings = session.iterations_view_model.get_metric_grids(
-            double_var_iteration.uid,
-            default=True,
-            show_controls_idx="alternate",
-            show_total_row=True,
-            show_total_column=True,
-            theme="dark",
+        metric_views, _errors, _warnings = (
+            session.iterations_view_model.get_metric_grids(
+                double_var_iteration.uid,
+                default=True,
+                show_controls_idx="alternate",
+                show_total_row=True,
+                show_total_column=True,
+                theme="dark",
+            )
         )
 
         assert isinstance(metric_views, list)
@@ -563,13 +565,15 @@ class TestMetricGridsRendering:
             assert "metric_styler" in metric_views[0]
 
         # Test custom
-        metric_views, errors, warnings = session.iterations_view_model.get_metric_grids(
-            double_var_iteration.uid,
-            default=False,
-            show_controls_idx="alternate",
-            show_total_row=True,
-            show_total_column=True,
-            theme="dark",
+        metric_views, _errors, _warnings = (
+            session.iterations_view_model.get_metric_grids(
+                double_var_iteration.uid,
+                default=False,
+                show_controls_idx="alternate",
+                show_total_row=True,
+                show_total_column=True,
+                theme="dark",
+            )
         )
 
         assert isinstance(metric_views, list)

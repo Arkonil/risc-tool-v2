@@ -36,19 +36,15 @@ def test_categorical_group_validation():
 
 
 def test_single_var_iteration_create():
-    iter_obj = NumericalSingleVarIteration.model_validate(
-        {
-            "uid": IterationID(1),
-            "name": "Test Single Var",
-            "variable_name": "score",
-            "groups": OrderedDict(
-                [
-                    (GroupID(0), NumericalGroup(lower_bound=0.0, upper_bound=50.0)),
-                    (GroupID(1), NumericalGroup(lower_bound=50.0, upper_bound=100.0)),
-                ]
-            ),
-        }
-    )
+    iter_obj = NumericalSingleVarIteration.model_validate({
+        "uid": IterationID(1),
+        "name": "Test Single Var",
+        "variable_name": "score",
+        "groups": OrderedDict([
+            (GroupID(0), NumericalGroup(lower_bound=0.0, upper_bound=50.0)),
+            (GroupID(1), NumericalGroup(lower_bound=50.0, upper_bound=100.0)),
+        ]),
+    })
     assert iter_obj.uid == IterationID(1)
     assert iter_obj.iter_type == IterationType.SINGLE
     assert iter_obj.var_type == VariableType.NUMERICAL
@@ -56,18 +52,14 @@ def test_single_var_iteration_create():
 
 
 def test_iteration_serialization_roundtrip():
-    iter_obj = CategoricalSingleVarIteration.model_validate(
-        {
-            "uid": IterationID(2),
-            "name": "Cat Var",
-            "variable_name": "grade",
-            "groups": OrderedDict(
-                [
-                    (GroupID(0), CategoricalGroup(categories={"A", "B"})),
-                ]
-            ),
-        }
-    )
+    iter_obj = CategoricalSingleVarIteration.model_validate({
+        "uid": IterationID(2),
+        "name": "Cat Var",
+        "variable_name": "grade",
+        "groups": OrderedDict([
+            (GroupID(0), CategoricalGroup(categories={"A", "B"})),
+        ]),
+    })
     dumped = iter_obj.model_dump()
     reconstructed = CategoricalSingleVarIteration.model_validate(dumped)
     assert reconstructed.uid == iter_obj.uid
@@ -136,11 +128,9 @@ def test_double_var_iteration_type_matching():
         uid=IterationID(2),
         name="Double Iter",
         variable_name="score",
-        groups=OrderedDict(
-            [
-                (GroupID(0), NumericalGroup(lower_bound=0.0, upper_bound=100.0)),
-            ]
-        ),
+        groups=OrderedDict([
+            (GroupID(0), NumericalGroup(lower_bound=0.0, upper_bound=100.0)),
+        ]),
         groups_mask={GroupID(0): True},
         risk_segment_grid={GroupID(0): {RiskSegmentID(1): RiskSegmentID(2)}},
         default_risk_segment_grid={GroupID(0): {RiskSegmentID(1): RiskSegmentID(2)}},
