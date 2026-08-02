@@ -216,9 +216,18 @@ class SummaryViewModel(ChangeNotifier):
         self.cv_selected_iterations[view_idx] = (iteration_id, default)
 
     # Pivot Tab
+    def _valid_pivot_metrics(self, metric_ids: list[MetricID]) -> list[MetricID]:
+        """Filter metric IDs to those usable in the pivot table."""
+        all_metrics = self._metric_repository.metrics
+        return [
+            m_id
+            for m_id in metric_ids
+            if m_id in all_metrics and not all_metrics[m_id].is_cumulative
+        ]
+
     def set_pivot_metrics(self, metric_ids: list[MetricID]) -> None:
-        """Set active metrics for Pivot tab."""
-        self.pv_metric_ids = metric_ids
+        """Set active metrics for Pivot tab, keeping only valid ones."""
+        self.pv_metric_ids = self._valid_pivot_metrics(metric_ids)
 
     @property
     def pivot_variables(self) -> dict[str | tuple[IterationID, bool], str]:
@@ -303,11 +312,9 @@ class SummaryViewModel(ChangeNotifier):
         if not self.pv_metric_ids or not self.pv_row_vars:
             return []
 
-        all_metrics = self._metric_repository.metrics
         metrics = [
-            all_metrics[m_id]
-            for m_id in self.pv_metric_ids
-            if m_id in all_metrics and not all_metrics[m_id].is_cumulative
+            self._metric_repository.metrics[m_id]
+            for m_id in self._valid_pivot_metrics(self.pv_metric_ids)
         ]
 
         if not metrics:
@@ -344,10 +351,13 @@ class SummaryViewModel(ChangeNotifier):
             self.pv_filter_ids, remove_outliers=self.pv_remove_outliers
         )
 
-        all_summary_dfs: list[pd.DataFrame] = []
+        all_summary_lf_idx: list[tuple[int, int]] = []
+        all_summary_lfs: list[pl.LazyFrame] = []
 
         for r_i in range(r_N + 1):
             for c_i in range(c_N + 1):
+                all_summary_lf_idx.append((r_i, c_i))
+
                 r_group = row_exprs[:r_i]
                 c_group = col_exprs[:c_i]
 
@@ -358,43 +368,54 @@ class SummaryViewModel(ChangeNotifier):
                     with_columns=all_with_cols,
                 )
 
-                df = lf.collect().to_pandas()
+                all_summary_lfs.append(lf)
 
-                if df.empty:
-                    continue
+        all_summary_pdfs: list[pl.DataFrame] = pl.collect_all(
+            all_summary_lfs, engine="streaming"
+        )
+        all_summary_dfs: list[pd.DataFrame] = []
 
-                if r_i + c_i == 0:
-                    idx = pd.MultiIndex.from_tuples(
-                        [(RowIndex.TOTAL,) * (r_N + c_N)],
-                        names=names,
-                    )
-                elif r_i + c_i == 1:
-                    group_cols = [str(e.meta.output_name()) for e in r_group + c_group]
-                    series = df[group_cols[0]]
-                    idx = pd.MultiIndex.from_product(
-                        [series] + [[RowIndex.TOTAL]] * (r_N + c_N - 1),
-                    ).swaplevel(0, 0 if r_i == 1 else r_N)
-                    idx.names = names
-                    df = df.drop(columns=group_cols)
-                else:
-                    group_cols = [str(e.meta.output_name()) for e in r_group + c_group]
-                    tuples = [tuple(x) for x in df[group_cols].to_numpy()]
-                    idx = pd.MultiIndex.from_tuples(
-                        [
-                            (
-                                *t[:r_i],
-                                *([RowIndex.TOTAL] * (r_N - r_i)),
-                                *t[r_i:],
-                                *([RowIndex.TOTAL] * (c_N - c_i)),
-                            )
-                            for t in tuples
-                        ],
-                        names=names,
-                    )
-                    df = df.drop(columns=group_cols)
+        for (r_i, c_i), pdf in zip(all_summary_lf_idx, all_summary_pdfs):
+            df = pdf.to_pandas()
 
-                df.index = idx
-                all_summary_dfs.append(df)
+            if df.empty:
+                continue
+
+            r_group = row_exprs[:r_i]
+            c_group = col_exprs[:c_i]
+
+            if r_i + c_i == 0:
+                idx = pd.MultiIndex.from_tuples(
+                    [(RowIndex.TOTAL,) * (r_N + c_N)],
+                    names=names,
+                )
+            elif r_i + c_i == 1:
+                group_cols = [str(e.meta.output_name()) for e in r_group + c_group]
+                series = df[group_cols[0]]
+                idx = pd.MultiIndex.from_product(
+                    [series] + [[RowIndex.TOTAL]] * (r_N + c_N - 1),
+                ).swaplevel(0, 0 if r_i == 1 else r_N)
+                idx.names = names
+                df = df.drop(columns=group_cols)
+            else:
+                group_cols = [str(e.meta.output_name()) for e in r_group + c_group]
+                tuples = [tuple(x) for x in df[group_cols].to_numpy()]
+                idx = pd.MultiIndex.from_tuples(
+                    [
+                        (
+                            *t[:r_i],
+                            *([RowIndex.TOTAL] * (r_N - r_i)),
+                            *t[r_i:],
+                            *([RowIndex.TOTAL] * (c_N - c_i)),
+                        )
+                        for t in tuples
+                    ],
+                    names=names,
+                )
+                df = df.drop(columns=group_cols)
+
+            df.index = idx
+            all_summary_dfs.append(df)
 
         if not all_summary_dfs:
             return []
