@@ -281,7 +281,7 @@ def pivot() -> None:
             options=var_keys,
             default=[v for v in summary_vm.pv_row_vars if v in var_keys],
             format_func=format_var,
-            key="pv_row_vars_multiselect",
+            key=f"pv_row_vars_{row_key_slug}",
         )
         if selected_row_vars != summary_vm.pv_row_vars:
             summary_vm.pv_row_vars = selected_row_vars
@@ -292,7 +292,7 @@ def pivot() -> None:
             options=var_keys,
             default=[v for v in summary_vm.pv_col_vars if v in var_keys],
             format_func=format_var,
-            key="pv_col_vars_multiselect",
+            key=f"pv_col_vars_{col_key_slug}",
         )
         if selected_col_vars != summary_vm.pv_col_vars:
             summary_vm.pv_col_vars = selected_col_vars
@@ -326,6 +326,7 @@ def pivot() -> None:
             ]
             if new_row_vars != summary_vm.pv_row_vars:
                 summary_vm.pv_row_vars = new_row_vars
+                st.session_state.pop(f"pv_row_sort_{row_key_slug}", None)
                 st.rerun()
 
         if summary_vm.pv_col_vars and len(summary_vm.pv_col_vars) > 1:
@@ -356,6 +357,7 @@ def pivot() -> None:
             ]
             if new_col_vars != summary_vm.pv_col_vars:
                 summary_vm.pv_col_vars = new_col_vars
+                st.session_state.pop(f"pv_col_sort_{col_key_slug}", None)
                 st.rerun()
 
     with col_table:
