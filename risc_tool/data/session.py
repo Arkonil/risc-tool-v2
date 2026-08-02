@@ -15,6 +15,7 @@ from risc_tool.ui.components.variable_selector_vm import VariableSelectorViewMod
 from risc_tool.ui.config.config_vm import ConfigViewModel
 from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
 from risc_tool.ui.data_importer.data_importer_vm import DataImporterViewModel
+from risc_tool.ui.docs.docs_vm import DocsViewModel
 from risc_tool.ui.export.export_vm import ExportViewModel
 from risc_tool.ui.filters.filters_vm import FilterViewModel
 from risc_tool.ui.home.home_vm import HomeViewModel
@@ -113,6 +114,7 @@ class Session:
         )
         self.export_view_model = ExportViewModel(self.iterations_repository)
         self.home_view_model = HomeViewModel()
+        self.docs_view_model = DocsViewModel()
 
     def to_dict(self) -> SessionJSON:
         """Serialize the session state to a SessionJSON object.
@@ -206,4 +208,5 @@ class Session:
             self.iterations_repository,
         )
         self.export_view_model = ExportViewModel(self.iterations_repository)
-        # self.home_view_model = HomeViewModel()
+        self.docs_view_model = DocsViewModel()
+        self.home_view_model = HomeViewModel()

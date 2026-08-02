@@ -5,7 +5,7 @@ import streamlit as st
 from risc_tool.ui.config.config import config_page
 from risc_tool.ui.data_explorer.data_explorer import data_explorer_page
 from risc_tool.ui.data_importer.data_importer import data_importer_page
-from risc_tool.ui.documentation import documentation_page
+from risc_tool.ui.docs.docs import docs_page
 from risc_tool.ui.export.export import export_page
 from risc_tool.ui.filters.filters import filter_page
 from risc_tool.ui.home.home import home_page
@@ -25,7 +25,7 @@ def set_page_navigation():
     pg = st.navigation({
         "Home": [
             home_page,
-            documentation_page,
+            docs_page,
         ],
         "Tools": [
             data_importer_page,

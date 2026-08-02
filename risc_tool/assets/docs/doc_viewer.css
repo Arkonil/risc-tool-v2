@@ -1,0 +1,68 @@
+#doc-container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  align-items: flex-start;
+  color: var(--st-text-color);
+  background-color: var(--st-background-color);
+}
+
+#doc-content {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4rem 2rem 0; /* Clear space on right for navigator */
+  margin: 0;
+  display: block;
+}
+
+#doc-navigator {
+  width: 220px;
+  position: sticky;
+  top: 7.8rem; /* Perfectly matches the first heading vertical position */
+  height: auto;
+  padding-left: 2rem;
+  margin-top: 2.8rem; /* Aligns start position with content heading */
+  border-left: none;
+}
+
+#doc-navigator ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-header {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+  color: var(--st-text-color);
+  opacity: 0.9;
+  padding-left: 1rem;
+  line-height: 1.2;
+}
+
+.nav-item {
+  padding: 0.4rem 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  color: var(--st-text-color);
+  opacity: 0.8; /* Increased opacity for better contrast */
+  border-left: 2px solid transparent;
+  padding-left: 1rem;
+  line-height: 1.2;
+}
+
+.nav-item:hover {
+  opacity: 1;
+  color: var(--st-primary-color);
+}
+
+.nav-item.active {
+  color: var(--st-primary-color);
+  opacity: 1;
+  font-weight: 600;
+  border-left: 2px solid var(--st-primary-color);
+}
