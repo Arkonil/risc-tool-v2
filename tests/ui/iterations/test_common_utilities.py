@@ -273,9 +273,7 @@ class TestIterationSidebarComponents:
 
         with (
             patch("streamlit.button") as mock_button,
-            patch(
-                "risc_tool.ui.iterations.common.set_groups_dialog_widget"
-            ),
+            patch("risc_tool.ui.iterations.common.set_groups_dialog_widget"),
             patch("streamlit.session_state", {"session": session}),
         ):
             mock_button.return_value = False
@@ -637,9 +635,7 @@ class TestCommonUtilitiesIntegration:
         groups_before = session.iterations_view_model.get_all_groups(
             double_var_iteration.uid
         )
-        groups_before[
-            groups_before[RangeColumn.SELECTED.value]
-        ].index.tolist()
+        groups_before[groups_before[RangeColumn.SELECTED.value]].index.tolist()
 
         # New selection
         new_groups = pd.DataFrame(

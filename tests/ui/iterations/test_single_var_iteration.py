@@ -238,7 +238,9 @@ class TestSingleVarSidebarComponents:
         at.run(timeout=10)
 
         checkboxes = at.get("checkbox")
-        scalars_checkbox = next(c for c in checkboxes if "Enable Scalars" in str(c.label))
+        scalars_checkbox = next(
+            c for c in checkboxes if "Enable Scalars" in str(c.label)
+        )
 
         # Toggle checkbox
         original_value = scalars_checkbox.value  # type: ignore
