@@ -9,6 +9,7 @@ from risc_tool.data.models.exceptions import (
     SampleDataNotLoadedError,
     VariableNotNumericError,
 )
+from risc_tool.data.models.json_models import MetricJSON, MetricRepositoryJSON
 from risc_tool.data.models.metric import (
     DefaultDollarBadRate,
     DefaultUnitBadRate,
@@ -640,60 +641,105 @@ class MetricRepository(BaseRepository):
         all_metrics.update(self.__user_defined_metrics)
         return all_metrics
 
-    def to_dict(self) -> dict[str, t.Any]:
-        return {
-            "metrics": [m.to_dict() for m in self.__user_defined_metrics.values()],
-            "var_dev_unt_bad": self._var_dev_unt_bad,
-            "var_dev_dlr_bad": self._var_dev_dlr_bad,
-            "var_dev_avg_bal": self._var_dev_avg_bal,
-            "var_tst_unt_bad": self._var_tst_unt_bad,
-            "var_tst_dlr_bad": self._var_tst_dlr_bad,
-            "var_tst_avg_bal": self._var_tst_avg_bal,
-            "current_rate_mob": self._current_rate_mob,
-            "lifetime_rate_mob": self._lifetime_rate_mob,
-            "dev_data_source_ids": [int(ds_id) for ds_id in self._dev_data_source_ids],
-            "tst_data_source_ids": [int(ds_id) for ds_id in self._tst_data_source_ids],
-        }
+    def to_dict(self):
+        """Serialize MetricRepository state to MetricRepositoryJSON Pydantic model."""
+
+        return MetricRepositoryJSON(
+            metrics={m.uid: m.to_dict() for m in self.__user_defined_metrics.values()},
+            var_dev_unt_bad=self._var_dev_unt_bad,
+            var_dev_dlr_bad=self._var_dev_dlr_bad,
+            var_dev_avg_bal=self._var_dev_avg_bal,
+            var_tst_unt_bad=self._var_tst_unt_bad,
+            var_tst_dlr_bad=self._var_tst_dlr_bad,
+            var_tst_avg_bal=self._var_tst_avg_bal,
+            current_rate_mob=self._current_rate_mob,
+            lifetime_rate_mob=self._lifetime_rate_mob,
+            dev_data_source_ids=self._dev_data_source_ids,
+            tst_data_source_ids=self._tst_data_source_ids,
+        )
 
     @classmethod
     def from_dict(
         cls,
-        data: dict[str, t.Any],
+        data: MetricRepositoryJSON,
         data_repository: DataRepository,
-        errors: t.Literal["ignore", "raise"] = "ignore",
-    ) -> tuple["MetricRepository", list[tuple[Metric, Exception]]]:
+        errors: t.Literal["ignore", "raise"],
+    ):
+        """Reconstruct MetricRepository from MetricRepositoryJSON Pydantic model or dict."""
         repo = cls(data_repository=data_repository)
         invalid_metrics: list[tuple[Metric, Exception]] = []
 
-        for metric_dict in data.get("metrics", []):
-            metric_obj = Metric.from_dict(metric_dict)
+        for metric_json in data.metrics.values():
+            metric_obj = Metric.from_dict(metric_json)
             try:
-                all_columns = data_repository.common_columns(metric_obj.data_source_ids)
-                all_column_names = [col for col, _ in all_columns]
-                metric_obj.validate_query(all_column_names)
-            except (SyntaxError, ValueError) as error:
+                if data_repository.has_valid_sources:
+                    all_columns = data_repository.common_columns(
+                        metric_obj.data_source_ids
+                    )
+                    all_column_names = [col for col, _ in all_columns]
+                    if all_column_names:
+                        metric_obj.validate_query(all_column_names)
+            except ValueError as error:
                 if errors == "raise":
                     invalid_metrics.append((metric_obj, error))
+
                 continue
 
             repo.__user_defined_metrics[metric_obj.uid] = metric_obj
 
-        repo._var_dev_unt_bad = data.get("var_dev_unt_bad")
-        repo._var_dev_dlr_bad = data.get("var_dev_dlr_bad")
-        repo._var_dev_avg_bal = data.get("var_dev_avg_bal")
-        repo._var_tst_unt_bad = data.get("var_tst_unt_bad")
-        repo._var_tst_dlr_bad = data.get("var_tst_dlr_bad")
-        repo._var_tst_avg_bal = data.get("var_tst_avg_bal")
-        repo._current_rate_mob = data.get("current_rate_mob", 12)
-        repo._lifetime_rate_mob = data.get("lifetime_rate_mob", 36)
-        repo._dev_data_source_ids = [
-            DataSourceID(i) for i in data.get("dev_data_source_ids", [])
-        ]
-        repo._tst_data_source_ids = [
-            DataSourceID(i) for i in data.get("tst_data_source_ids", [])
-        ]
+        repo._var_dev_unt_bad = data.var_dev_unt_bad
+        repo._var_dev_dlr_bad = data.var_dev_dlr_bad
+        repo._var_dev_avg_bal = data.var_dev_avg_bal
+        repo._var_tst_unt_bad = data.var_tst_unt_bad
+        repo._var_tst_dlr_bad = data.var_tst_dlr_bad
+        repo._var_tst_avg_bal = data.var_tst_avg_bal
+        repo._current_rate_mob = data.current_rate_mob
+        repo._lifetime_rate_mob = data.lifetime_rate_mob
+        repo._dev_data_source_ids = data.dev_data_source_ids
+        repo._tst_data_source_ids = data.tst_data_source_ids
 
         repo._update_user_defined_metrics()
         repo._update_default_metrics()
 
         return repo, invalid_metrics
+
+    @classmethod
+    def validate_json(cls, data_repository: DataRepository, data: MetricRepositoryJSON):
+        """Return variables referenced in the JSON that are missing from the data schema."""
+
+        invalid_metrics: dict[MetricID, MetricJSON] = {}
+        missing_variables: set[str] = set()
+
+        for metric_json in data.metrics.values():
+            available_columns = {
+                col
+                for col, _ in data_repository.common_columns(
+                    metric_json.data_source_ids
+                )
+            }
+            if set(metric_json.used_columns) - available_columns:
+                invalid_metrics[metric_json.uid] = metric_json
+
+        available_dev_columns = {
+            col for col, _ in data_repository.common_columns(data.dev_data_source_ids)
+        }
+        for var in (
+            data.var_dev_unt_bad,
+            data.var_dev_dlr_bad,
+            data.var_dev_avg_bal,
+        ):
+            if var is not None and var not in available_dev_columns:
+                missing_variables.add(var)
+
+        available_tst_columns = {
+            col for col, _ in data_repository.common_columns(data.tst_data_source_ids)
+        }
+        for var in (
+            data.var_tst_unt_bad,
+            data.var_tst_dlr_bad,
+            data.var_tst_avg_bal,
+        ):
+            if var is not None and var not in available_tst_columns:
+                missing_variables.add(var)
+
+        return invalid_metrics, sorted(missing_variables)

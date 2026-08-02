@@ -5,6 +5,7 @@ import typing as t
 import numpy as np
 import polars as pl
 
+from risc_tool.data.models.json_models import MetricJSON
 from risc_tool.data.models.types import DataSourceID, MetricID
 from risc_tool.utils.logging import get_logger
 
@@ -210,39 +211,6 @@ class Metric:
     @property
     def pretty_name(self) -> str:
         return self.name
-
-    def to_dict(self) -> dict[str, t.Any]:
-        return {
-            "uid": int(self.uid),
-            "name": self.name,
-            "query": self.query,
-            "data_source_ids": [int(ds_id) for ds_id in self.data_source_ids],
-            "used_columns": self.used_columns,
-            "is_cumulative": self.is_cumulative,
-            "use_thousand_sep": self.use_thousand_sep,
-            "is_percentage": self.is_percentage,
-            "decimal_places": self.decimal_places,
-            "processed_query": self.processed_query,
-            "placeholder_map": self.placeholder_map,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, t.Any]) -> "Metric":
-        instance = cls(
-            uid=MetricID(data["uid"]),
-            name=data["name"],
-            query=data["query"],
-            data_source_ids=[DataSourceID(ds_id) for ds_id in data["data_source_ids"]],
-            is_cumulative=data["is_cumulative"],
-            use_thousand_sep=data.get("use_thousand_sep", True),
-            is_percentage=data.get("is_percentage", False),
-            decimal_places=data.get("decimal_places", 2),
-        )
-
-        instance.used_columns = data.get("used_columns", [])
-        instance.processed_query = data.get("processed_query", data["query"])
-        instance.placeholder_map = data.get("placeholder_map", {})
-        return instance
 
     def format(self, value: float | None) -> str | float | None:
         if value is None or (isinstance(value, float) and np.isnan(value)):
@@ -621,6 +589,43 @@ class Metric:
         new_metric.metric_expr = self.metric_expr
 
         return new_metric
+
+    def to_dict(self):
+        """Convert Metric to MetricJSON Pydantic model."""
+        return MetricJSON(
+            uid=self.uid,
+            name=self.name,
+            query=self.query,
+            data_source_ids=self.data_source_ids,
+            used_columns=self.used_columns,
+            is_cumulative=self.is_cumulative,
+            use_thousand_sep=self.use_thousand_sep,
+            is_percentage=self.is_percentage,
+            decimal_places=self.decimal_places,
+            processed_query=self.processed_query,
+            placeholder_map=self.placeholder_map,
+        )
+
+    @classmethod
+    def from_dict(cls, data: MetricJSON) -> "Metric":
+        """Reconstruct Metric from MetricJSON Pydantic model or dict."""
+
+        metric = cls(
+            uid=data.uid,
+            name=data.name,
+            query=data.query,
+            is_cumulative=data.is_cumulative,
+            use_thousand_sep=data.use_thousand_sep,
+            is_percentage=data.is_percentage,
+            decimal_places=data.decimal_places,
+            data_source_ids=data.data_source_ids,
+        )
+
+        metric.used_columns = data.used_columns
+        metric.processed_query = data.processed_query
+        metric.placeholder_map = data.placeholder_map
+
+        return metric
 
 
 class DefaultUnitBadRate(Metric):

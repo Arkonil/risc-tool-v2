@@ -1,9 +1,8 @@
 """Repository for managing annualization rates and loss rate scalars."""
 
-import typing as t
-
 from risc_tool.data.models.config import LossRateScalar
 from risc_tool.data.models.enums import LossRateTypes, Signature
+from risc_tool.data.models.json_models import ScalarRepositoryJSON
 from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.utils.logging import get_logger
@@ -48,18 +47,19 @@ class ScalarRepository(BaseRepository):
         self._scalars[loss_rate_type].lifetime_rate = lifetime_rate
         self.notify_subscribers()
 
-    def to_dict(self) -> dict[str, t.Any]:
-        """Serialize repository state to dictionary."""
-        return {"scalars": {k.value: v.model_dump() for k, v in self._scalars.items()}}
+    def to_dict(self):
+        """Serialize repository state to ScalarRepositoryJSON Pydantic model."""
+
+        return ScalarRepositoryJSON(scalars=self._scalars)
 
     @classmethod
-    def from_dict(cls, data: dict[str, t.Any]) -> "ScalarRepository":
-        """Deserialize repository state from dictionary."""
+    def from_dict(cls, data: ScalarRepositoryJSON):
+        """Deserialize repository state from ScalarRepositoryJSON Pydantic model or dict."""
         repo = cls()
-        if "scalars" in data:
-            for k_str, val in data["scalars"].items():
-                loss_rate_type = LossRateTypes(k_str)
-                repo._scalars[loss_rate_type] = LossRateScalar.model_validate(val)
+
+        for loss_rate_type, scalar in data.scalars.items():
+            repo._scalars[loss_rate_type] = scalar
+
         return repo
 
 

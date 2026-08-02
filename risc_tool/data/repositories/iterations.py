@@ -1,4 +1,6 @@
 import itertools
+import re
+import textwrap
 import typing as t
 from collections import OrderedDict
 
@@ -25,8 +27,10 @@ from risc_tool.data.models.iteration import (
     NumericalIterationMixin,
     NumericalSingleVarIteration,
     SingleVarIteration,
+    iteration_from_dict,
 )
 from risc_tool.data.models.iteration_graph import IterationGraph
+from risc_tool.data.models.json_models import IterationJSON, IterationRepositoryJSON
 from risc_tool.data.models.types import (
     ChangeIDs,
     FilterID,
@@ -47,6 +51,7 @@ from risc_tool.data.services.auto_band import (
     create_auto_numeric_bands,
     does_high_value_implies_high_risk,
 )
+from risc_tool.utils.wrap_text import TAB
 
 
 class IterationsRepository(BaseRepository):
@@ -377,7 +382,6 @@ class IterationsRepository(BaseRepository):
 
         if variable_dtype == VariableType.NUMERICAL:
             iteration = NumericalSingleVarIteration(
-                var_type=VariableType.NUMERICAL,
                 uid=new_id,
                 name=name,
                 variable_name=variable_name,
@@ -385,7 +389,6 @@ class IterationsRepository(BaseRepository):
             )
         else:
             iteration = CategoricalSingleVarIteration(
-                var_type=VariableType.CATEGORICAL,
                 uid=new_id,
                 name=name,
                 variable_name=variable_name,
@@ -1656,6 +1659,290 @@ class IterationsRepository(BaseRepository):
             )
 
         return metric_outputs, errors, warnings
+
+    def get_code_templates(
+        self,
+        iteration_id: IterationID,
+        default: bool,
+        language: t.Literal["sas", "python"],
+    ) -> list[dict[str, t.Any]]:
+        """Generate code templates for the specified iteration chain."""
+        node_chain = self.graph.get_ancestors(iteration_id)
+        node_chain.append(iteration_id)
+
+        risk_segments = self.get_risk_segment_details(iteration_id).segments
+        output_value_mapping = {
+            f"GROUP_INDEX_{seg_id.value}": f'"{seg.name}"'
+            for seg_id, seg in risk_segments.items()
+        }
+
+        code_templates: list[dict[str, t.Any]] = []
+        pattern = re.compile(r"(.+) \((Numerical|Categorical)\)")
+
+        output_variable_name: str = ""
+
+        for i, node in enumerate(node_chain):
+            _default = False if i < len(node_chain) - 1 else default
+
+            iteration = self.iterations[node]
+            if match := pattern.match(str(iteration.variable_name)):
+                variable_name = match.group(1)
+            else:
+                variable_name = iteration.variable_name
+
+            previous_iter_out_name = output_variable_name
+            output_variable_name = (
+                f"Risk_Seg_{node}_{'default' if _default else 'custom'}"
+            )
+
+            template = (
+                iteration.generate_sas_code(default=_default)
+                if language == "sas"
+                else iteration.generate_python_code(default=_default)
+            )
+
+            code_templates.append({
+                "node_id": node,
+                "template": template,
+                "substitute": {
+                    "VARIABLE_NAME": variable_name,
+                    "OUTPUT_VARIABLE_NAME": output_variable_name,
+                    "PREV_ITER_OUT_NAME": previous_iter_out_name,
+                    "MISSING": '""',
+                    "DATA": "data",
+                }
+                | output_value_mapping,
+            })
+
+        return code_templates
+
+    def get_sas_code(
+        self, iteration_id: IterationID, default: bool, use_macro: bool
+    ) -> str:
+        """Generate executable SAS code for an iteration chain."""
+        code = ""
+        code_templates = self.get_code_templates(iteration_id, default, "sas")
+
+        if use_macro:
+            code += "/* Macro Definitions: */\n"
+
+            raw_variables: dict[str, str] = {}
+            result_variables: dict[str, str] = {}
+
+            for i, item in enumerate(code_templates):
+                substitute_d = item["substitute"]
+
+                raw_variables[f"variable_{i}_"] = substitute_d["VARIABLE_NAME"]
+                result_variables[f"result_{i}_"] = substitute_d["OUTPUT_VARIABLE_NAME"]
+
+                substitute_d["VARIABLE_NAME"] = f"&variable_{i}_."
+                substitute_d["OUTPUT_VARIABLE_NAME"] = f"&result_{i}_."
+
+            for macro, value in raw_variables.items():
+                code += f"%let {macro} = {value};\n"
+
+            for macro, value in result_variables.items():
+                code += f"%let {macro} = {value};\n"
+
+            code += "\n"
+
+        for item in code_templates:
+            code += f"/* Iteration {item['node_id']} */\n\n"
+            code += item["template"].safe_substitute(item["substitute"])
+            code += "\n" * 2
+
+        fullcode = "/* Specify input/Output Data Name */\n"
+        fullcode += "data result;\n"
+        fullcode += textwrap.indent("set source;\n\n", TAB)
+        fullcode += textwrap.indent(code.strip(), TAB)
+        fullcode += "\nrun;"
+
+        return fullcode.strip()
+
+    def get_python_code(self, iteration_id: IterationID, default: bool) -> str:
+        """Generate executable Python code for an iteration chain."""
+        code_templates = self.get_code_templates(iteration_id, default, "python")
+
+        module_import_code = textwrap.dedent("""
+            # Module Imports
+            import numpy as np
+            import pandas as pd
+
+        """)
+
+        data_import_code = textwrap.dedent("""
+            # Data Import    
+            data_sources = []
+        """)
+
+        for i, data_source in enumerate(self.__data_repository.data_sources.values()):
+            if data_source.read_config.read_mode == "CSV":
+                filepath = str(data_source.filepath.absolute()).replace("\\", "/")
+                data_import_code += textwrap.dedent(f"""
+                    data_{i} = pd.read_csv(
+                        filepath_or_buffer="{filepath}",
+                        delimiter="{data_source.read_config.delimiter}",
+                        header={data_source.read_config.header_row},
+                    )
+                    data_sources.append(data_{i})
+                """)
+
+            elif data_source.read_config.read_mode == "EXCEL":
+                data_import_code += textwrap.dedent(f"""
+                    data_{i} = pd.read_excel(
+                        io="{data_source.filepath.absolute()!s}",
+                        sheet_name={data_source.read_config.sheet_name if data_source.read_config.sheet_name.isnumeric() else f'"{data_source.read_config.sheet_name}"'},
+                        header={data_source.read_config.header_row},
+                    )
+                    data_sources.append(data_{i})
+                """)
+
+        data_import_code += textwrap.dedent("""
+            data = pd.concat(data_sources, axis=0, keys=range(len(data_sources)))
+
+        """)
+
+        function_definitions = textwrap.dedent("""
+            # Function Definitions:
+            def create_mapped_variable(variable: pd.Series, mapping: pd.Series):
+                if isinstance(mapping.index.dtype, pd.IntervalDtype):
+                    return pd.cut(
+                        x = variable,
+                        bins = mapping.index,
+                    ).map(mapping).rename("output")
+
+                output = pd.Series(index=data.index, name="output", dtype="string")
+
+                for cats, out in mapping.items():
+                    output.loc[variable.isin(cats)] = out
+
+                return output
+
+            def create_grid_mapped_variable(
+                variable: pd.Series,
+                prev_result_variable: pd.Series,
+                mapping: pd.DataFrame,
+            ):
+                mapping = (
+                    mapping.copy()
+                    .stack()
+                    .rename_axis(index=["variable", "result"])
+                    .rename("output")
+                    .reset_index()
+                )
+
+                df = pd.DataFrame({
+                    "variable": variable,
+                    "result": prev_result_variable,
+                })
+
+                if isinstance(mapping["variable"].dtype, pd.IntervalDtype):
+                    df["variable"] = pd.cut(
+                        x=df["variable"],
+                        bins=mapping["variable"].drop_duplicates(),
+                    )
+
+                    df = pd.merge(
+                        left=df,
+                        right=mapping,
+                        how="left",
+                        on=["variable", "result"],
+                    )
+
+                    return pd.Series(
+                        df["output"].to_numpy(), index=variable.index, name="output"
+                    )
+
+                output = pd.Series(index=data.index, name="output", dtype="string")
+
+                for group in mapping.itertuples():
+                    categories = group.variable
+                    prev_result = group.result
+                    output_value = group.output
+
+                    output.loc[variable.isin(categories) & (prev_result_variable == prev_result)] = output_value
+
+                return output
+
+        """)
+
+        code = module_import_code + data_import_code + function_definitions
+
+        for item in code_templates:
+            code += f"## Iteration {item['node_id']}\n"
+            code += item["template"].safe_substitute(item["substitute"])
+            code += "\n"
+
+        return code.strip()
+
+    def to_dict(self) -> IterationRepositoryJSON:
+        """Serialize IterationsRepository state to IterationRepositoryJSON Pydantic model."""
+
+        return IterationRepositoryJSON(
+            iterations=[iter_obj.to_dict() for iter_obj in self.iterations.values()],
+            graph=self.graph,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: IterationRepositoryJSON,
+        data_repository: DataRepository,
+        filter_repository: FilterRepository,
+        metric_repository: MetricRepository,
+        option_repository: OptionRepository,
+        scalar_repository: ScalarRepository,
+        errors: t.Literal["ignore", "raise"],
+    ) -> tuple["IterationsRepository", list[tuple[IterationID, Exception]]]:
+        """Reconstruct IterationsRepository from IterationRepositoryJSON Pydantic model or dict."""
+        repo = cls(
+            data_repository=data_repository,
+            filter_repository=filter_repository,
+            metric_repository=metric_repository,
+            options_repository=option_repository,
+            scalar_repository=scalar_repository,
+        )
+
+        invalid_iterations: list[tuple[IterationID, Exception]] = []
+        repo.graph = data.graph
+
+        for iter_json in data.iterations:
+            try:
+                if iter_json.var_type == VariableType.NUMERICAL:
+                    iter_obj = iteration_from_dict(
+                        t.cast(IterationJSON[NumericalGroup], iter_json)
+                    )
+                else:
+                    iter_obj = iteration_from_dict(
+                        t.cast(IterationJSON[CategoricalGroup], iter_json)
+                    )
+
+                # iter_obj = iteration_from_dict(iter_json)
+                repo.iterations[iter_obj.uid] = iter_obj
+            except Exception as error:  # noqa: BLE001
+                if errors == "raise":
+                    invalid_iterations.append((iter_json.uid, error))
+
+        return repo, invalid_iterations
+
+    @classmethod
+    def validate_json(
+        cls, data_repository: DataRepository, data: IterationRepositoryJSON
+    ):
+        """Return variables referenced in the JSON that are missing from the data schema."""
+        available_columns = {col for col, _ in data_repository.common_columns()}
+        invalid_iterations: dict[
+            IterationID, IterationJSON[NumericalGroup] | IterationJSON[CategoricalGroup]
+        ] = {}
+
+        for iter_json in data.iterations:
+            if (
+                iter_json.variable_name is not None
+                and iter_json.variable_name not in available_columns
+            ):
+                invalid_iterations[iter_json.uid] = iter_json
+
+        return invalid_iterations
 
 
 __all__ = ["IterationsRepository"]

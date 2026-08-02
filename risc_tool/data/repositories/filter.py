@@ -15,6 +15,7 @@ from risc_tool.data.models.enums import (
 )
 from risc_tool.data.models.exceptions import InvalidFilterError
 from risc_tool.data.models.filter import Filter
+from risc_tool.data.models.json_models import FilterJSON, FilterRepositoryJSON
 from risc_tool.data.models.outlier import OutlierRule
 from risc_tool.data.models.types import ChangeIDs, FilterID
 from risc_tool.data.repositories.base import BaseRepository
@@ -362,6 +363,55 @@ class FilterRepository(BaseRepository):
             for fid in filter_ids
             if fid in self.filters and (fid in outliers_list) == outliers
         }
+
+    def to_dict(self) -> FilterRepositoryJSON:
+        """Serialize FilterRepository state to FilterRepositoryJSON Pydantic model."""
+        return FilterRepositoryJSON(
+            filters={f.uid: f.to_dict() for f in self.filters.values()}
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: FilterRepositoryJSON,
+        data_repository: DataRepository,
+        errors: t.Literal["ignore", "raise"],
+    ) -> tuple["FilterRepository", list[tuple[Filter, Exception]]]:
+        """Reconstruct FilterRepository from FilterRepositoryJSON Pydantic model or dict."""
+        repo = cls(data_repository=data_repository)
+        invalid_filters: list[tuple[Filter, Exception]] = []
+
+        common_cols = [c[0] for c in data_repository.common_columns()]
+
+        for filter_json in data.filters.values():
+            if filter_json.is_outlier:
+                filter_obj = OutlierRule.from_dict(filter_json)
+            else:
+                filter_obj = Filter.from_dict(filter_json)
+
+            try:
+                filter_obj.validate_query(available_columns=common_cols)
+            except InvalidFilterError as error:
+                if errors == "raise":
+                    invalid_filters.append((filter_obj, error))
+
+                continue
+
+            repo.filters[filter_obj.uid] = filter_obj
+
+        return repo, invalid_filters
+
+    @classmethod
+    def validate_json(cls, data_repository: DataRepository, data: FilterRepositoryJSON):
+        """Return variables referenced in the JSON that are missing from the data schema."""
+        available_columns = {col for col, _ in data_repository.common_columns()}
+        invalid_filters: dict[FilterID, FilterJSON] = {}
+
+        for filter_json in data.filters.values():
+            if set(filter_json.used_columns) - available_columns:
+                invalid_filters[filter_json.uid] = filter_json
+
+        return invalid_filters
 
 
 __all__ = ["FilterRepository"]

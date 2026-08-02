@@ -13,6 +13,7 @@ from risc_tool.data.models.data_config import DataConfig
 from risc_tool.data.models.data_source import DataSource, ReadConfig
 from risc_tool.data.models.enums import Signature, VariableType
 from risc_tool.data.models.exceptions import DataImportError
+from risc_tool.data.models.json_models import DataRepositoryJSON
 from risc_tool.data.models.metric import Metric
 from risc_tool.data.models.types import ChangeIDs, DataSourceID
 from risc_tool.data.repositories.base import BaseRepository
@@ -527,3 +528,24 @@ class DataRepository(BaseRepository):
             )
 
         return result_lf
+
+    def to_dict(self) -> DataRepositoryJSON:
+        """Serialize DataRepository state to DataRepositoryJSON Pydantic model."""
+        return DataRepositoryJSON(data_sources=self.data_sources)
+
+    @classmethod
+    def from_dict(cls, data: DataRepositoryJSON):
+        """Reconstruct DataRepository from DataRepositoryJSON Pydantic model or dict."""
+        repo = cls()
+        repo.logger.debug("Deserializing DataRepository from dict")
+
+        for ds_uid, ds in data.data_sources.items():
+            try:
+                repo.data_sources[ds_uid] = ds
+            except Exception as e:  # noqa: BLE001
+                repo.logger.warning("Failed to load DataSource %s: %s", ds_uid, e)
+
+        repo.data_config.update_schema(repo.data_sources.values())
+
+        repo.notify_subscribers()
+        return repo

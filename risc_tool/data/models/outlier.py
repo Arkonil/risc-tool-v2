@@ -1,10 +1,10 @@
 import re
-import typing as t
 
 import polars as pl
 
 from risc_tool.data.models.enums import ComparisonOperation, PercentileOptions
 from risc_tool.data.models.filter import Filter
+from risc_tool.data.models.json_models import FilterJSON
 from risc_tool.data.models.types import FilterID
 from risc_tool.utils.logging import get_logger
 
@@ -157,23 +157,48 @@ class OutlierRule(Filter):
         new_instance.used_columns = list(self.used_columns)
         return new_instance
 
-    def to_dict(self) -> dict[str, t.Any]:
+    def to_dict(self):
         """Serialize the outlier rule to a dictionary for storage or export.
 
         Returns:
             A dictionary with uid, name, query, used_columns, variable_name,
             comparison_op, comparison_base, and is_outlier flag.
         """
-        return {
-            "uid": int(self.uid),
-            "name": self.name,
-            "query": self.query,
-            "used_columns": self.used_columns,
-            "variable_name": self.variable_name,
-            "comparison_op": self.comparison_op,
-            "comparison_base": self.comparison_base,
-            "is_outlier": True,
-        }
+        return FilterJSON(
+            uid=self.uid,
+            name=self.name,
+            query=self.query,
+            used_columns=self.used_columns,
+            variable_name=self.variable_name,
+            comparison_op=self.comparison_op,
+            comparison_base=self.comparison_base,
+            is_outlier=True,
+        )
+
+    @classmethod
+    def from_dict(cls, data: FilterJSON):
+        """Create an OutlierRule instance from a FilterJSON object.
+
+        Args:
+            data: A FilterJSON object containing the outlier rule's properties.
+
+        Returns:
+            An OutlierRule instance initialized with the provided data.
+        """
+
+        assert data.is_outlier, "FilterJSON must represent an outlier rule"
+        assert data.variable_name is not None, "FilterJSON must have a variable_name"
+        assert data.comparison_op is not None, "FilterJSON must have a comparison_op"
+        assert data.comparison_base is not None, (
+            "FilterJSON must have a comparison_base"
+        )
+
+        return cls(
+            uid=data.uid,
+            variable_name=data.variable_name,
+            comparison_op=data.comparison_op,
+            comparison_base=data.comparison_base,
+        )
 
 
 __all__ = ["OutlierRule"]

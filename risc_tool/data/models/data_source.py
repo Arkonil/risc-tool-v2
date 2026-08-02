@@ -30,19 +30,6 @@ class ReadConfig(BaseModel, frozen=True):
     header_row: int = 0
     sample_row_count: int = Field(default=1000, exclude=True)
 
-    # def __hash__(self) -> int:
-    #     """Return a hash based on the configuration parameters.
-
-    #     Returns:
-    #         A hash value computed from read_mode, delimiter, header_row, and sample_row_count.
-    #     """
-    #     return hash((
-    #         self.read_mode,
-    #         self.delimiter,
-    #         self.header_row,
-    #         self.sample_row_count,
-    #     ))
-
 
 class DataSource(BaseModel):
     """Represents a single data source with its configuration and cached data.

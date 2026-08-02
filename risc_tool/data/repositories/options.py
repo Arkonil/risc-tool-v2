@@ -1,9 +1,8 @@
 """Repository for managing risk segment details and global application options."""
 
-import typing as t
-
 from risc_tool.data.models.config import OptionsConfig, RiskSegment, RiskSegmentConfig
 from risc_tool.data.models.enums import LossRateTypes, Signature
+from risc_tool.data.models.json_models import OptionsRepositoryJSON
 from risc_tool.data.models.types import ChangeIDs, RiskSegmentID
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.utils.logging import get_logger
@@ -144,23 +143,19 @@ class OptionRepository(BaseRepository):
         self.__risk_segment_config = RiskSegmentConfig()
         self.notify_subscribers()
 
-    def to_dict(self) -> dict[str, t.Any]:
-        """Serialize repository state to dictionary."""
-        return {
-            "risk_segment_config": self.__risk_segment_config.model_dump(),
-            "options_config": self.__options_config.model_dump(),
-        }
+    def to_dict(self):
+        """Serialize repository state to OptionsRepositoryJSON Pydantic model."""
+        return OptionsRepositoryJSON(
+            risk_segments=self.__risk_segment_config,
+            options_config=self.__options_config,
+        )
 
     @classmethod
-    def from_dict(cls, data: dict[str, t.Any]) -> "OptionRepository":
-        """Deserialize repository state from dictionary."""
+    def from_dict(cls, data: OptionsRepositoryJSON):
+        """Deserialize repository state from OptionsRepositoryJSON Pydantic model or dict."""
         repo = cls()
-        if "risk_segment_config" in data:
-            repo.__risk_segment_config = RiskSegmentConfig.model_validate(
-                data["risk_segment_config"]
-            )
-        if "options_config" in data:
-            repo.__options_config = OptionsConfig.model_validate(data["options_config"])
+        repo.__risk_segment_config = data.risk_segments
+        repo.__options_config = data.options_config
         return repo
 
 

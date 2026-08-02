@@ -5,6 +5,7 @@ import typing as t
 import polars as pl
 
 from risc_tool.data.models.exceptions import InvalidFilterError
+from risc_tool.data.models.json_models import FilterJSON
 from risc_tool.data.models.types import FilterID
 from risc_tool.utils.logging import get_logger
 
@@ -626,15 +627,21 @@ class Filter:
         new_instance.filter_expr = self.filter_expr
         return new_instance
 
-    def to_dict(self) -> dict[str, t.Any]:
-        """Convert the filter instance to a dictionary for compatibility."""
-        return {
-            "uid": int(self.uid),
-            "name": self.name,
-            "query": self.query,
-            "used_columns": self.used_columns,
-            "is_outlier": False,
-        }
+    def to_dict(self) -> FilterJSON:
+        """Convert Filter to FilterJSON Pydantic model."""
+        return FilterJSON(
+            uid=self.uid,
+            name=self.name,
+            query=self.query,
+            used_columns=self.used_columns,
+        )
+
+    @classmethod
+    def from_dict(cls, data: FilterJSON):
+        """Reconstruct Filter from FilterJSON Pydantic model or dict."""
+        obj = cls(uid=data.uid, name=data.name, query=data.query)
+        obj.used_columns = list(data.used_columns)
+        return obj
 
 
 __all__ = ["Filter"]
