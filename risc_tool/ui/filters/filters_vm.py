@@ -55,7 +55,7 @@ class FilterViewModel(ChangeTracker):
         self.__filter_cache = self.__empty_filter
         self.is_verified = False
         self.latest_editor_id = ""
-        self.__errors: list[t.Union[InvalidFilterError, ValueError, SyntaxError]] = []
+        self.__errors: list[InvalidFilterError | ValueError | SyntaxError] = []
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
         """Handle dependency updates by resetting the filter cache and errors.

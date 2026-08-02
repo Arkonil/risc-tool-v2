@@ -3,10 +3,10 @@
 import html
 
 import streamlit as st
-from streamlit_flow import streamlit_flow
-from streamlit_flow.elements import StreamlitFlowEdge, StreamlitFlowNode
-from streamlit_flow.layouts import TreeLayout as FlowLayout
-from streamlit_flow.state import StreamlitFlowState
+from streamlit_flow import streamlit_flow  # type: ignore
+from streamlit_flow.elements import StreamlitFlowEdge, StreamlitFlowNode  # type: ignore
+from streamlit_flow.layouts import TreeLayout as FlowLayout  # type: ignore
+from streamlit_flow.state import StreamlitFlowState  # type: ignore
 
 from risc_tool.data.models.iteration import Iteration
 from risc_tool.data.models.iteration_graph import IterationGraph

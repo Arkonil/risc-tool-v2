@@ -320,4 +320,4 @@ config_page = st.Page(
 )
 
 
-__all__ = ["render_config_page", "config_page"]
+__all__ = ["config_page", "render_config_page"]

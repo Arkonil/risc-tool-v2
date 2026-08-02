@@ -60,13 +60,11 @@ class VariableSelectorViewModel(ChangeTracker):
             raise ValueError(f"Invalid data source type: {ds_type}")
 
         column_types = self.__data_repository.common_columns(ds_ids)
-        return [None] + sorted(
-            [
-                c_name
-                for (c_name, c_type) in column_types
-                if c_type == VariableType.NUMERICAL
-            ]
-        )
+        return [None] + sorted([
+            c_name
+            for (c_name, c_type) in column_types
+            if c_type == VariableType.NUMERICAL
+        ])
 
     def get_variable(
         self,

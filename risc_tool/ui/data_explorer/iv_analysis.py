@@ -72,7 +72,8 @@ def iv_bar_chart(dataframe: pd.DataFrame):
     )
 
     text_labels = (
-        alt.Chart(dataframe)
+        alt
+        .Chart(dataframe)
         .mark_text(
             align="center",
             dy=-15,
@@ -140,26 +141,23 @@ def iv_analysis():
             width="stretch",
             type="primary",
             icon=":material/save:",
-        ):
-            if any(
-                [
-                    de_view_model.iv_current_target != target_variable,
-                    de_view_model.iv_current_variables != input_variables,
-                    de_view_model.iv_current_filter_ids != filter_ids,
-                    de_view_model.iv_remove_outliers != remove_outliers,
-                ]
-            ):
-                logger.info(
-                    "User saved IV configuration (target=%s, variables=%d, filters=%d)",
-                    target_variable,
-                    len(input_variables),
-                    len(filter_ids),
-                )
-                de_view_model.iv_current_target = target_variable
-                de_view_model.iv_current_variables = input_variables
-                de_view_model.iv_current_filter_ids = filter_ids
-                de_view_model.iv_remove_outliers = remove_outliers
-                st.rerun()
+        ) and any([
+            de_view_model.iv_current_target != target_variable,
+            de_view_model.iv_current_variables != input_variables,
+            de_view_model.iv_current_filter_ids != filter_ids,
+            de_view_model.iv_remove_outliers != remove_outliers,
+        ]):
+            logger.info(
+                "User saved IV configuration (target=%s, variables=%d, filters=%d)",
+                target_variable,
+                len(input_variables),
+                len(filter_ids),
+            )
+            de_view_model.iv_current_target = target_variable
+            de_view_model.iv_current_variables = input_variables
+            de_view_model.iv_current_filter_ids = filter_ids
+            de_view_model.iv_remove_outliers = remove_outliers
+            st.rerun()
 
     with chart_container:
         iv_df: pl.DataFrame | None = de_view_model.get_iv_df(

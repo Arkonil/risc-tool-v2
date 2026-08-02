@@ -7,7 +7,7 @@ def error_and_warning_widget(errors: list[str], warnings: list[str]) -> None:
     """Render errors and warnings expander."""
     if errors or warnings:
         severe = len(errors) > 0
-        counts = []
+        counts: list[str] = []
         if errors:
             counts.append(f"{len(errors)} Errors")
         if warnings:

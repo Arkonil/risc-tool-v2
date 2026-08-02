@@ -73,7 +73,7 @@ def iteration_metric_table(
     }
 
     remaining_columns = [
-        column for column in all_columns if column not in column_config.keys()
+        column for column in all_columns if column not in column_config
     ]
 
     for column in remaining_columns:
@@ -89,13 +89,15 @@ def iteration_metric_table(
         edited_final_df: pd.DataFrame = final_df_styled.data.copy()  # type: ignore
 
         for row_index, row_change in edited_rows.items():
-            if row_index not in edited_final_df.index or row_index == RowIndex.TOTAL:
+            if row_index not in edited_final_df.index or row_index == RowIndex.TOTAL:  # type: ignore
                 continue
             for col_index, change in row_change.items():
-                edited_final_df.at[row_index, col_index] = change
+                edited_final_df.at[row_index, col_index] = change  # type: ignore
 
         iterations_vm.editable_range_edit_handler(
-            iteration_id, default, edited_final_df
+            iteration_id,
+            default,
+            edited_final_df,  # type: ignore
         )
 
     # st.write(final_df_styled.data)  # type: ignore

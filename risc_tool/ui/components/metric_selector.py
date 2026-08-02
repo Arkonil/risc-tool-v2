@@ -22,7 +22,7 @@ def metric_selector_one(
     if is_double_var:
         all_metrics = {k: v for k, v in all_metrics.items() if not v.is_cumulative}
 
-    available_metric_ids = list(sorted(all_metrics.keys()))
+    available_metric_ids = sorted(all_metrics.keys())
 
     st.write("Select Metric:")
     selected_metric_id: MetricID | str | None = st.selectbox(
@@ -60,7 +60,7 @@ def metric_selector(
     if is_double_var:
         all_metrics = {k: v for k, v in all_metrics.items() if not v.is_cumulative}
 
-    available_metric_ids = list(sorted(all_metrics.keys()))
+    available_metric_ids = sorted(all_metrics.keys())
     current_metric_ids = [
         uid for uid in current_metric_ids if uid in available_metric_ids
     ]
@@ -115,7 +115,7 @@ def metric_selector_dialog(
 
 def default_set_metrics(metric_ids: list[MetricID]) -> None:
     """Default function to handle metric selection changes."""
-    pass  # Implement the logic to handle metric selection changes as needed
+    # Implement the logic to handle metric selection changes as needed
 
 
 def metric_selector_button(

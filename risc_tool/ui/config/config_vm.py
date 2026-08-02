@@ -73,7 +73,6 @@ class ConfigViewModel(ChangeTracker):
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
         """Handle updates from repositories (no-op as UI queries fresh properties)."""
-        pass
 
     # Risk Segment Details
     @property
@@ -245,19 +244,17 @@ class ConfigViewModel(ChangeTracker):
         """Generate DataFrame for annualization rate editing."""
         curr_rate = self.get_current_rate(loss_rate_type)
         life_rate = self.get_lifetime_rate(loss_rate_type)
-        return pd.DataFrame(
-            {
-                "Loss Rate Description": ["Current Rate", "Lifetime Rate"],
-                "MOB": [
-                    f"{self.current_rate_mob} MOB",
-                    f"{self.lifetime_rate_mob} MOB",
-                ],
-                "Loss Rates": [
-                    (curr_rate * 100.0) if curr_rate is not None else 0.0,
-                    (life_rate * 100.0) if life_rate is not None else 0.0,
-                ],
-            }
-        )
+        return pd.DataFrame({
+            "Loss Rate Description": ["Current Rate", "Lifetime Rate"],
+            "MOB": [
+                f"{self.current_rate_mob} MOB",
+                f"{self.lifetime_rate_mob} MOB",
+            ],
+            "Loss Rates": [
+                (curr_rate * 100.0) if curr_rate is not None else 0.0,
+                (life_rate * 100.0) if life_rate is not None else 0.0,
+            ],
+        })
 
     def process_annualization_edits(
         self, loss_rate_type: LossRateTypes, edited_df: pd.DataFrame

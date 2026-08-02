@@ -304,13 +304,15 @@ class IterationsViewModel(ChangeTracker):
     ) -> list[str]:
         errors: list[str] = []
 
-        if selected_segment_ids is not None:
-            if not self.__options_repository.risk_segments.has_finite_upper_bound_segment(
+        if (
+            selected_segment_ids is not None
+            and not self.__options_repository.risk_segments.has_finite_upper_bound_segment(
                 selected_segment_ids
-            ):
-                errors.append(
-                    "At least 1 risk segment with a finite upper bound must be selected."
-                )
+            )
+        ):
+            errors.append(
+                "At least 1 risk segment with a finite upper bound must be selected."
+            )
 
         if not self.data_loaded:
             errors.append("Data sources are not loaded.")
@@ -353,13 +355,12 @@ class IterationsViewModel(ChangeTracker):
                 elif loss_rate_type == LossRateTypes.ULR:
                     errors.append("Required metric variables for ULR are not selected.")
 
-            if use_scalars:
-                if not self.scalar_selected(loss_rate_type):
-                    if loss_rate_type == LossRateTypes.DLR:
-                        errors.append("Scalars for :red-badge[`$ Bad`] are not set.")
+            if use_scalars and not self.scalar_selected(loss_rate_type):
+                if loss_rate_type == LossRateTypes.DLR:
+                    errors.append("Scalars for :red-badge[`$ Bad`] are not set.")
 
-                    if loss_rate_type == LossRateTypes.ULR:
-                        errors.append("Scalars for :red-badge[`# Bad`] are not set.")
+                if loss_rate_type == LossRateTypes.ULR:
+                    errors.append("Scalars for :red-badge[`# Bad`] are not set.")
 
         return errors
 
@@ -481,7 +482,7 @@ class IterationsViewModel(ChangeTracker):
     ) -> bool:
         current = self.__iterations_repository.get_all_groups(iteration_id)
         selected_col = RangeColumn.SELECTED.value
-        current_selected = (
+        current_selected: set[GroupID] = (
             set(current.index[current[selected_col]].tolist())
             if selected_col in current.columns
             else set()
@@ -581,7 +582,8 @@ class IterationsViewModel(ChangeTracker):
             lf = self.__data_repository.get_lazyframe()
             if iteration.variable_name in self.__data_repository.data_config.schema:
                 unique_vals = (
-                    lf.select(pl.col(iteration.variable_name).cast(pl.String))
+                    lf
+                    .select(pl.col(iteration.variable_name).cast(pl.String))
                     .unique()
                     .drop_nulls()
                     .collect()
@@ -607,7 +609,7 @@ class IterationsViewModel(ChangeTracker):
         ):
             return False
 
-        control_df_columns = []
+        control_df_columns: list[str] = []
 
         if RangeColumn.LOWER_BOUND.value in edited_final_df.columns:
             control_df_columns.append(RangeColumn.LOWER_BOUND.value)
@@ -644,7 +646,7 @@ class IterationsViewModel(ChangeTracker):
             for _, row in controls.iterrows():
                 categories = row[RangeColumn.CATEGORIES.value]
                 if isinstance(categories, list):
-                    labels.append(", ".join(str(category) for category in categories))
+                    labels.append(", ".join(str(category) for category in categories))  # type: ignore
                 else:
                     labels.append("")
 
@@ -708,18 +710,14 @@ class IterationsViewModel(ChangeTracker):
             )
             assert previous_iteration_id is not None
 
-            control_df_columns = pd.MultiIndex.from_arrays(
-                [
-                    [" "] * len(control_df.columns),
-                    control_df.columns.map(str).to_list(),
-                ]
-            )
-            risk_segment_grid_columns = pd.MultiIndex.from_arrays(
-                [
-                    risk_segment_grid.columns.to_list(),
-                    self._group_display_labels(previous_iteration_id),
-                ]
-            )
+            control_df_columns = pd.MultiIndex.from_arrays([
+                [" "] * len(control_df.columns),
+                control_df.columns.map(str).to_list(),
+            ])
+            risk_segment_grid_columns = pd.MultiIndex.from_arrays([
+                risk_segment_grid.columns.to_list(),
+                self._group_display_labels(previous_iteration_id),
+            ])
 
             final_df.columns = control_df_columns.append(risk_segment_grid_columns)
             styler_subset = risk_segment_grid_columns
@@ -754,12 +752,10 @@ class IterationsViewModel(ChangeTracker):
         iteration = self.__iterations_repository.get_iteration(iteration_id)
 
         if iteration.var_type == VariableType.NUMERICAL:
-            control_df_columns = pd.Index(
-                [
-                    RangeColumn.LOWER_BOUND.value,
-                    RangeColumn.UPPER_BOUND.value,
-                ]
-            )
+            control_df_columns = pd.Index([
+                RangeColumn.LOWER_BOUND.value,
+                RangeColumn.UPPER_BOUND.value,
+            ])
         else:
             control_df_columns = pd.Index([RangeColumn.CATEGORIES.value])
 
@@ -850,18 +846,14 @@ class IterationsViewModel(ChangeTracker):
             )
             assert previous_iteration_id is not None
 
-            control_df_columns = pd.MultiIndex.from_arrays(
-                [
-                    [" "] * len(control_df.columns),
-                    control_df.columns.map(str).to_list(),
-                ]
-            )
-            metric_grid_columns = pd.MultiIndex.from_arrays(
-                [
-                    font_color_grid.columns.to_list(),
-                    self._group_display_labels(previous_iteration_id),
-                ]
-            )
+            control_df_columns = pd.MultiIndex.from_arrays([
+                [" "] * len(control_df.columns),
+                control_df.columns.map(str).to_list(),
+            ])
+            metric_grid_columns = pd.MultiIndex.from_arrays([
+                font_color_grid.columns.to_list(),
+                self._group_display_labels(previous_iteration_id),
+            ])
             if show_total_column:
                 metric_grid_columns = metric_grid_columns.append(
                     pd.MultiIndex.from_arrays([[" "], ["Total"]])
@@ -900,13 +892,11 @@ class IterationsViewModel(ChangeTracker):
                 color_theme=theme,
             )
 
-            metric_df_views.append(
-                {
-                    "metric_styler": metric_df_styled,
-                    "metric_name": metric_summary["metric_name"],
-                    "data_source_names": metric_summary["data_source_names"],
-                }
-            )
+            metric_df_views.append({
+                "metric_styler": metric_df_styled,
+                "metric_name": metric_summary["metric_name"],
+                "data_source_names": metric_summary["data_source_names"],
+            })
 
         return metric_df_views, errors, warnings
 

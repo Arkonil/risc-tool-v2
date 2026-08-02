@@ -138,7 +138,7 @@ def filter_selector():
 
     filter_ids = st.multiselect(
         label=label,
-        options=sorted(list(filters.keys())),
+        options=sorted(filters.keys()),
         label_visibility="collapsed",
         format_func=lambda filter_id: filters[filter_id].name,
         disabled=disabled,

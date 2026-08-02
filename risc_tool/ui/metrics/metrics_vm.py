@@ -7,6 +7,8 @@ validation errors, and persistence via the MetricRepository.
 import typing as t
 from collections import OrderedDict
 
+import polars as pl
+
 from risc_tool.data.models.changes import ChangeTracker
 from risc_tool.data.models.completion import Completion
 from risc_tool.data.models.enums import Signature
@@ -138,14 +140,21 @@ class MetricViewModel(ChangeTracker):
     def get_unique_values(self, column_name: str) -> list[str]:
         try:
             return (
-                self.__data_repository.get_lazyframe(self.selected_data_source_ids)
+                self.__data_repository
+                .get_lazyframe(self.selected_data_source_ids)
                 .select(column_name)
                 .unique()
                 .collect()
                 .to_series()
                 .to_list()
             )
-        except Exception as e:
+        except (
+            FileNotFoundError,
+            KeyError,
+            TypeError,
+            ValueError,
+            pl.exceptions.PolarsError,
+        ) as e:
             logger.error(
                 "Error retrieving unique values for column '%s': %s", column_name, e
             )

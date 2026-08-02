@@ -4,7 +4,7 @@ import typing as t
 
 import pandas as pd
 import streamlit as st
-import streamlit_antd_components as sac
+import streamlit_antd_components as sac  # type: ignore
 
 from risc_tool.data.models.enums import IterationType, RangeColumn
 from risc_tool.data.models.types import GroupID, IterationID
@@ -126,7 +126,7 @@ def iteration_sidebar_components(iteration_id: IterationID) -> None:
             iteration_id
         ).split_view_enabled
 
-        selected_idx = sac.segmented(
+        selected_idx = sac.segmented(  # type: ignore
             items=[
                 sac.SegmentedItem("List", "list"),
                 sac.SegmentedItem("Grid", "grid"),
@@ -138,7 +138,7 @@ def iteration_sidebar_components(iteration_id: IterationID) -> None:
             return_index=True,
         )  # type: ignore
 
-        split_view_enabled = selected_idx == 1
+        split_view_enabled: bool = selected_idx == 1  # type: ignore
         if split_view_enabled != current_split_view:
             iterations_vm.set_metadata(
                 iteration_id=iteration_id,
@@ -287,9 +287,7 @@ def editable_grid_widget(iteration_id: IterationID, default: bool, key: str) -> 
         edited_rows: dict[int, dict[str, t.Any]] = st.session_state[widget_key][
             "edited_rows"
         ]
-        edited_final_df = t.cast(
-            pd.DataFrame, t.cast(t.Any, grid_components["styler"]).data
-        ).copy()
+        edited_final_df = t.cast(pd.DataFrame, grid_components["styler"].data).copy()
         for row_index, row_change in edited_rows.items():
             for col_index, change in row_change.items():
                 edited_final_df.at[row_index, col_index] = change

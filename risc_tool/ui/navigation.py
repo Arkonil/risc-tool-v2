@@ -22,25 +22,23 @@ def set_page_navigation():
     - Tools: Data importer, explorer, metrics, filters, config, iterations
     - Results: Summary and export
     """
-    pg = st.navigation(
-        {
-            "Home": [
-                home_page,
-                documentation_page,
-            ],
-            "Tools": [
-                data_importer_page,
-                data_explorer_page,
-                metrics_page,
-                filter_page,
-                config_page,
-                iterations_page,
-            ],
-            "Results": [
-                summary_page,
-                export_page,
-            ],
-        }
-    )
+    pg = st.navigation({
+        "Home": [
+            home_page,
+            documentation_page,
+        ],
+        "Tools": [
+            data_importer_page,
+            data_explorer_page,
+            metrics_page,
+            filter_page,
+            config_page,
+            iterations_page,
+        ],
+        "Results": [
+            summary_page,
+            export_page,
+        ],
+    })
 
     pg.run()
