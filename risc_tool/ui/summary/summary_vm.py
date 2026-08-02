@@ -8,6 +8,7 @@ import polars as pl
 
 from risc_tool.data.models.changes import ChangeNotifier
 from risc_tool.data.models.enums import RowIndex, Signature, SummaryPageTabName
+from risc_tool.data.models.json_models import SummaryViewModelJSON
 from risc_tool.data.models.metric import Metric
 from risc_tool.data.models.types import ChangeIDs, FilterID, IterationID, MetricID
 from risc_tool.data.repositories.data import DataRepository
@@ -472,6 +473,83 @@ class SummaryViewModel(ChangeNotifier):
             pivot_dfs.append(pivot_df)
 
         return pivot_dfs
+
+    def to_dict(self) -> SummaryViewModelJSON:
+        """Serialize SummaryViewModel state to SummaryViewModelJSON Pydantic model."""
+        return SummaryViewModelJSON(
+            current_tab_name=self.current_tab_name,
+            ov_metric_ids=self.ov_metric_ids,
+            ov_filter_ids=self.ov_filter_ids,
+            ov_scalars_enabled=self.ov_scalars_enabled,
+            ov_remove_outliers=self.ov_remove_outliers,
+            ov_selected_iteration_id=self.ov_selected_iteration_id,
+            ov_selected_iteration_default=self.ov_selected_iteration_default,
+            cv_metric_ids=self.cv_metric_ids,
+            cv_filter_ids=self.cv_filter_ids,
+            cv_scalars_enabled=self.cv_scalars_enabled,
+            cv_remove_outliers=self.cv_remove_outliers,
+            cv_selected_iterations=self.cv_selected_iterations,
+            cv_view_mode=self.cv_view_mode,
+            pv_metric_ids=self.pv_metric_ids,
+            pv_filter_ids=self.pv_filter_ids,
+            pv_remove_outliers=self.pv_remove_outliers,
+            pv_row_vars=self.pv_row_vars,
+            pv_col_vars=self.pv_col_vars,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: SummaryViewModelJSON,
+        data_repository: DataRepository,
+        filter_repository: FilterRepository,
+        metric_repository: MetricRepository,
+        iterations_repository: IterationsRepository,
+    ):
+        """Reconstruct SummaryViewModel from SummaryViewModelJSON Pydantic model or dict."""
+        vm = cls(
+            data_repository=data_repository,
+            filter_repository=filter_repository,
+            metric_repository=metric_repository,
+            iteration_repository=iterations_repository,
+        )
+        vm.current_tab_name = data.current_tab_name
+        vm.ov_metric_ids = data.ov_metric_ids
+        vm.ov_filter_ids = data.ov_filter_ids
+        vm.ov_scalars_enabled = data.ov_scalars_enabled
+        vm.ov_remove_outliers = data.ov_remove_outliers
+        vm.ov_selected_iteration_id = data.ov_selected_iteration_id
+        vm.ov_selected_iteration_default = data.ov_selected_iteration_default
+
+        vm.cv_metric_ids = data.cv_metric_ids
+        vm.cv_filter_ids = data.cv_filter_ids
+        vm.cv_scalars_enabled = data.cv_scalars_enabled
+        vm.cv_remove_outliers = data.cv_remove_outliers
+        vm.cv_selected_iterations = data.cv_selected_iterations
+        vm.cv_view_mode = data.cv_view_mode
+
+        vm.pv_metric_ids = data.pv_metric_ids
+        vm.pv_filter_ids = data.pv_filter_ids
+        vm.pv_remove_outliers = data.pv_remove_outliers
+        vm.pv_row_vars = data.pv_row_vars
+        vm.pv_col_vars = data.pv_col_vars
+
+        return vm
+
+    @classmethod
+    def validate_json(
+        cls, data_repository: DataRepository, data: SummaryViewModelJSON
+    ) -> list[str]:
+        """Return variables referenced in the JSON that are missing from the data schema."""
+        available_columns = {col for col, _ in data_repository.common_columns()}
+        variables = {
+            var
+            for var in [*data.pv_row_vars, *data.pv_col_vars]
+            if isinstance(var, str)
+        }
+
+        missing_variables = sorted(v for v in variables if v not in available_columns)
+        return missing_variables
 
 
 __all__ = ["SummaryViewModel"]

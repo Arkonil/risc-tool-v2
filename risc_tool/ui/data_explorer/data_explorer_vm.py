@@ -15,6 +15,7 @@ from risc_tool.data.models.enums import (
     VariableType,
 )
 from risc_tool.data.models.filter import Filter
+from risc_tool.data.models.json_models import DataExplorerViewModelJSON
 from risc_tool.data.models.outlier import OutlierRule
 from risc_tool.data.models.types import ChangeIDs, DataSourceID, FilterID
 from risc_tool.data.repositories.data import DataRepository
@@ -651,3 +652,47 @@ class DataExplorerViewModel(ChangeTracker):
     def delete_outlier_rule(self, outlier_id: FilterID) -> None:
         self.logger.info("Request to delete outlier rule ID %s", outlier_id)
         self.filter_repository.remove_filter(outlier_id)
+
+    def to_dict(self) -> DataExplorerViewModelJSON:
+        """Serialize DataExplorerViewModel state to DataExplorerViewModelJSON Pydantic model."""
+        return DataExplorerViewModelJSON(
+            iv_data_sources=self.__iv_data_sources,
+            iv_current_target=self.iv_current_target,
+            iv_current_variables=self.iv_current_variables,
+            iv_current_filter_ids=self.iv_current_filter_ids,
+            iv_remove_outliers=self.iv_remove_outliers,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: DataExplorerViewModelJSON,
+        data_repository: DataRepository,
+        filter_repository: FilterRepository,
+    ) -> "DataExplorerViewModel":
+        """Reconstruct DataExplorerViewModel from DataExplorerViewModelJSON Pydantic model or dict."""
+        vm = cls(
+            data_repository=data_repository,
+            filter_repository=filter_repository,
+        )
+
+        vm.iv_current_filter_ids = data.iv_current_filter_ids
+        vm.__iv_data_sources = data.iv_data_sources
+        vm.iv_current_target = data.iv_current_target
+        vm.iv_current_variables = data.iv_current_variables
+        vm.iv_remove_outliers = data.iv_remove_outliers
+
+        return vm
+
+    @classmethod
+    def validate_json(
+        cls, data_repository: DataRepository, data: DataExplorerViewModelJSON
+    ) -> list[str]:
+        """Return variables referenced in the JSON that are missing from the data schema."""
+        available_columns = {col for col, _ in data_repository.common_columns()}
+        variables = set(data.iv_current_variables)
+        if data.iv_current_target is not None:
+            variables.add(data.iv_current_target)
+
+        missing = sorted(v for v in variables if v not in available_columns)
+        return missing

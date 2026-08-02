@@ -19,6 +19,7 @@ from risc_tool.data.models.enums import (
 from risc_tool.data.models.iteration import Iteration
 from risc_tool.data.models.iteration_graph import IterationGraph
 from risc_tool.data.models.iteration_metadata import IterationMetadata
+from risc_tool.data.models.json_models import IterationsViewModelJSON
 from risc_tool.data.models.types import (
     ChangeIDs,
     ColorTheme,
@@ -899,6 +900,39 @@ class IterationsViewModel(ChangeTracker):
             })
 
         return metric_df_views, errors, warnings
+
+    def to_dict(self) -> IterationsViewModelJSON:
+        """Serialize IterationsViewModel state to IterationsViewModelJSON Pydantic model."""
+
+        return IterationsViewModelJSON(
+            metadata=self.__metadata,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: IterationsViewModelJSON,
+        data_repository: DataRepository,
+        iterations_repository: IterationsRepository,
+        options_repository: OptionRepository,
+        filter_repository: FilterRepository,
+        metric_repository: MetricRepository,
+        scalar_repository: ScalarRepository,
+    ) -> "IterationsViewModel":
+        """Reconstruct IterationsViewModel from IterationsViewModelJSON Pydantic model or dict."""
+        vm = cls(
+            data_repository=data_repository,
+            iterations_repository=iterations_repository,
+            options_repository=options_repository,
+            filter_repository=filter_repository,
+            metric_repository=metric_repository,
+            scalar_repository=scalar_repository,
+        )
+
+        for iteration_id, metadata in data.metadata.items():
+            vm.__metadata[iteration_id] = metadata
+
+        return vm
 
 
 __all__ = ["IterationsViewModel"]
