@@ -17,6 +17,7 @@ from risc_tool.ui.data_importer.data_importer_vm import DataImporterViewModel
 from risc_tool.ui.filters.filters_vm import FilterViewModel
 from risc_tool.ui.iterations.iterations_vm import IterationsViewModel
 from risc_tool.ui.metrics.metrics_vm import MetricViewModel
+from risc_tool.ui.summary.summary_vm import SummaryViewModel
 from risc_tool.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -100,4 +101,10 @@ class Session:
             self.filter_repository,
             self.metric_repository,
             self.scalar_repository,
+        )
+        self.summary_view_model = SummaryViewModel(
+            self.data_repository,
+            self.filter_repository,
+            self.metric_repository,
+            self.iterations_repository,
         )

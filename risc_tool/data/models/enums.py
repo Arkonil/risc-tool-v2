@@ -216,3 +216,9 @@ class GridColumn(StrEnum):
     PREV_RISK_SEGMENT = f"Previous {RSDetCol.RISK_SEGMENT}"
     CURR_RISK_SEGMENT = f"Current {RSDetCol.RISK_SEGMENT}"
     GROUP_INDEX = "Group Index"
+
+
+class SummaryPageTabName(StrEnum):
+    OVERVIEW = "Overview"
+    COMPARISON = "Comparison"
+    PIVOT = "Pivot"

@@ -25,6 +25,7 @@ class AssetPath:
     NO_DATA_ERROR_ICON = pathlib.Path(f"{MODULE_NAME}/assets/no-data-error.svg")
     NO_FILTER_ICON = pathlib.Path(f"{MODULE_NAME}/assets/no-filter.svg")
     NO_METRIC_ICON = pathlib.Path(f"{MODULE_NAME}/assets/no-metric.svg")
+    NO_ITERATION_ICON = pathlib.Path(f"{MODULE_NAME}/assets/no-iteration.svg")
     ARROW_RIGHT = pathlib.Path(f"{MODULE_NAME}/assets/arrow-right.svg")
     FILTER_QUERY_REFERENCE = pathlib.Path(
         f"{MODULE_NAME}/assets/filter_query_reference.md"

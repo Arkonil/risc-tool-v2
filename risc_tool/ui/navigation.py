@@ -11,7 +11,7 @@ from risc_tool.ui.filters.filters import filter_page
 from risc_tool.ui.home import home_page
 from risc_tool.ui.iterations.iterations import iterations_page
 from risc_tool.ui.metrics.metrics import metrics_page
-from risc_tool.ui.summary import summary_page
+from risc_tool.ui.summary.summary import summary_page
 
 
 def set_page_navigation():
