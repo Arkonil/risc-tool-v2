@@ -28,5 +28,10 @@
 - When type-annotating pandas Styler objects in Python code, import `from pandas.io.formats.style import Styler` directly to prevent `AttributeError: module 'pandas.io.formats' has no attribute 'style'` at runtime.
 - When type-annotating lists or variables holding Streamlit containers or column elements (e.g. from `st.container()`, `st.columns()`), import `from streamlit.delta_generator import DeltaGenerator` and annotate as `list[DeltaGenerator]`.
 
+## Session & Serialization Standards
+- Every repository and full-page View Model MUST implement `to_dict()` returning a dedicated JSON-serializable Pydantic v2 model from `risc_tool/data/models/json_models.py`.
+- Deserialization `from_dict()` methods MUST accept `errors: Literal["ignore", "raise"] = "raise"` and return a tuple `(instance, invalid_items)` (or `SessionRestoreResult` for `Session`) so valid data is restored while invalid items are safely flagged and pruned.
+- When generating Python code strings containing file paths, always sanitize Windows path strings using `.replace("\\", "/")` to prevent invalid escape sequences in generated code.
+
 ## Tooling & Environment Execution
 - All Python-related commands (e.g., `pytest`, `ruff check`, `streamlit run`, python scripts) MUST be executed using `uv run` (e.g., `uv run pytest`, `uv run ruff check`). Direct tool invocations or system python binaries are explicitly disallowed.
