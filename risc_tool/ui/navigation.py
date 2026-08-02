@@ -6,9 +6,9 @@ from risc_tool.ui.config.config import config_page
 from risc_tool.ui.data_explorer.data_explorer import data_explorer_page
 from risc_tool.ui.data_importer.data_importer import data_importer_page
 from risc_tool.ui.documentation import documentation_page
-from risc_tool.ui.export import export_page
+from risc_tool.ui.export.export import export_page
 from risc_tool.ui.filters.filters import filter_page
-from risc_tool.ui.home import home_page
+from risc_tool.ui.home.home import home_page
 from risc_tool.ui.iterations.iterations import iterations_page
 from risc_tool.ui.metrics.metrics import metrics_page
 from risc_tool.ui.summary.summary import summary_page
