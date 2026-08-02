@@ -1,3 +1,5 @@
+"""Text wrapping utilities for code generation."""
+
 import re
 import textwrap
 
