@@ -12,6 +12,8 @@
 - In Polars, `NaN > 0.0` evaluates to `True` (NaN is ordered higher than all finite values). When writing tests for math functions that produce NaN on invalid domain inputs (e.g., `log(-1)`, `sqrt(-1)`), use inputs within the valid domain to avoid false positives in filter results.
 - Use `how="full"` instead of deprecated `how="outer"` in `LazyFrame.join(...)`.
 - Use `how="horizontal_extend"` instead of deprecated `how="horizontal"` in `pl.concat(...)` when heights may differ.
+- In `DataRepository`, check data availability using `data_repository.has_valid_sources` (or `view_model.data_loaded`).
+- `DataRepository.common_columns()` returns `set[tuple[str, VariableType]]`. To extract raw column names, use `{c[0] for c in data_repository.common_columns()}`.
 
 ## AST Expression Compiler Guidelines
 - Evaluate literal AST nodes (constants, keyword strings, lists of literals) as native Python primitives (`eval_lit_value`) when passing arguments to Polars methods expecting strings or raw collections (e.g., `interpolation='nearest'`, `is_in([1, 2])`).
@@ -24,6 +26,7 @@
 - View Models (`risc_tool/ui/<feature>/<feature>_vm.py`) must encapsulate all table formatting, pandas `Styler` construction (CSS colors, cell styles), unit scaling (e.g. % vs decimal), validation, and edit processing logic.
 - UI elements (`risc_tool/ui/<feature>/<feature>.py`) must remain presentation-only: they fetch preconfigured `Styler` objects from the View Model to display in `st.data_editor` and pass edited DataFrames directly to View Model handler methods without performing manual data loops or data juggling.
 - When type-annotating pandas Styler objects in Python code, import `from pandas.io.formats.style import Styler` directly to prevent `AttributeError: module 'pandas.io.formats' has no attribute 'style'` at runtime.
+- When type-annotating lists or variables holding Streamlit containers or column elements (e.g. from `st.container()`, `st.columns()`), import `from streamlit.delta_generator import DeltaGenerator` and annotate as `list[DeltaGenerator]`.
 
 ## Tooling & Environment Execution
 - All Python-related commands (e.g., `pytest`, `ruff check`, `streamlit run`, python scripts) MUST be executed using `uv run` (e.g., `uv run pytest`, `uv run ruff check`). Direct tool invocations or system python binaries are explicitly disallowed.
