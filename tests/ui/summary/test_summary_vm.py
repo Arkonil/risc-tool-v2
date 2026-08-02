@@ -136,13 +136,49 @@ def test_summary_vm_dependency_pruning(tmp_path):
     assert len(vm.cv_selected_iterations) == 0
 
 
-def test_summary_vm_pivot_metric_selection():
-    d, f, m, i = _make_repositories()
+def test_summary_vm_pivot_metric_selection(tmp_path):
+    csv_path = tmp_path / "sample.csv"
+    _write_csv(csv_path, "score\n10\n20\n")
+
+    d = DataRepository()
+    d.add_data_source("Dev Data", csv_path, ReadConfig())
+    d, f, m, i = _make_repositories(data_repository=d)
+
     vm = SummaryViewModel(d, f, m, i)
 
     assert vm.pv_metric_ids == []
 
     vm.set_pivot_metrics([MetricID.DEV_VOLUME])
+    assert vm.pv_metric_ids == [MetricID.DEV_VOLUME]
+
+
+def test_summary_vm_pivot_metric_selection_filters_invalid(tmp_path):
+    csv_path = tmp_path / "sample.csv"
+    _write_csv(csv_path, "score\n10\n20\n")
+
+    d = DataRepository()
+    d.add_data_source("Dev Data", csv_path, ReadConfig())
+    d, f, m, i = _make_repositories(data_repository=d)
+    m.dev_data_source_ids = list(d.data_sources.keys())
+
+    m.create_metric(
+        name="Cumulative Volume",
+        query="`score`.size",
+        is_cumulative=True,
+        use_thousand_sep=True,
+        is_percentage=False,
+        decimal_places=0,
+        data_source_ids=list(d.data_sources.keys()),
+    )
+    cumulative_ids = [mid for mid, metric in m.metrics.items() if metric.is_cumulative]
+    assert len(cumulative_ids) == 1
+    cumulative_id = cumulative_ids[0]
+
+    vm = SummaryViewModel(d, f, m, i)
+    bogus_id = MetricID(9999)
+
+    vm.set_pivot_metrics([cumulative_id, MetricID.DEV_VOLUME, bogus_id])
+
     assert vm.pv_metric_ids == [MetricID.DEV_VOLUME]
 
 
@@ -371,4 +407,3 @@ def test_summary_vm_get_pivot_tables(tmp_path):
     assert len(tables) == 1
     assert isinstance(tables[0], pd.DataFrame)
     assert not tables[0].empty
-

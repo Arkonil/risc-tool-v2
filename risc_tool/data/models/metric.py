@@ -636,6 +636,8 @@ class DefaultUnitBadRate(Metric):
             data_source_ids=data_source_ids,
         )
 
+        self.validate_query()
+
 
 class UnitBadRate(Metric):
     def __init__(
@@ -670,6 +672,8 @@ class DefaultDollarBadRate(Metric):
             decimal_places=2,
             data_source_ids=data_source_ids,
         )
+
+        self.validate_query()
 
 
 class DollarBadRate(Metric):
@@ -706,6 +710,8 @@ class DefaultVolume(Metric):
             decimal_places=0,
             data_source_ids=data_source_ids,
         )
+
+        self.validate_query()
 
 
 class Volume(Metric):
