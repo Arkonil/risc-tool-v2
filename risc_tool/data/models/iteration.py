@@ -5,6 +5,7 @@ single-variable and double-variable iterations, and validation logic.
 NO pandas DataFrames or Series are stored inside these model instances.
 """
 
+import itertools
 import math
 import typing as t
 from abc import abstractmethod
@@ -103,7 +104,7 @@ class CategoricalGroup(GroupBase, frozen=True):
         return pl.col(variable_name).is_in(self.categories)
 
 
-class IterationBase(BaseModel, t.Generic[TGroup]):
+class IterationBase[TGroup: "GroupBase"](BaseModel):
     """Base Pydantic model for all iteration objects."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
@@ -135,7 +136,9 @@ class IterationBase(BaseModel, t.Generic[TGroup]):
         self.name = new_name.strip()
 
     @abstractmethod
-    def _validate(self, default: bool = False):
+    def validate_groups(
+        self, default: bool = False
+    ) -> tuple[list[str], list[str], list[GroupID]]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -145,7 +148,7 @@ class IterationBase(BaseModel, t.Generic[TGroup]):
         lower_bound: float,
         upper_bound: float,
         categories: set[str],
-    ):
+    ) -> None:
         raise NotImplementedError()
 
     def get_group_mapping_expr(self, default: bool) -> pl.Expr:
@@ -171,7 +174,7 @@ class NumericalIterationMixin(IterationBase[NumericalGroup]):
         default_factory=lambda: OrderedDict[GroupID, NumericalGroup]()
     )
 
-    def _validate(
+    def validate_groups(
         self, default: bool = False
     ) -> tuple[list[str], list[str], list[GroupID]]:
         warnings: list[str] = []
@@ -208,15 +211,15 @@ class NumericalIterationMixin(IterationBase[NumericalGroup]):
                         f"and {sorted_intervals[i + 1][0]}. ({sorted_intervals[i + 1][1]}, {sorted_intervals[i + 1][2]}]"
                     )
 
-            is_mono_dec = all(x >= y for x, y in zip(lbs[:-1], lbs[1:]))
-            is_mono_inc = all(x <= y for x, y in zip(lbs[:-1], lbs[1:]))
+            is_mono_dec = all(x >= y for x, y in itertools.pairwise(lbs))
+            is_mono_inc = all(x <= y for x, y in itertools.pairwise(lbs))
             if not is_mono_dec and not is_mono_inc:
                 warnings.append(
                     "Lower bounds of the groups are not monotonic. This may lead to unexpected behavior."
                 )
 
-            is_ub_dec = all(x >= y for x, y in zip(ubs[:-1], ubs[1:]))
-            is_ub_inc = all(x <= y for x, y in zip(ubs[:-1], ubs[1:]))
+            is_ub_dec = all(x >= y for x, y in itertools.pairwise(ubs))
+            is_ub_inc = all(x <= y for x, y in itertools.pairwise(ubs))
             if not is_ub_dec and not is_ub_inc:
                 warnings.append(
                     "Upper bounds of the groups are not monotonic. This may lead to unexpected behavior."
@@ -261,7 +264,7 @@ class CategoricalIterationMixin(IterationBase[CategoricalGroup]):
         default_factory=lambda: OrderedDict[GroupID, CategoricalGroup]()
     )
 
-    def _validate(
+    def validate_groups(
         self, default: bool = False
     ) -> tuple[list[str], list[str], list[GroupID]]:
         warnings: list[str] = []
@@ -321,7 +324,7 @@ class CategoricalIterationMixin(IterationBase[CategoricalGroup]):
         self.groups[group_id] = CategoricalGroup(categories=categories)
 
 
-class SingleVarIteration(IterationBase[TGroup], t.Generic[TGroup]):
+class SingleVarIteration[TGroup: "GroupBase"](IterationBase[TGroup]):
     """Single variable iteration model storing segment details as Pydantic models."""
 
     iter_type: IterationType = IterationType.SINGLE
@@ -359,16 +362,16 @@ class SingleVarIteration(IterationBase[TGroup], t.Generic[TGroup]):
         return self.get_group_mapping_expr(default=default)
 
 
-class DoubleVarIteration(IterationBase[TGroup], t.Generic[TGroup]):
+class DoubleVarIteration[TGroup: "GroupBase"](IterationBase[TGroup]):
     """Double variable iteration model storing grid cells as typed dict mapping."""
 
     iter_type: IterationType = IterationType.DOUBLE
-    groups_mask: dict[GroupID, bool] = Field(default_factory=lambda: {})
+    groups_mask: dict[GroupID, bool] = Field(default_factory=dict[GroupID, bool])
     risk_segment_grid: dict[GroupID, dict[RiskSegmentID, RiskSegmentID]] = Field(
-        default_factory=lambda: {}
+        default_factory=dict[GroupID, dict[RiskSegmentID, RiskSegmentID]]
     )
     default_risk_segment_grid: dict[GroupID, dict[RiskSegmentID, RiskSegmentID]] = (
-        Field(default_factory=lambda: {})
+        Field(default_factory=dict[GroupID, dict[RiskSegmentID, RiskSegmentID]])
     )
 
     def set_risk_segment_grid_cell(
@@ -452,16 +455,16 @@ Iteration = (
 )
 
 __all__ = [
-    "NumericalGroup",
-    "CategoricalGroup",
-    "IterationBase",
-    "NumericalIterationMixin",
-    "CategoricalIterationMixin",
-    "SingleVarIteration",
-    "DoubleVarIteration",
-    "NumericalSingleVarIteration",
-    "CategoricalSingleVarIteration",
-    "NumericalDoubleVarIteration",
     "CategoricalDoubleVarIteration",
+    "CategoricalGroup",
+    "CategoricalIterationMixin",
+    "CategoricalSingleVarIteration",
+    "DoubleVarIteration",
     "Iteration",
+    "IterationBase",
+    "NumericalDoubleVarIteration",
+    "NumericalGroup",
+    "NumericalIterationMixin",
+    "NumericalSingleVarIteration",
+    "SingleVarIteration",
 ]

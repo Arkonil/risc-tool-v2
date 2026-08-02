@@ -298,7 +298,7 @@ class TestGetMetricRange:
         scalar_repo.set_current_rate(LossRateTypes.DLR, 0.05)
         scalar_repo.set_lifetime_rate(LossRateTypes.DLR, 0.075)
 
-        metric_df, errors, warnings = iterations_repository.get_metric_range(
+        metric_df, _errors, _warnings = iterations_repository.get_metric_range(
             iteration_id=single_var_iteration.uid,
             default=False,
             filter_ids=[],
@@ -321,7 +321,7 @@ class TestGetMetricRange:
         filter_repo.create_filter("Empty Filter", "credit_score > 1000")
         filter_id = next(iter(filter_repo.get_filters()))
 
-        metric_df, errors, warnings = iterations_repository.get_metric_range(
+        metric_df, _errors, _warnings = iterations_repository.get_metric_range(
             iteration_id=single_var_iteration.uid,
             default=False,
             filter_ids=[filter_id],
@@ -338,7 +338,7 @@ class TestGetMetricRange:
         self, iterations_repository, single_var_iteration
     ):
         """Test get_metric_range with invalid metric ID."""
-        metric_df, errors, warnings = iterations_repository.get_metric_range(
+        metric_df, _errors, _warnings = iterations_repository.get_metric_range(
             iteration_id=single_var_iteration.uid,
             default=False,
             filter_ids=[],
@@ -353,7 +353,7 @@ class TestGetMetricRange:
 
     def test_metric_range_total_row(self, iterations_repository, single_var_iteration):
         """Test get_metric_range includes total row."""
-        metric_df, errors, warnings = iterations_repository.get_metric_range(
+        metric_df, _errors, _warnings = iterations_repository.get_metric_range(
             iteration_id=single_var_iteration.uid,
             default=False,
             filter_ids=[],
@@ -374,7 +374,7 @@ class TestGetMetricGrids:
         self, iterations_repository, double_var_iteration
     ):
         """Test get_metric_grids with total row and column."""
-        metric_outputs, errors, warnings = iterations_repository.get_metric_grids(
+        metric_outputs, _errors, _warnings = iterations_repository.get_metric_grids(
             iteration_id=double_var_iteration.uid,
             default=True,
             filter_ids=[],
@@ -395,7 +395,7 @@ class TestGetMetricGrids:
         self, iterations_repository, double_var_iteration
     ):
         """Test get_metric_grids with only total row."""
-        metric_outputs, errors, warnings = iterations_repository.get_metric_grids(
+        metric_outputs, _errors, _warnings = iterations_repository.get_metric_grids(
             iteration_id=double_var_iteration.uid,
             default=True,
             filter_ids=[],
@@ -415,7 +415,7 @@ class TestGetMetricGrids:
         self, iterations_repository, double_var_iteration
     ):
         """Test get_metric_grids with only total column."""
-        metric_outputs, errors, warnings = iterations_repository.get_metric_grids(
+        metric_outputs, _errors, _warnings = iterations_repository.get_metric_grids(
             iteration_id=double_var_iteration.uid,
             default=True,
             filter_ids=[],
@@ -433,7 +433,7 @@ class TestGetMetricGrids:
 
     def test_metric_grids_no_totals(self, iterations_repository, double_var_iteration):
         """Test get_metric_grids without totals."""
-        metric_outputs, errors, warnings = iterations_repository.get_metric_grids(
+        metric_outputs, _errors, _warnings = iterations_repository.get_metric_grids(
             iteration_id=double_var_iteration.uid,
             default=True,
             filter_ids=[],
@@ -457,7 +457,7 @@ class TestGetMetricGrids:
         scalar_repo.set_current_rate(LossRateTypes.DLR, 0.05)
         scalar_repo.set_lifetime_rate(LossRateTypes.DLR, 0.075)
 
-        metric_outputs, errors, warnings = iterations_repository.get_metric_grids(
+        metric_outputs, _errors, _warnings = iterations_repository.get_metric_grids(
             iteration_id=double_var_iteration.uid,
             default=True,
             filter_ids=[],
@@ -490,7 +490,7 @@ class TestGetMetricGrids:
         self, iterations_repository, double_var_iteration
     ):
         """Test get_metric_grids with no metrics returns empty list."""
-        metric_outputs, errors, warnings = iterations_repository.get_metric_grids(
+        metric_outputs, _errors, _warnings = iterations_repository.get_metric_grids(
             iteration_id=double_var_iteration.uid,
             default=True,
             filter_ids=[],
@@ -613,13 +613,13 @@ class TestIterationValidation:
 
     def test_single_var_validation(self, iterations_repository, single_var_iteration):
         """Test single var iteration validation."""
-        warnings, errors, _ = single_var_iteration._validate(default=False)
+        warnings, errors, _ = single_var_iteration.validate_groups(default=False)
         assert isinstance(warnings, list)
         assert isinstance(errors, list)
 
     def test_double_var_validation(self, iterations_repository, double_var_iteration):
         """Test double var iteration validation."""
-        warnings, errors, _ = double_var_iteration._validate(default=False)
+        warnings, errors, _ = double_var_iteration.validate_groups(default=False)
         assert isinstance(warnings, list)
         assert isinstance(errors, list)
 

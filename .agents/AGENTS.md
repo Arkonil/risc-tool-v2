@@ -25,3 +25,5 @@
 - UI elements (`risc_tool/ui/<feature>/<feature>.py`) must remain presentation-only: they fetch preconfigured `Styler` objects from the View Model to display in `st.data_editor` and pass edited DataFrames directly to View Model handler methods without performing manual data loops or data juggling.
 - When type-annotating pandas Styler objects in Python code, import `from pandas.io.formats.style import Styler` directly to prevent `AttributeError: module 'pandas.io.formats' has no attribute 'style'` at runtime.
 
+## Tooling & Environment Execution
+- All Python-related commands (e.g., `pytest`, `ruff check`, `streamlit run`, python scripts) MUST be executed using `uv run` (e.g., `uv run pytest`, `uv run ruff check`). Direct tool invocations or system python binaries are explicitly disallowed.
