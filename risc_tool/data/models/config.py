@@ -76,130 +76,128 @@ class RiskSegment(BaseModel):
 
 def get_default_risk_segments() -> OrderedDict[RiskSegmentID, RiskSegment]:
     """Generate default list of risk segments."""
-    return OrderedDict(
-        [
-            (
-                RiskSegmentID(0),
-                RiskSegment(
-                    name="1A",
-                    lower_rate=0.0,
-                    upper_rate=0.02,
-                    bg_color="#3D8F3D",
-                    font_color="#FFFFFF",
-                    maf_dlr=1.3,
-                    maf_ulr=1.3,
-                ),
+    return OrderedDict([
+        (
+            RiskSegmentID(0),
+            RiskSegment(
+                name="1A",
+                lower_rate=0.0,
+                upper_rate=0.02,
+                bg_color="#3D8F3D",
+                font_color="#FFFFFF",
+                maf_dlr=1.3,
+                maf_ulr=1.3,
             ),
-            (
-                RiskSegmentID(1),
-                RiskSegment(
-                    name="1B",
-                    lower_rate=0.0,
-                    upper_rate=0.02,
-                    bg_color="#3D8F3D",
-                    font_color="#FFFFFF",
-                    maf_dlr=1.3,
-                    maf_ulr=1.3,
-                ),
+        ),
+        (
+            RiskSegmentID(1),
+            RiskSegment(
+                name="1B",
+                lower_rate=0.0,
+                upper_rate=0.02,
+                bg_color="#3D8F3D",
+                font_color="#FFFFFF",
+                maf_dlr=1.3,
+                maf_ulr=1.3,
             ),
-            (
-                RiskSegmentID(2),
-                RiskSegment(
-                    name="2A",
-                    lower_rate=0.02,
-                    upper_rate=0.04,
-                    bg_color="#7D9438",
-                    font_color="#FFFFFF",
-                    maf_dlr=1.15,
-                    maf_ulr=1.15,
-                ),
+        ),
+        (
+            RiskSegmentID(2),
+            RiskSegment(
+                name="2A",
+                lower_rate=0.02,
+                upper_rate=0.04,
+                bg_color="#7D9438",
+                font_color="#FFFFFF",
+                maf_dlr=1.15,
+                maf_ulr=1.15,
             ),
-            (
-                RiskSegmentID(3),
-                RiskSegment(
-                    name="2B",
-                    lower_rate=0.02,
-                    upper_rate=0.04,
-                    bg_color="#7D9438",
-                    font_color="#FFFFFF",
-                    maf_dlr=1.15,
-                    maf_ulr=1.15,
-                ),
+        ),
+        (
+            RiskSegmentID(3),
+            RiskSegment(
+                name="2B",
+                lower_rate=0.02,
+                upper_rate=0.04,
+                bg_color="#7D9438",
+                font_color="#FFFFFF",
+                maf_dlr=1.15,
+                maf_ulr=1.15,
             ),
-            (
-                RiskSegmentID(4),
-                RiskSegment(
-                    name="3A",
-                    lower_rate=0.04,
-                    upper_rate=0.07,
-                    bg_color="#948238",
-                    font_color="#FFFFFF",
-                    maf_dlr=1.0,
-                    maf_ulr=1.0,
-                ),
+        ),
+        (
+            RiskSegmentID(4),
+            RiskSegment(
+                name="3A",
+                lower_rate=0.04,
+                upper_rate=0.07,
+                bg_color="#948238",
+                font_color="#FFFFFF",
+                maf_dlr=1.0,
+                maf_ulr=1.0,
             ),
-            (
-                RiskSegmentID(5),
-                RiskSegment(
-                    name="3B",
-                    lower_rate=0.04,
-                    upper_rate=0.07,
-                    bg_color="#948238",
-                    font_color="#FFFFFF",
-                    maf_dlr=1.0,
-                    maf_ulr=1.0,
-                ),
+        ),
+        (
+            RiskSegmentID(5),
+            RiskSegment(
+                name="3B",
+                lower_rate=0.04,
+                upper_rate=0.07,
+                bg_color="#948238",
+                font_color="#FFFFFF",
+                maf_dlr=1.0,
+                maf_ulr=1.0,
             ),
-            (
-                RiskSegmentID(6),
-                RiskSegment(
-                    name="4A",
-                    lower_rate=0.07,
-                    upper_rate=0.10,
-                    bg_color="#8F663D",
-                    font_color="#FFFFFF",
-                    maf_dlr=0.9,
-                    maf_ulr=0.9,
-                ),
+        ),
+        (
+            RiskSegmentID(6),
+            RiskSegment(
+                name="4A",
+                lower_rate=0.07,
+                upper_rate=0.10,
+                bg_color="#8F663D",
+                font_color="#FFFFFF",
+                maf_dlr=0.9,
+                maf_ulr=0.9,
             ),
-            (
-                RiskSegmentID(7),
-                RiskSegment(
-                    name="4B",
-                    lower_rate=0.07,
-                    upper_rate=0.10,
-                    bg_color="#8F663D",
-                    font_color="#FFFFFF",
-                    maf_dlr=0.9,
-                    maf_ulr=0.9,
-                ),
+        ),
+        (
+            RiskSegmentID(7),
+            RiskSegment(
+                name="4B",
+                lower_rate=0.07,
+                upper_rate=0.10,
+                bg_color="#8F663D",
+                font_color="#FFFFFF",
+                maf_dlr=0.9,
+                maf_ulr=0.9,
             ),
-            (
-                RiskSegmentID(8),
-                RiskSegment(
-                    name="5A",
-                    lower_rate=0.10,
-                    upper_rate=float("inf"),
-                    bg_color="#8F3D3D",
-                    font_color="#FFFFFF",
-                    maf_dlr=0.8,
-                    maf_ulr=0.8,
-                ),
+        ),
+        (
+            RiskSegmentID(8),
+            RiskSegment(
+                name="5A",
+                lower_rate=0.10,
+                upper_rate=float("inf"),
+                bg_color="#8F3D3D",
+                font_color="#FFFFFF",
+                maf_dlr=0.8,
+                maf_ulr=0.8,
             ),
-            (
-                RiskSegmentID(9),
-                RiskSegment(
-                    name="5B",
-                    lower_rate=0.10,
-                    upper_rate=float("inf"),
-                    bg_color="#8F3D3D",
-                    font_color="#FFFFFF",
-                    maf_dlr=0.8,
-                    maf_ulr=0.8,
-                ),
+        ),
+        (
+            RiskSegmentID(9),
+            RiskSegment(
+                name="5B",
+                lower_rate=0.10,
+                upper_rate=float("inf"),
+                bg_color="#8F3D3D",
+                font_color="#FFFFFF",
+                maf_dlr=0.8,
+                maf_ulr=0.8,
             ),
-        ]
-    )
+        ),
+    ])
 
 
 class RiskSegmentConfig(BaseModel):
@@ -211,7 +209,7 @@ class RiskSegmentConfig(BaseModel):
 
     def recalculate_lower_bounds(self) -> None:
         """Recalculate lower rate bounds to maintain contiguous risk tier boundaries."""
-        for i, (seg_id, segment) in enumerate(self.segments.items()):
+        for i, (_, segment) in enumerate(self.segments.items()):
             if i == 0:
                 segment.lower_rate = 0.0
                 continue
@@ -436,10 +434,10 @@ class OptionsConfig(BaseModel):
 
 
 __all__ = [
-    "is_valid_hex_color",
-    "RiskSegment",
-    "RiskSegmentConfig",
     "LossRateScalar",
     "OptionsConfig",
+    "RiskSegment",
+    "RiskSegmentConfig",
     "get_default_risk_segments",
+    "is_valid_hex_color",
 ]

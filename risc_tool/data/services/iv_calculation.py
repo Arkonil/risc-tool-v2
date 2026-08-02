@@ -74,10 +74,12 @@ def calculate_iv(variable: pl.Series, target: pl.Series) -> float:
         # Add a small epsilon to avoid division by zero or log(0)
         epsilon = 1e-6
         grouped = grouped.with_columns(
-            pct_good=pl.when(pl.col("pct_good") < epsilon)
+            pct_good=pl
+            .when(pl.col("pct_good") < epsilon)
             .then(epsilon)
             .otherwise(pl.col("pct_good")),
-            pct_bad=pl.when(pl.col("pct_bad") < epsilon)
+            pct_bad=pl
+            .when(pl.col("pct_bad") < epsilon)
             .then(epsilon)
             .otherwise(pl.col("pct_bad")),
         )

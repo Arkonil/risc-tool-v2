@@ -399,7 +399,7 @@ class MetricRepository(BaseRepository):
                 name=DefaultMetricNames.DEV_VOLUME,
             )
 
-        first_column = sorted(list(available_cols))[0][0]
+        first_column = sorted(available_cols)[0][0]
 
         metric = Volume(
             first_column,
@@ -498,7 +498,7 @@ class MetricRepository(BaseRepository):
                 name=DefaultMetricNames.TST_VOLUME,
             )
 
-        first_column = sorted(list(available_cols))[0][0]
+        first_column = sorted(available_cols)[0][0]
 
         metric = Volume(
             first_column,
@@ -546,7 +546,7 @@ class MetricRepository(BaseRepository):
                 total_size = lf.select(pl.len()).collect().item(0, 0)
                 lf = lf.with_columns(pl.lit(total_size).alias("__TOTAL_SIZE__"))
                 lf.select(new_metric.metric_expr).collect()
-            except Exception as e:
+            except (KeyError, ValueError, TypeError) as e:
                 raise ValueError(f"Failed to execute metric expression: {e}")
 
         self.__verified_metrics[key] = new_metric
@@ -614,7 +614,7 @@ class MetricRepository(BaseRepository):
         if metric_id not in self.metrics:
             return
         metric_name = self.metrics[metric_id].name
-        existing_names = set(m.name for m in self.metrics.values())
+        existing_names = {m.name for m in self.metrics.values()}
         new_name = create_duplicate_name(metric_name, existing_names)
 
         metric_obj = self.metrics[metric_id].duplicate(
@@ -661,7 +661,7 @@ class MetricRepository(BaseRepository):
         data: dict[str, t.Any],
         data_repository: DataRepository,
         errors: t.Literal["ignore", "raise"] = "ignore",
-    ) -> t.Tuple["MetricRepository", list[tuple[Metric, Exception]]]:
+    ) -> tuple["MetricRepository", list[tuple[Metric, Exception]]]:
         repo = cls(data_repository=data_repository)
         invalid_metrics: list[tuple[Metric, Exception]] = []
 

@@ -27,7 +27,6 @@ class ScalarRepository(BaseRepository):
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
         """Handle dependency updates (no-op as scalars has no upstream repo dependencies)."""
-        pass
 
     def get_scalar(self, loss_rate_type: LossRateTypes) -> LossRateScalar:
         """Get the LossRateScalar configuration for ULR or DLR."""

@@ -52,7 +52,6 @@ class DataRepository(BaseRepository):
         Args:
             change_ids: Set of change IDs from dependencies.
         """
-        pass
 
     @property
     def has_valid_sources(self) -> bool:

@@ -55,4 +55,4 @@ def wrap_text(
     return wrapped_text.splitlines()
 
 
-__all__ = ["wrap_text", "TAB"]
+__all__ = ["TAB", "wrap_text"]

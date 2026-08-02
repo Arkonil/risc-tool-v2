@@ -18,7 +18,8 @@ def does_high_value_implies_high_risk(
 ) -> bool:
     """Determine whether higher values of a variable correlate with higher risk."""
     df = (
-        base_lf.group_by(pl.col(variable))
+        base_lf
+        .group_by(pl.col(variable))
         .agg(
             (pl.col(numerator).sum() / pl.col(denominator).sum())
             .fill_nan(0)
@@ -115,7 +116,8 @@ def create_auto_numeric_bands(
         base_lf = base_lf.with_columns((-variable_expr).alias(variable))
 
     group_lf = (
-        base_lf.group_by(variable_expr)
+        base_lf
+        .group_by(variable_expr)
         .agg(
             numerator_expr.alias("numerator"),
             denominator_expr.alias("denominator"),
@@ -146,7 +148,8 @@ def create_auto_numeric_bands(
             risk_scalar_factor = 1.0
 
         result_df = (
-            group_lf.with_columns(
+            group_lf
+            .with_columns(
                 (pl.col("ratio") * risk_scalar_factor < risk_seg.upper_rate)
                 .cast(pl.Int8)
                 .cum_min()
@@ -242,7 +245,8 @@ def create_auto_categorical_bands(
     )
 
     group_lf = (
-        base_lf.group_by(variable_expr)
+        base_lf
+        .group_by(variable_expr)
         .agg(
             numerator_expr.alias("numerator"),
             denominator_expr.alias("denominator"),
@@ -273,9 +277,8 @@ def create_auto_categorical_bands(
             risk_scalar_factor = 1.0
 
         categories: set[str] = set(
-            group_lf.filter(
-                (pl.col("ratio") * risk_scalar_factor) < risk_seg.upper_rate
-            )
+            group_lf
+            .filter((pl.col("ratio") * risk_scalar_factor) < risk_seg.upper_rate)
             .select(variable_expr)
             .unique(variable_expr)
             .cast(pl.Utf8)
@@ -293,7 +296,7 @@ def create_auto_categorical_bands(
 
 
 __all__ = [
-    "does_high_value_implies_high_risk",
-    "create_auto_numeric_bands",
     "create_auto_categorical_bands",
+    "create_auto_numeric_bands",
+    "does_high_value_implies_high_risk",
 ]

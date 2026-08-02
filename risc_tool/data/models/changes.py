@@ -58,7 +58,7 @@ class ChangeTracker(ABC):
         self._previous_changes: ChangeIDs = set()
 
         self._callback_ids: dict[Signature, CallbackID] = {}
-        self._dependencies: WriteOnceOrderedDict[Signature, "ChangeNotifier"] = (
+        self._dependencies: WriteOnceOrderedDict[Signature, ChangeNotifier] = (
             WriteOnceOrderedDict()
         )
 
@@ -222,4 +222,4 @@ class ChangeNotifier(ChangeTracker):
         return has_changed
 
 
-__all__ = ["ChangeTracker", "ChangeNotifier"]
+__all__ = ["ChangeNotifier", "ChangeTracker"]

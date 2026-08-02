@@ -15,7 +15,7 @@ Scalar = int | float | str | bool | None
 class MetricQueryValidator(ast.NodeVisitor):
     """AST visitor to validate metric expressions and find columns."""
 
-    allowed_functions = {
+    allowed_functions: t.ClassVar[set[str]] = {
         "sum",
         "mean",
         "median",
@@ -24,7 +24,7 @@ class MetricQueryValidator(ast.NodeVisitor):
         "std",
     }
 
-    allowed_series_methods = {
+    allowed_series_methods: t.ClassVar[set[str]] = {
         "all",
         "any",
         "autocorr",
@@ -50,7 +50,7 @@ class MetricQueryValidator(ast.NodeVisitor):
         "is_in",
     }
 
-    allowed_operators = (
+    allowed_operators: t.ClassVar[tuple[type[ast.AST], ...]] = (
         ast.Add,
         ast.Sub,
         ast.Mult,
@@ -60,8 +60,8 @@ class MetricQueryValidator(ast.NodeVisitor):
         ast.FloorDiv,
     )
 
-    allowed_names = ["__MISSING__", "__TOTAL_SIZE__"]
-    allowed_series_attributes = ["size"]
+    allowed_names: t.ClassVar[set[str]] = {"__MISSING__", "__TOTAL_SIZE__"}
+    allowed_series_attributes: t.ClassVar[set[str]] = {"size"}
 
     def __init__(self, placeholder_map: dict[str, str]):
         self.found_columns: set[str] = set()
@@ -135,7 +135,7 @@ class MetricQueryValidator(ast.NodeVisitor):
 
     def visit_BinOp(self, node: ast.BinOp):
         if not isinstance(node.op, self.allowed_operators):
-            raise ValueError(f"Unsupported binary operator: {type(node.op).__name__}")
+            raise TypeError(f"Unsupported binary operator: {type(node.op).__name__}")
 
         self.visit(node.left)
         self.visit(node.right)
@@ -148,13 +148,11 @@ class MetricQueryValidator(ast.NodeVisitor):
             return True
 
         if isinstance(expr_node, ast.BinOp):
-            return all(
-                [
-                    isinstance(expr_node.op, self.allowed_operators),
-                    self.is_result_scalar(expr_node.left),
-                    self.is_result_scalar(expr_node.right),
-                ]
-            )
+            return all([
+                isinstance(expr_node.op, self.allowed_operators),
+                self.is_result_scalar(expr_node.left),
+                self.is_result_scalar(expr_node.right),
+            ])
 
         if isinstance(expr_node, ast.Call):
             if isinstance(expr_node.func, ast.Name):
@@ -294,7 +292,7 @@ class Metric:
         validator.visit(expr_node)
 
         # --- 4. Extract Column Names and Compile ---
-        self.used_columns = sorted(list(validator.found_columns))
+        self.used_columns = sorted(validator.found_columns)
         self.placeholder_map = validator.placeholder_map
         self.processed_query = processed_expression
 
@@ -302,7 +300,7 @@ class Metric:
         if available_columns is not None:
             available_set = set(available_columns)
             used_set = set(self.used_columns)
-            missing_columns = sorted(list(used_set - available_set))
+            missing_columns = sorted(used_set - available_set)
             if missing_columns:
                 self.logger.error(
                     "Metric query validation failed: missing columns %s",
@@ -315,7 +313,7 @@ class Metric:
         # Compile Expression
         try:
             self.metric_expr = self._compile_expression(expr_node, backticked_map)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             self.logger.error("Failed to compile metric query '%s': %s", self.query, e)
             raise ValueError(f"Failed to compile to Polars expression: {e}")
 
@@ -349,9 +347,7 @@ class Metric:
                     return pl.lit(True)
                 elif name == "False":
                     return pl.lit(False)
-                elif name == "None":
-                    return pl.lit(None)
-                elif name == "__MISSING__":
+                elif name == "None" or name == "__MISSING__":
                     return pl.lit(None)
                 elif name == "__TOTAL_SIZE__":
                     return pl.col("__TOTAL_SIZE__").first()
@@ -440,7 +436,7 @@ class Metric:
                     elif isinstance(op, ast.NotIn):
                         term = ~curr_left_compiled.is_in(right_compiled)
                     else:
-                        raise ValueError(
+                        raise TypeError(
                             f"Unsupported comparison operator: {type(op).__name__}"
                         )
 
@@ -597,7 +593,7 @@ class Metric:
 
         compiled = compile_sub(node)
         if not isinstance(compiled, pl.Expr):
-            raise ValueError("Expression must compile to a Polars Expression object.")
+            raise TypeError("Expression must compile to a Polars Expression object.")
         return compiled
 
     def duplicate(
@@ -733,9 +729,9 @@ class Volume(Metric):
 
 
 __all__ = [
-    "MetricQueryValidator",
-    "Metric",
-    "UnitBadRate",
     "DollarBadRate",
+    "Metric",
+    "MetricQueryValidator",
+    "UnitBadRate",
     "Volume",
 ]

@@ -20,7 +20,9 @@ def _build_session_log_file_path() -> Path:
     Returns:
         The log file path for the current session with a timestamp.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    timestamp = datetime.now(tz=datetime.now().astimezone().tzinfo).strftime(
+        "%Y%m%d_%H%M%S_%f"
+    )
     return LOGS_DIR / f"session_{timestamp}.log"
 
 

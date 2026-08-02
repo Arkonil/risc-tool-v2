@@ -98,7 +98,7 @@ class DataSource(BaseModel):
             )
 
         if self.read_config.read_mode == "CSV":
-            if not self.filepath.suffix.lower() == ".csv":
+            if self.filepath.suffix.lower() != ".csv":
                 self._logger.error(
                     "Filepath %s does not match read mode CSV", self.filepath
                 )

@@ -16,9 +16,9 @@ class IterationMetadata(BaseModel):
     split_view_enabled: bool = True
     show_prev_iter_details: bool = True
     loss_rate_type: LossRateTypes = LossRateTypes.DLR
-    initial_filter_ids: list[FilterID] = Field(default_factory=lambda: [])
-    current_filter_ids: list[FilterID] = Field(default_factory=lambda: [])
-    metric_ids: list[MetricID] = Field(default_factory=lambda: [])
+    initial_filter_ids: list[FilterID] = Field(default_factory=list[FilterID])
+    current_filter_ids: list[FilterID] = Field(default_factory=list[FilterID])
+    metric_ids: list[MetricID] = Field(default_factory=list[MetricID])
     remove_outliers: bool = True
 
     def update(

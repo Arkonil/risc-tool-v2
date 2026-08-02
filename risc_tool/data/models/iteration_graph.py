@@ -11,7 +11,7 @@ class IterationGraph(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     connections: dict[IterationID, list[IterationID]] = Field(
-        default_factory=lambda: {}
+        default_factory=dict[IterationID, list[IterationID]]
     )
 
     def add_child(self, parent_id: IterationID, child_id: IterationID) -> None:
@@ -36,7 +36,7 @@ class IterationGraph(BaseModel):
 
     def remove_iteration(self, iteration_id: IterationID) -> None:
         self.connections.pop(iteration_id, None)
-        for parent, children in self.connections.items():
+        for children in self.connections.values():
             if iteration_id in children:
                 children.remove(iteration_id)
 

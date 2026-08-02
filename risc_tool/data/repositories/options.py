@@ -25,7 +25,6 @@ class OptionRepository(BaseRepository):
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
         """Handle dependency update notifications (no-op as options has no upstream repo)."""
-        pass
 
     @property
     def risk_segments(self):

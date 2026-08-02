@@ -1,3 +1,4 @@
+import itertools
 import typing as t
 from collections import OrderedDict
 
@@ -134,7 +135,8 @@ class IterationsRepository(BaseRepository):
             return default_groups
 
         quantile_exprs = [
-            pl.col(variable_name)
+            pl
+            .col(variable_name)
             .cast(pl.Float64)
             .quantile(i / group_count, interpolation="linear")
             .alias(f"q{i}")
@@ -143,7 +145,8 @@ class IterationsRepository(BaseRepository):
 
         if quantile_exprs:
             quantile_row = (
-                self.__data_repository.get_lazyframe()
+                self.__data_repository
+                .get_lazyframe()
                 .select(quantile_exprs)
                 .collect()
                 .row(0, named=True)
@@ -181,9 +184,11 @@ class IterationsRepository(BaseRepository):
             return default_groups
 
         unique_values = (
-            self.__data_repository.get_lazyframe()
+            self.__data_repository
+            .get_lazyframe()
             .select(
-                pl.col(variable_name)
+                pl
+                .col(variable_name)
                 .cast(pl.String)
                 .drop_nulls()
                 .unique()
@@ -294,7 +299,9 @@ class IterationsRepository(BaseRepository):
 
         return self.iterations[iteration_id]
 
-    def get_root_iteration(self, iteration_id: IterationID) -> SingleVarIteration:
+    def get_root_iteration(
+        self, iteration_id: IterationID
+    ) -> SingleVarIteration[NumericalGroup] | SingleVarIteration[CategoricalGroup]:
         root_id = self.graph.get_root_iter_id(iteration_id)
         root_iter = self.get_iteration(root_id)
 
@@ -351,7 +358,7 @@ class IterationsRepository(BaseRepository):
         use_scalar: bool,
         remove_outliers: bool,
         hv_imp_hr: bool | None = None,
-    ) -> SingleVarIteration:
+    ) -> SingleVarIteration[NumericalGroup] | SingleVarIteration[CategoricalGroup]:
         """Create and store a new SingleVarIteration model."""
         new_id = IterationID(self._get_new_id(current_ids=self.iterations.keys()))
 
@@ -521,7 +528,7 @@ class IterationsRepository(BaseRepository):
 
             identity_grid = {
                 gid: {seg_id: seg_id for seg_id in ordered_parent_segments}
-                for gid in default_groups.keys()
+                for gid in default_groups
             }
 
             self._set_double_iteration_defaults(
@@ -578,7 +585,8 @@ class IterationsRepository(BaseRepository):
                 denominator = None
 
             parent_segments_present = (
-                base_lf.select(pl.col(parent_col).drop_nulls().unique().sort())
+                base_lf
+                .select(pl.col(parent_col).drop_nulls().unique().sort())
                 .collect()
                 .get_column(parent_col)
                 .to_list()
@@ -631,7 +639,7 @@ class IterationsRepository(BaseRepository):
                         cut_points.add(float(group.upper_bound))
 
                 sorted_points = sorted(cut_points)
-                pair_points = list(zip(sorted_points[:-1], sorted_points[1:]))
+                pair_points = list(itertools.pairwise(sorted_points))
                 if not pair_points:
                     pair_points = [(float("-inf"), float("inf"))]
 
@@ -701,7 +709,7 @@ class IterationsRepository(BaseRepository):
                     )
 
             risk_segment_grid: dict[GroupID, dict[RiskSegmentID, RiskSegmentID]] = {}
-            for gid in iteration.default_groups.keys():
+            for gid in iteration.default_groups:
                 row_map: dict[RiskSegmentID, RiskSegmentID] = {}
                 for parent_seg in ordered_parent_segments:
                     if parent_seg not in segment_pos:
@@ -740,10 +748,7 @@ class IterationsRepository(BaseRepository):
                 risk_segment_grid[gid] = row_map
 
             if isinstance(iteration, NumericalDoubleVarIteration):
-                num_groups = t.cast(
-                    OrderedDict[GroupID, NumericalGroup],
-                    iteration.default_groups,
-                )
+                num_groups = iteration.default_groups
                 ordered_ids = list(num_groups.keys())
                 i = 1
                 while i < len(ordered_ids):
@@ -769,10 +774,7 @@ class IterationsRepository(BaseRepository):
                     grid=risk_segment_grid,
                 )
             else:
-                cat_groups = t.cast(
-                    OrderedDict[GroupID, CategoricalGroup],
-                    iteration.default_groups,
-                )
+                cat_groups = iteration.default_groups
                 ordered_ids = list(cat_groups.keys())
 
                 i1 = 0
@@ -798,7 +800,7 @@ class IterationsRepository(BaseRepository):
                     i1 += 1
 
                 sort_order = sorted(
-                    list(cat_groups.keys()),
+                    cat_groups.keys(),
                     key=lambda gid: tuple(
                         int(risk_segment_grid[gid][parent_seg])
                         for parent_seg in ordered_parent_segments
@@ -1042,9 +1044,7 @@ class IterationsRepository(BaseRepository):
         ):
             return
 
-        new_gid = GroupID(
-            max((int(gid) for gid in iteration.groups.keys()), default=-1) + 1
-        )
+        new_gid = GroupID(max((int(gid) for gid in iteration.groups), default=-1) + 1)
 
         if isinstance(iteration, NumericalDoubleVarIteration):
             iteration.groups[new_gid] = NumericalGroup(lower_bound=0.0, upper_bound=0.0)
@@ -1108,9 +1108,7 @@ class IterationsRepository(BaseRepository):
                 )
 
             indices = list(categorical_groups.keys())
-            categories = [
-                sorted(list(g.categories)) for g in categorical_groups.values()
-            ]
+            categories = [sorted(g.categories) for g in categorical_groups.values()]
             control_df = pd.DataFrame(
                 {RangeColumn.CATEGORIES.value: categories},
                 index=indices,
@@ -1136,11 +1134,11 @@ class IterationsRepository(BaseRepository):
             if group_id not in iteration.groups:
                 continue
 
-            cat_val = categories_col.get(group_id, set())
+            cat_val: t.Any = categories_col.get(group_id, set())
             if isinstance(cat_val, (list, tuple, set)):
-                cats = {str(c) for c in cat_val}
+                cats: set[str] = {str(c) for c in cat_val}  # type: ignore
             else:
-                cats = set()
+                cats: set[str] = set()
 
             iteration.set_group(
                 group_id=group_id,
@@ -1162,7 +1160,7 @@ class IterationsRepository(BaseRepository):
             iteration,
             (NumericalDoubleVarIteration, CategoricalDoubleVarIteration),
         ):
-            raise ValueError(
+            raise TypeError(
                 f"Iteration {iteration_id} is not a double variable iteration."
             )
 
@@ -1194,13 +1192,11 @@ class IterationsRepository(BaseRepository):
         rows: list[dict[str, str]] = []
         for gid in target_rows:
             row = target_grid.get(gid, {})
-            rows.append(
-                {
-                    column_name_map[parent_seg]: value_map.get(target_seg, "")
-                    for parent_seg, target_seg in row.items()
-                    if parent_seg in column_name_map
-                }
-            )
+            rows.append({
+                column_name_map[parent_seg]: value_map.get(target_seg, "")
+                for parent_seg, target_seg in row.items()
+                if parent_seg in column_name_map
+            })
 
         return pd.DataFrame(rows, index=target_rows)
 
@@ -1214,7 +1210,7 @@ class IterationsRepository(BaseRepository):
             iteration,
             (NumericalDoubleVarIteration, CategoricalDoubleVarIteration),
         ):
-            raise ValueError(
+            raise TypeError(
                 f"Iteration {iteration_id} is not a double variable iteration."
             )
 
@@ -1273,7 +1269,7 @@ class IterationsRepository(BaseRepository):
         for node_id in node_chain:
             iter_obj = self.get_iteration(node_id)
             _def = default if node_id == iteration_id else False
-            w, e, _ = iter_obj._validate(default=_def)
+            w, e, _ = iter_obj.validate_groups(default=_def)
             all_warnings.extend(w)
             all_errors.extend(e)
 
@@ -1311,7 +1307,7 @@ class IterationsRepository(BaseRepository):
         cumulative_metrics = [m for m in valid_metrics if m.is_cumulative]
 
         risk_segment_details = self.get_risk_segment_details(iteration_id)
-        ordered_seg_ids = [s_id for s_id in risk_segment_details.segments.keys()]
+        ordered_seg_ids = [s_id for s_id in risk_segment_details.segments]
 
         metric_dfs: list[pd.DataFrame] = []
 
@@ -1438,11 +1434,11 @@ class IterationsRepository(BaseRepository):
         errors: list[str] = []
         for node_id in node_chain:
             node_iter = self.get_iteration(node_id)
-            node_warnings, node_errors, _ = node_iter._validate(default=False)
+            node_warnings, node_errors, _ = node_iter.validate_groups(default=False)
             warnings.extend(node_warnings)
             errors.extend(node_errors)
 
-        child_warnings, child_errors, _ = iteration._validate(default=default)
+        child_warnings, child_errors, _ = iteration.validate_groups(default=default)
         warnings.extend(child_warnings)
         errors.extend(child_errors)
 
@@ -1587,7 +1583,8 @@ class IterationsRepository(BaseRepository):
 
             scalar_index = metric_df.index
             maf_dlr_series = (
-                pd.Series(
+                pd
+                .Series(
                     {idx: values[0] for idx, values in scalar_rows.items()},
                     index=scalar_index,
                     dtype=float,
@@ -1596,7 +1593,8 @@ class IterationsRepository(BaseRepository):
                 .fillna(1.0)
             )
             maf_ulr_series = (
-                pd.Series(
+                pd
+                .Series(
                     {idx: values[1] for idx, values in scalar_rows.items()},
                     index=scalar_index,
                     dtype=float,

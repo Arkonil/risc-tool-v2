@@ -86,8 +86,13 @@ class BaseFormatter(logging.Formatter):
                             return f"{cls_val.__name__}.{record.funcName}"
                     break
                 frame = frame.f_back
-        except Exception:
-            pass
+        except (AttributeError, TypeError, RuntimeError):
+            import logging as _logging
+
+            _logging.getLogger(__name__).exception(
+                "Failed to resolve qualified caller name for %s",
+                record.funcName,
+            )
         return record.funcName
 
     def format(self, record: logging.LogRecord) -> str:
@@ -114,10 +119,8 @@ class BaseFormatter(logging.Formatter):
 
         # Format the actual message
         message = record.getMessage()
-        if record.exc_info:
-            # Cache the exception text if not already formatted
-            if not record.exc_text:
-                record.exc_text = self.formatException(record.exc_info)
+        if record.exc_info and not record.exc_text:
+            record.exc_text = self.formatException(record.exc_info)
 
         if record.exc_text:
             if message[-1:] != "\n":

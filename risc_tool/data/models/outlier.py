@@ -25,8 +25,8 @@ class OutlierRule(Filter):
         self.comparison_op: ComparisonOperation = comparison_op
         self.comparison_base: PercentileOptions | float = comparison_base
 
-        self.mode: t.Union[float, int, None] = None
-        self.threshold_val: t.Union[float, int, None] = None
+        self.mode: float | int | None = None
+        self.threshold_val: float | int | None = None
         self.frequency: int = 0
 
         # Set default name
@@ -56,7 +56,8 @@ class OutlierRule(Filter):
         # 1. Compute Mode
         try:
             mode_df = (
-                lf.select(col_expr)
+                lf
+                .select(col_expr)
                 .drop_nulls()
                 .group_by(self.variable_name)
                 .len()

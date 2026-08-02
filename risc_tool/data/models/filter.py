@@ -206,10 +206,10 @@ class Filter:
         )
 
         is_likely_boolean = False
-        if isinstance(expr_node, allowed_top_level_nodes):
-            is_likely_boolean = True
-        elif isinstance(expr_node, ast.BinOp) and isinstance(
-            expr_node.op, (ast.BitAnd, ast.BitOr, ast.BitXor)
+        if (
+            isinstance(expr_node, allowed_top_level_nodes)
+            or isinstance(expr_node, ast.BinOp)
+            and isinstance(expr_node.op, (ast.BitAnd, ast.BitOr, ast.BitXor))
         ):
             is_likely_boolean = True
 
@@ -229,13 +229,13 @@ class Filter:
         # --- 4. Extract Columns ---
         finder = FilterQueryValidator(backticked_map)
         finder.visit(expr_node)
-        self.used_columns = sorted(list(finder.found_columns))
+        self.used_columns = sorted(finder.found_columns)
 
         # --- 5. Validate Columns Exist ---
         if available_columns is not None:
             available_set = set(available_columns)
             used_set = set(self.used_columns)
-            missing_columns = sorted(list(used_set - available_set))
+            missing_columns = sorted(used_set - available_set)
             if missing_columns:
                 self.logger.warning("Missing columns in query: %s", missing_columns)
                 raise InvalidFilterError(
@@ -436,7 +436,7 @@ class Filter:
                         self.logger.warning(
                             "Unsupported comparison operator: %s", type(op).__name__
                         )
-                        raise ValueError(
+                        raise TypeError(
                             f"Unsupported comparison operator: {type(op).__name__}"
                         )
 
@@ -592,7 +592,7 @@ class Filter:
                             "List/Tuple literal contains non-scalar value: %s",
                             type(value).__name__,
                         )
-                        raise ValueError(
+                        raise TypeError(
                             f"List/Tuple literals only support scalar values, got {type(value).__name__}"
                         )
                 return vals
@@ -607,7 +607,7 @@ class Filter:
                 "Expression compiled to %s, not a Polars Expression",
                 type(compiled).__name__,
             )
-            raise ValueError("Expression must compile to a Polars Expression object.")
+            raise TypeError("Expression must compile to a Polars Expression object.")
 
         return compiled
 

@@ -197,7 +197,7 @@ class FilterRepository(BaseRepository):
             )
             return
         filter_name = self.filters[filter_id].name
-        existing_names = set(m.name for m in self.filters.values())
+        existing_names = {m.name for m in self.filters.values()}
         new_name = create_duplicate_name(filter_name, existing_names)
 
         filter_obj = self.filters[filter_id].duplicate(

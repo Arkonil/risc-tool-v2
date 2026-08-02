@@ -46,7 +46,7 @@ class SentinelInt(int):
         obj._name = name
         return obj
 
-    def __eq__(self, other: t.Any):
+    def __eq__(self, other: object):
         """Compare two values with sentinel-aware equality.
 
         If either value is a sentinel (has a _name), comparison is done
@@ -73,7 +73,7 @@ class SentinelInt(int):
         # Otherwise, perform standard integer comparison
         return super().__eq__(other)
 
-    def __ne__(self, other: t.Any):
+    def __ne__(self, other: object):
         """Invert equality comparison."""
         return not self == other
 
