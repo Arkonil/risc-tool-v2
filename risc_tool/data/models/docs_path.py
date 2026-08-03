@@ -8,6 +8,15 @@ MODULE_NAME = "risc_tool"
 
 
 class DocPage(BaseModel):
+    """Metadata and content for a single documentation page.
+
+    Attributes:
+        title: Display title of the documentation page.
+        slug: Unique URL-friendly identifier used for lookup.
+        path: Filesystem path to the page's HTML source.
+        content: Optional preloaded page content as a string.
+    """
+
     title: str
     slug: str
     path: pathlib.Path

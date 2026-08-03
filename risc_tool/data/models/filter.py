@@ -1,3 +1,10 @@
+"""Filter model with query validation and Polars expression compilation.
+
+This module provides the Filter class, which stores a raw filter query,
+validates its syntax and column references, and compiles it into a Polars
+expression. OutlierRule (see outlier.py) reuses this compilation pipeline.
+"""
+
 import ast
 import re
 import typing as t
@@ -146,6 +153,14 @@ class Filter:
         backticked_map: dict[str, str] = {}
 
         def replace_backtick(match: re.Match[str]) -> str:
+            """Replace a backticked identifier with a unique placeholder.
+
+            Args:
+                match: The regex match containing the backticked name.
+
+            Returns:
+                A placeholder string such as __BACKTICKED_0__.
+            """
             name_inside_ticks = match.group(1)
             placeholder = f"__BACKTICKED_{len(backticked_map)}__"
             backticked_map[placeholder] = name_inside_ticks
@@ -280,6 +295,18 @@ class Filter:
         """
 
         def require_expr(value: CompiledValue, context: str) -> pl.Expr:
+            """Ensure the compiled value is a Polars expression, else raise.
+
+            Args:
+                value: The compiled value to check.
+                context: A description of where the value is used, for errors.
+
+            Returns:
+                The value itself if it is already a pl.Expr.
+
+            Raises:
+                ValueError: If the value is not a pl.Expr.
+            """
             if isinstance(value, pl.Expr):
                 return value
             self.logger.warning(
@@ -292,6 +319,14 @@ class Filter:
         def require_is_in_rhs(
             value: CompiledValue,
         ) -> pl.Expr | t.Collection[t.Any]:
+            """Coerce a compiled value to the right-hand side of an `is in` check.
+
+            Args:
+                value: The compiled value to coerce.
+
+            Returns:
+                The value unchanged; either a pl.Expr or a collection.
+            """
             if isinstance(value, pl.Expr):
                 return value
             return value
@@ -299,6 +334,18 @@ class Filter:
         def compile_sub(
             n: ast.AST,
         ) -> CompiledValue:
+            """Compile an AST node recursively into a Polars expression.
+
+            Args:
+                n: The AST node to compile.
+
+            Returns:
+                A compiled Polars expression or a collection of scalar values
+                (for list/tuple literals).
+
+            Raises:
+                ValueError: If the node type or operator is unsupported.
+            """
             if isinstance(n, ast.Name):
                 name = backticked_map.get(n.id, n.id)
                 if name == "True":

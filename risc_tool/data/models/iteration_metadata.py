@@ -7,7 +7,19 @@ from risc_tool.data.models.types import FilterID, MetricID
 
 
 class IterationMetadata(BaseModel):
-    """Stores view state metadata for an iteration (active filters, metrics, modes)."""
+    """Stores view state metadata for an iteration (active filters, metrics, modes).
+
+    Attributes:
+        editable: Whether the iteration is editable in the UI.
+        scalars_enabled: Whether scalar adjustments are applied.
+        split_view_enabled: Whether the split view is shown.
+        show_prev_iter_details: Whether previous iteration details are displayed.
+        loss_rate_type: Loss rate type used for display.
+        initial_filter_ids: Filter IDs active when the iteration was created.
+        current_filter_ids: Filter IDs currently active.
+        metric_ids: Metric IDs selected for the iteration.
+        remove_outliers: Whether outlier rules are excluded.
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
@@ -33,6 +45,19 @@ class IterationMetadata(BaseModel):
         metric_ids: list[MetricID] | None = None,
         remove_outliers: bool | None = None,
     ) -> None:
+        """Update the metadata in place, setting only provided fields.
+
+        Args:
+            editable: New editable flag, or None to leave unchanged.
+            scalars_enabled: New scalars_enabled flag, or None to leave unchanged.
+            split_view_enabled: New split_view_enabled flag, or None to leave unchanged.
+            show_prev_iter_details: New show_prev_iter_details flag, or None to leave unchanged.
+            loss_rate_type: New loss rate type, or None to leave unchanged.
+            initial_filter_ids: New initial filter IDs, or None to leave unchanged.
+            current_filter_ids: New current filter IDs, or None to leave unchanged.
+            metric_ids: New metric IDs, or None to leave unchanged.
+            remove_outliers: New remove_outliers flag, or None to leave unchanged.
+        """
         if editable is not None:
             self.editable = editable
         if scalars_enabled is not None:
@@ -64,6 +89,22 @@ class IterationMetadata(BaseModel):
         metric_ids: list[MetricID] | None = None,
         remove_outliers: bool | None = None,
     ) -> "IterationMetadata":
+        """Return a copy of the metadata with the provided fields changed.
+
+        Args:
+            editable: New editable flag, or None to keep the current value.
+            scalars_enabled: New scalars_enabled flag, or None to keep the current value.
+            split_view_enabled: New split_view_enabled flag, or None to keep the current value.
+            show_prev_iter_details: New show_prev_iter_details flag, or None to keep the current value.
+            loss_rate_type: New loss rate type, or None to keep the current value.
+            initial_filter_ids: New initial filter IDs, or None to keep the current value.
+            current_filter_ids: New current filter IDs, or None to keep the current value.
+            metric_ids: New metric IDs, or None to keep the current value.
+            remove_outliers: New remove_outliers flag, or None to keep the current value.
+
+        Returns:
+            A new IterationMetadata instance with the requested changes applied.
+        """
         data = self.model_dump()
         if editable is not None:
             data["editable"] = editable

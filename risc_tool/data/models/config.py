@@ -268,6 +268,18 @@ class RiskSegmentConfig(BaseModel):
         format_numbers: bool = False,
         all_selected: bool = False,
     ) -> Styler:
+        """Build a pandas Styler table for editing risk segment details.
+
+        Args:
+            apply_colors_to_name_col: If True, also apply font/background colors
+                to the risk segment name column.
+            format_numbers: If True, format rate values as percentage strings
+                with two decimals (and an infinity symbol for unbounded rates).
+            all_selected: Initial value used for the SELECTED column of every row.
+
+        Returns:
+            A configured pandas Styler with per-row font/background colors applied.
+        """
         records: OrderedDict[RiskSegmentID, dict[RSDetCol, t.Any]] = OrderedDict()
 
         for seg_id, seg in self.segments.items():
@@ -333,6 +345,19 @@ class RiskSegmentConfig(BaseModel):
     def get_segments(
         self, segment_ids: list[RiskSegmentID] | None = None, original: bool = True
     ) -> OrderedDict[RiskSegmentID, RiskSegment]:
+        """Return the requested risk segments, optionally re-distributed over their bounds.
+
+        Args:
+            segment_ids: Optional list of segment IDs to include. If None, all
+                segments are considered.
+            original: If True, return the original segment objects unchanged.
+                If False, return copies whose lower/upper rates are evenly split
+                across each shared upper-rate band.
+
+        Returns:
+            An ordered dictionary of RiskSegmentID to RiskSegment matching the
+            requested criteria.
+        """
         if segment_ids is None:
             segment_ids = list(self.segments.keys())
 

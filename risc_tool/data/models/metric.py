@@ -1,3 +1,11 @@
+"""Metric model with query validation and Polars expression compilation.
+
+This module defines the Metric class, which stores a raw metric query,
+validates its syntax, structure, and column references, and compiles it
+into a Polars expression. It also provides concrete metric subclasses for
+common volume and bad-rate metrics.
+"""
+
 import ast
 import re
 import typing as t
@@ -14,7 +22,18 @@ Scalar = int | float | str | bool | None
 
 
 class MetricQueryValidator(ast.NodeVisitor):
-    """AST visitor to validate metric expressions and find columns."""
+    """AST visitor to validate metric expressions and find columns.
+
+    Attributes:
+        allowed_functions: Set of allowed top-level function names.
+        allowed_series_methods: Set of allowed series (column) method names.
+        allowed_operators: Tuple of allowed AST binary operator types.
+        allowed_names: Set of special allowed name identifiers.
+        allowed_series_attributes: Set of allowed attribute names on series.
+        found_columns: Set of discovered column names from the AST.
+        placeholder_map: Mapping from placeholder names to original
+            backticked column names.
+    """
 
     allowed_functions: t.ClassVar[set[str]] = {
         "sum",
@@ -65,10 +84,24 @@ class MetricQueryValidator(ast.NodeVisitor):
     allowed_series_attributes: t.ClassVar[set[str]] = {"size"}
 
     def __init__(self, placeholder_map: dict[str, str]):
+        """Initialize the validator with a placeholder map for backticked names.
+
+        Args:
+            placeholder_map: A dictionary mapping placeholder identifiers
+                (e.g., __BACKTICKED_0__) to their original column names.
+        """
         self.found_columns: set[str] = set()
         self.placeholder_map = placeholder_map
 
     def _resolve_and_add_name(self, identifier: str):
+        """Resolve an identifier to its original column name and add to found_columns.
+
+        Skips @-variables, allowed special names, and unmapped backtick
+        placeholders.
+
+        Args:
+            identifier: The AST identifier string to resolve.
+        """
         if identifier.startswith("@"):
             return  # Exclude @-variables
 
@@ -86,9 +119,22 @@ class MetricQueryValidator(ast.NodeVisitor):
         self.placeholder_map[identifier] = original_name
 
     def visit_Name(self, node: ast.Name):
+        """Visit a Name AST node and add its resolved identifier to found_columns.
+
+        Args:
+            node: The AST Name node being visited.
+        """
         self._resolve_and_add_name(node.id)
 
     def visit_Attribute(self, node: ast.Attribute):
+        """Visit an Attribute AST node and extract the root object name.
+
+        Walks through chained attribute accesses (e.g., df.col.x) to find
+        the root Name node and resolves it.
+
+        Args:
+            node: The AST Attribute node being visited.
+        """
         current_obj = node
         while isinstance(current_obj, ast.Attribute):
             current_obj = current_obj.value
@@ -99,6 +145,17 @@ class MetricQueryValidator(ast.NodeVisitor):
             self.visit(current_obj)
 
     def visit_Call(self, node: ast.Call):
+        """Visit a Call AST node, validating function names and visiting arguments.
+
+        Allows only known aggregation and math functions. All positional
+        arguments and keyword argument values are visited recursively.
+
+        Args:
+            node: The AST Call node being visited.
+
+        Raises:
+            ValueError: If a called function is not in the allowed set.
+        """
         if isinstance(node.func, ast.Name):
             if node.func.id not in self.allowed_functions:
                 # Allow standard mathematical functions from filters
@@ -135,6 +192,14 @@ class MetricQueryValidator(ast.NodeVisitor):
             self.visit(kwarg.value)
 
     def visit_BinOp(self, node: ast.BinOp):
+        """Visit a BinOp AST node, rejecting disallowed binary operators.
+
+        Args:
+            node: The AST BinOp node being visited.
+
+        Raises:
+            TypeError: If the operator type is not in the allowed set.
+        """
         if not isinstance(node.op, self.allowed_operators):
             raise TypeError(f"Unsupported binary operator: {type(node.op).__name__}")
 
@@ -142,6 +207,15 @@ class MetricQueryValidator(ast.NodeVisitor):
         self.visit(node.right)
 
     def is_result_scalar(self, expr_node: ast.AST) -> bool:
+        """Determine whether an expression evaluates to a scalar value.
+
+        Args:
+            expr_node: The AST node to inspect.
+
+        Returns:
+            True if the expression is scalar (names, constants, arithmetic
+            on scalars, or scalar-producing calls), False otherwise.
+        """
         if isinstance(expr_node, ast.Name):
             return expr_node.id in self.allowed_names
 
@@ -179,7 +253,22 @@ class MetricQueryValidator(ast.NodeVisitor):
 
 
 class Metric:
-    """Represents a metric query, parsed and compiled to a Polars expression."""
+    """Represents a metric query, parsed and compiled to a Polars expression.
+
+    Attributes:
+        uid: Unique identifier for the metric.
+        name: Human-readable metric name.
+        query: The raw metric expression string.
+        data_source_ids: Data sources used to evaluate the metric.
+        used_columns: Column names referenced by the query.
+        is_cumulative: Whether the metric is cumulative over time.
+        use_thousand_sep: Whether numbers use thousands separators.
+        is_percentage: Whether the value is displayed as a percentage.
+        decimal_places: Number of decimal places for formatted output.
+        processed_query: Query with placeholders resolved.
+        placeholder_map: Mapping from placeholders to original expressions.
+        metric_expr: Compiled Polars expression, or None if not yet validated.
+    """
 
     def __init__(
         self,
@@ -192,6 +281,18 @@ class Metric:
         is_percentage: bool = False,
         decimal_places: int = 2,
     ) -> None:
+        """Initialize a new Metric.
+
+        Args:
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+            query: The metric expression string in Python-like syntax.
+            data_source_ids: Data sources used to evaluate the metric.
+            is_cumulative: Whether the metric is cumulative over time.
+            use_thousand_sep: Whether to display thousands separators.
+            is_percentage: Whether to display the value as a percentage.
+            decimal_places: Number of decimal places for formatted output.
+        """
         self.logger = get_logger(self.__class__.__name__)
         self.uid: MetricID = uid
         self.name: str = name
@@ -210,9 +311,23 @@ class Metric:
 
     @property
     def pretty_name(self) -> str:
+        """Return the display name of the metric.
+
+        Returns:
+            The metric name string.
+        """
         return self.name
 
     def format(self, value: float | None) -> str | float | None:
+        """Format a metric value according to the configured display settings.
+
+        Args:
+            value: The raw numeric value to format, or None.
+
+        Returns:
+            The formatted string (with thousand separators and percentage
+            symbol as configured), or None if the value is missing/NaN.
+        """
         if value is None or (isinstance(value, float) and np.isnan(value)):
             return value
 
@@ -220,6 +335,17 @@ class Metric:
         return formatter.format(value)
 
     def validate_query(self, available_columns: list[str] | None = None) -> None:
+        """Parse, validate structure, extract used columns, and compile the query.
+
+        Args:
+            available_columns: Optional list of columns that may be referenced.
+                If provided, missing columns raise a ValueError.
+
+        Raises:
+            ValueError: If the query is empty, has invalid syntax, is not a
+                scalar expression, references missing columns, or fails to
+                compile to a Polars expression.
+        """
         self.logger.info(
             "Validating metric query '%s' for metric '%s'", self.query, self.name
         )
@@ -231,6 +357,14 @@ class Metric:
         backticked_map: dict[str, str] = {}
 
         def replace_backtick(match: re.Match[str]) -> str:
+            """Replace a backticked identifier with a unique placeholder.
+
+            Args:
+                match: The regex match containing the backticked name.
+
+            Returns:
+                A placeholder string such as __BACKTICKED_0__.
+            """
             name_inside_ticks = match.group(1)
             placeholder = f"__BACKTICKED_{len(backticked_map)}__"
             backticked_map[placeholder] = name_inside_ticks
@@ -288,12 +422,55 @@ class Metric:
     def _compile_expression(
         self, node: ast.AST, backticked_map: dict[str, str]
     ) -> pl.Expr:
+        """Recursively compile an AST node into a Polars expression.
+
+        Supports binary/unary operators, comparisons (including chained),
+        function calls, method calls, attribute access, and list/tuple
+        literals, as well as backticked column identifiers.
+
+        Args:
+            node: The AST node to compile.
+            backticked_map: Mapping from placeholder names to original
+                backticked column names.
+
+        Returns:
+            A compiled Polars expression.
+
+        Raises:
+            ValueError: If the AST node type, function, method, or operator
+                is unsupported.
+        """
+
         def require_expr(value: t.Any, context: str) -> pl.Expr:
+            """Ensure a compiled value is a Polars expression.
+
+            Args:
+                value: The compiled value to check.
+                context: A description of where the value is used, for errors.
+
+            Returns:
+                The value itself if it is already a pl.Expr.
+
+            Raises:
+                ValueError: If the value is not a pl.Expr.
+            """
             if isinstance(value, pl.Expr):
                 return value
             raise ValueError(f"{context} expects an expression operand")
 
         def eval_lit_value(n: ast.AST) -> t.Any:
+            """Evaluate an AST node to a Python literal value.
+
+            Args:
+                n: The AST node to evaluate.
+
+            Returns:
+                The literal value, or a list of literal values for list/tuple
+                nodes.
+
+            Raises:
+                ValueError: If the node is not a literal.
+            """
             if isinstance(n, ast.Constant):
                 return n.value
             elif isinstance(n, (ast.List, ast.Tuple)):
@@ -309,6 +486,18 @@ class Metric:
             raise ValueError("Not a literal value")
 
         def compile_sub(n: ast.AST) -> t.Any:
+            """Compile an AST node recursively into a Polars expression.
+
+            Args:
+                n: The AST node to compile.
+
+            Returns:
+                A compiled Polars expression or a collection of expressions.
+
+            Raises:
+                ValueError: If the node type, function, method, or operator
+                    is unsupported.
+            """
             if isinstance(n, ast.Name):
                 name = backticked_map.get(n.id, n.id)
                 if name == "True":
@@ -567,6 +756,15 @@ class Metric:
     def duplicate(
         self, uid: MetricID | None = None, name: str | None = None
     ) -> "Metric":
+        """Create a copy of this metric with optional new uid and name.
+
+        Args:
+            uid: New unique identifier, or None to reuse the current uid.
+            name: New display name, or None to reuse the current name.
+
+        Returns:
+            A new Metric instance with copied configuration and compiled state.
+        """
         if uid is None:
             uid = self.uid
         if name is None:
@@ -629,7 +827,16 @@ class Metric:
 
 
 class DefaultUnitBadRate(Metric):
+    """Default unit bad rate metric (placeholder for user-provided data)."""
+
     def __init__(self, data_source_ids: list[DataSourceID], uid: MetricID, name: str):
+        """Initialize the default unit bad rate metric.
+
+        Args:
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
         super().__init__(
             uid=uid,
             name=name,
@@ -645,6 +852,8 @@ class DefaultUnitBadRate(Metric):
 
 
 class UnitBadRate(Metric):
+    """Unit bad rate metric computed from a unit bad column and current MOB."""
+
     def __init__(
         self,
         var_unt_bad: str,
@@ -653,6 +862,15 @@ class UnitBadRate(Metric):
         uid: MetricID,
         name: str,
     ):
+        """Initialize the unit bad rate metric.
+
+        Args:
+            var_unt_bad: Column name containing the unit bad indicator.
+            current_rate_mob: Current month-on-book value for annualization.
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
         super().__init__(
             uid=uid,
             name=name,
@@ -666,7 +884,16 @@ class UnitBadRate(Metric):
 
 
 class DefaultDollarBadRate(Metric):
+    """Default dollar bad rate metric (placeholder for user-provided data)."""
+
     def __init__(self, data_source_ids: list[DataSourceID], uid: MetricID, name: str):
+        """Initialize the default dollar bad rate metric.
+
+        Args:
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
         super().__init__(
             uid=uid,
             name=name,
@@ -682,6 +909,8 @@ class DefaultDollarBadRate(Metric):
 
 
 class DollarBadRate(Metric):
+    """Dollar bad rate metric computed from dollar bad and average balance columns."""
+
     def __init__(
         self,
         var_dlr_bad: str,
@@ -691,6 +920,16 @@ class DollarBadRate(Metric):
         uid: MetricID,
         name: str,
     ):
+        """Initialize the dollar bad rate metric.
+
+        Args:
+            var_dlr_bad: Column name containing the dollar bad indicator.
+            var_avg_bal: Column name containing the average balance.
+            current_rate_mob: Current month-on-book value for annualization.
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
         super().__init__(
             uid=uid,
             name=name,
@@ -704,7 +943,16 @@ class DollarBadRate(Metric):
 
 
 class DefaultVolume(Metric):
+    """Default volume metric (placeholder for user-provided data)."""
+
     def __init__(self, data_source_ids: list[DataSourceID], uid: MetricID, name: str):
+        """Initialize the default volume metric.
+
+        Args:
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
         super().__init__(
             uid=uid,
             name=name,
@@ -720,6 +968,8 @@ class DefaultVolume(Metric):
 
 
 class Volume(Metric):
+    """Volume metric computed as the row count (size) of a column."""
+
     def __init__(
         self,
         column_name: str,
@@ -727,6 +977,14 @@ class Volume(Metric):
         uid: MetricID,
         name: str,
     ):
+        """Initialize the volume metric.
+
+        Args:
+            column_name: Column used to count rows.
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
         super().__init__(
             uid=uid,
             name=name,

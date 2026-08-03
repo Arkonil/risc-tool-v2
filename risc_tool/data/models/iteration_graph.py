@@ -6,7 +6,11 @@ from risc_tool.data.models.types import IterationID
 
 
 class IterationGraph(BaseModel):
-    """Manages the DAG of parent and child iterations."""
+    """Manages the DAG of parent and child iterations.
+
+    Attributes:
+        connections: Mapping of parent IterationID to a list of child IterationIDs.
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -15,6 +19,16 @@ class IterationGraph(BaseModel):
     )
 
     def add_child(self, parent_id: IterationID, child_id: IterationID) -> None:
+        """Add a parent-child edge to the graph, enforcing DAG invariants.
+
+        Args:
+            parent_id: The parent iteration ID.
+            child_id: The child iteration ID.
+
+        Raises:
+            ValueError: If the edge is a self-link, the child already has a
+                different parent, or the edge would create a cycle.
+        """
         if parent_id == child_id:
             raise ValueError(
                 f"Cannot add self-link: parent_id and child_id are both {parent_id}."
@@ -35,24 +49,53 @@ class IterationGraph(BaseModel):
             self.connections[parent_id].append(child_id)
 
     def remove_iteration(self, iteration_id: IterationID) -> None:
+        """Remove an iteration from the graph, including any incoming edges.
+
+        Args:
+            iteration_id: The iteration ID to remove.
+        """
         self.connections.pop(iteration_id, None)
         for children in self.connections.values():
             if iteration_id in children:
                 children.remove(iteration_id)
 
     def get_parent(self, iteration_id: IterationID) -> IterationID | None:
+        """Return the parent of an iteration, or None if it is a root.
+
+        Args:
+            iteration_id: The iteration ID to look up.
+
+        Returns:
+            The parent IterationID, or None if the iteration has no parent.
+        """
         for parent, children in self.connections.items():
             if iteration_id in children:
                 return parent
         return None
 
     def iteration_depth(self, iteration_id: IterationID) -> int:
+        """Compute the depth (level) of an iteration in the graph.
+
+        Args:
+            iteration_id: The iteration ID to measure.
+
+        Returns:
+            The depth, where root iterations have depth 1.
+        """
         parent = self.get_parent(iteration_id)
         if parent is None:
             return 1
         return 1 + self.iteration_depth(parent)
 
     def get_ancestors(self, iteration_id: IterationID) -> list[IterationID]:
+        """Return all ancestors of an iteration, ordered root-first.
+
+        Args:
+            iteration_id: The iteration ID to inspect.
+
+        Returns:
+            A list of ancestor IterationIDs from root down to the direct parent.
+        """
         ancestors: list[IterationID] = []
         parent = self.get_parent(iteration_id)
         while parent is not None:
@@ -61,6 +104,14 @@ class IterationGraph(BaseModel):
         return list(reversed(ancestors))
 
     def get_descendants(self, iteration_id: IterationID) -> list[IterationID]:
+        """Return all descendants of an iteration, in traversal order.
+
+        Args:
+            iteration_id: The iteration ID to inspect.
+
+        Returns:
+            A list of descendant IterationIDs (direct and indirect children).
+        """
         if iteration_id not in self.connections:
             return []
         descendants = list(self.connections[iteration_id])
@@ -69,15 +120,39 @@ class IterationGraph(BaseModel):
         return descendants
 
     def get_root_iter_id(self, iteration_id: IterationID) -> IterationID:
+        """Return the root ancestor of an iteration.
+
+        Args:
+            iteration_id: The iteration ID to inspect.
+
+        Returns:
+            The IterationID of the root ancestor (the iteration itself if it is a root).
+        """
         parent = self.get_parent(iteration_id)
         if parent is None:
             return iteration_id
         return self.get_root_iter_id(parent)
 
     def is_root(self, iteration_id: IterationID) -> bool:
+        """Check whether an iteration has no parent.
+
+        Args:
+            iteration_id: The iteration ID to inspect.
+
+        Returns:
+            True if the iteration is a root, False otherwise.
+        """
         return self.get_parent(iteration_id) is None
 
     def is_leaf(self, iteration_id: IterationID) -> bool:
+        """Check whether an iteration has no children.
+
+        Args:
+            iteration_id: The iteration ID to inspect.
+
+        Returns:
+            True if the iteration is a leaf, False otherwise.
+        """
         return (
             iteration_id not in self.connections
             or len(self.connections[iteration_id]) == 0

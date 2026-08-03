@@ -57,7 +57,18 @@ def _apply_groups[TTargetGroup: GroupBase](
 
 
 class IterationBase[TGroup: GroupBase](BaseModel):
-    """Base Pydantic model for all iteration objects."""
+    """Base Pydantic model for all iteration objects.
+
+    Attributes:
+        var_type: Variable type (numerical or categorical).
+        iter_type: Iteration type (single or double variable).
+        uid: Unique identifier for the iteration.
+        name: Human-readable iteration name.
+        variable_name: Column the iteration is built on.
+        active: Whether the iteration is currently active.
+        groups: Mapping of GroupID to group models.
+        default_groups: Mapping of GroupID to default group models.
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
@@ -78,6 +89,11 @@ class IterationBase[TGroup: GroupBase](BaseModel):
 
     @property
     def pretty_name(self) -> str:
+        """Return a human-readable display name for the iteration.
+
+        Returns:
+            A string combining the iteration number and name, if set.
+        """
         parts = [f"Iteration #{self.uid}"]
         if self.name:
             parts.append(self.name)
@@ -91,6 +107,14 @@ class IterationBase[TGroup: GroupBase](BaseModel):
     def validate_groups(
         self, default: bool = False
     ) -> tuple[list[str], list[str], list[GroupID]]:
+        """Validate group definitions and report warnings and errors.
+
+        Args:
+            default: If True, validate default_groups; otherwise validate groups.
+
+        Returns:
+            A tuple of (warnings, errors, invalid_group_ids).
+        """
         raise NotImplementedError()
 
     @abstractmethod
@@ -101,9 +125,25 @@ class IterationBase[TGroup: GroupBase](BaseModel):
         upper_bound: float,
         categories: set[str],
     ) -> None:
+        """Set or update a single group on the iteration.
+
+        Args:
+            group_id: The ID of the group to set.
+            lower_bound: Lower bound for numerical groups (ignored for categorical).
+            upper_bound: Upper bound for numerical groups (ignored for categorical).
+            categories: Category set for categorical groups (ignored for numerical).
+        """
         raise NotImplementedError()
 
     def get_group_mapping_expr(self, default: bool) -> pl.Expr:
+        """Build a Polars expression mapping the variable to group IDs.
+
+        Args:
+            default: If True, use default_groups; otherwise use groups.
+
+        Returns:
+            A Polars expression producing UInt16 group IDs (or None).
+        """
         target_groups = self.default_groups if default else self.groups
 
         expr = pl.when(False).then(pl.lit(None))
@@ -116,7 +156,15 @@ class IterationBase[TGroup: GroupBase](BaseModel):
         return expr
 
     def generate_sas_code_for_groups(self, default: bool, mapping: dict[int, int]):
-        """Generates SAS code to create this iteration."""
+        """Generate SAS code to create this iteration's group assignment.
+
+        Args:
+            default: If True, use default_groups; otherwise use groups.
+            mapping: Optional mapping from group IDs to output index values.
+
+        Returns:
+            A string of SAS if/else statements assigning group indices.
+        """
         groups = self.default_groups if default else self.groups
 
         code_template = (
@@ -162,6 +210,14 @@ class NumericalIterationMixin(IterationBase[NumericalGroup]):
     def validate_groups(
         self, default: bool = False
     ) -> tuple[list[str], list[str], list[GroupID]]:
+        """Validate numerical group bounds for monotonicity and overlaps.
+
+        Args:
+            default: If True, validate default_groups; otherwise validate groups.
+
+        Returns:
+            A tuple of (warnings, errors, invalid_group_ids).
+        """
         warnings: list[str] = []
         errors: list[str] = []
         invalid_groups: list[GroupID] = []
@@ -252,6 +308,14 @@ class CategoricalIterationMixin(IterationBase[CategoricalGroup]):
     def validate_groups(
         self, default: bool = False
     ) -> tuple[list[str], list[str], list[GroupID]]:
+        """Validate categorical group definitions for empty or duplicate categories.
+
+        Args:
+            default: If True, validate default_groups; otherwise validate groups.
+
+        Returns:
+            A tuple of (warnings, errors, invalid_group_ids).
+        """
         warnings: list[str] = []
         errors: list[str] = []
         invalid_groups: list[GroupID] = []
@@ -344,6 +408,15 @@ class SingleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
     def get_risk_segment_expr(
         self, default: bool, prev_seg_col: str | None = None
     ) -> pl.Expr:
+        """Return a Polars expression mapping the variable to risk segment IDs.
+
+        Args:
+            default: If True, use default groups; otherwise use groups.
+            prev_seg_col: Ignored for single-variable iterations (no grid mapping).
+
+        Returns:
+            A Polars expression producing UInt16 risk segment IDs.
+        """
         return self.get_group_mapping_expr(default=default)
 
     def to_dict(self) -> IterationJSON[TGroup]:
@@ -360,6 +433,14 @@ class SingleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
         )
 
     def generate_sas_code(self, default: bool) -> Template:
+        """Generate SAS code template that assigns this iteration's groups.
+
+        Args:
+            default: If True, generate code using default groups.
+
+        Returns:
+            A string Template with placeholders for variable/output names.
+        """
         groups = self.default_groups if default else self.groups
         mapping = {group_id.value: group_id.value for group_id in groups}
 
@@ -368,6 +449,14 @@ class SingleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
         return Template(code_template)
 
     def generate_python_code(self, default: bool) -> Template:
+        """Generate Python code template that assigns this iteration's groups.
+
+        Args:
+            default: If True, generate code using default groups.
+
+        Returns:
+            A string Template with placeholders for data/variable/output names.
+        """
         groups = self.default_groups if default else self.groups
 
         group_definitions = ""
@@ -493,6 +582,14 @@ class DoubleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
         )
 
     def generate_sas_code(self, default: bool) -> Template:
+        """Generate SAS code template that assigns this double-variable grid.
+
+        Args:
+            default: If True, generate code using default grid/groups.
+
+        Returns:
+            A string Template with placeholders for variable/output names.
+        """
         risk_segment_grid = (
             self.default_risk_segment_grid if default else self.risk_segment_grid
         )
@@ -529,6 +626,14 @@ class DoubleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
         return Template(code_template)
 
     def generate_python_code(self, default: bool) -> Template:
+        """Generate Python code template that assigns this double-variable grid.
+
+        Args:
+            default: If True, generate code using default grid/groups.
+
+        Returns:
+            A string Template with placeholders for data/variable/output names.
+        """
         risk_segment_grid = (
             self.default_risk_segment_grid if default else self.risk_segment_grid
         )
@@ -606,24 +711,32 @@ class DoubleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
 class NumericalSingleVarIteration(
     SingleVarIteration[NumericalGroup], NumericalIterationMixin
 ):
+    """Single-variable iteration over numerical groups."""
+
     var_type: VariableType = VariableType.NUMERICAL
 
 
 class CategoricalSingleVarIteration(
     SingleVarIteration[CategoricalGroup], CategoricalIterationMixin
 ):
+    """Single-variable iteration over categorical groups."""
+
     var_type: VariableType = VariableType.CATEGORICAL
 
 
 class NumericalDoubleVarIteration(
     DoubleVarIteration[NumericalGroup], NumericalIterationMixin
 ):
+    """Double-variable iteration over numerical groups."""
+
     var_type: VariableType = VariableType.NUMERICAL
 
 
 class CategoricalDoubleVarIteration(
     DoubleVarIteration[CategoricalGroup], CategoricalIterationMixin
 ):
+    """Double-variable iteration over categorical groups."""
+
     var_type: VariableType = VariableType.CATEGORICAL
 
 

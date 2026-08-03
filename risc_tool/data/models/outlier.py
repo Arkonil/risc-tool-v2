@@ -1,3 +1,9 @@
+"""Outlier rule model extending Filter with statistical threshold calculation.
+
+OutlierRule is a Filter subclass that flags rows falling outside computed
+mode/percentile thresholds for a numeric column, using Polars aggregations.
+"""
+
 import re
 
 import polars as pl
@@ -19,6 +25,15 @@ class OutlierRule(Filter):
         comparison_op: ComparisonOperation,
         comparison_base: PercentileOptions | float,
     ) -> None:
+        """Initialize an OutlierRule with its comparison parameters.
+
+        Args:
+            uid: Unique identifier for the outlier rule.
+            variable_name: The numeric column the rule applies to.
+            comparison_op: Comparison operator (>, >=, <, <=) used to flag outliers.
+            comparison_base: The percentile option or fixed threshold value to
+                compare against.
+        """
         super().__init__(uid, "", "")
         self.logger = get_logger(self.__class__.__name__)
         self.variable_name: str = variable_name

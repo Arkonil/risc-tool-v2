@@ -9,6 +9,11 @@ class MissingColumnError(Exception):
     """Exception raised when a specified column is not found in the data."""
 
     def __init__(self, column_name: str):
+        """Initialize the error with the missing column name.
+
+        Args:
+            column_name: The name of the column that was not found.
+        """
         super().__init__(f"Column '{column_name}' not found in data.")
 
 
@@ -16,6 +21,12 @@ class VariableNotNumericError(Exception):
     """Exception raised when a variable is expected to be numeric but is not."""
 
     def __init__(self, variable_name: str, actual_type: str):
+        """Initialize the error with the variable name and its actual type.
+
+        Args:
+            variable_name: The name of the non-numeric variable.
+            actual_type: The data type that was found instead of numeric.
+        """
         super().__init__(
             f"Variable '{variable_name}' is not numeric. Found type: {actual_type}."
         )
@@ -25,6 +36,11 @@ class SampleDataNotLoadedError(Exception):
     """Exception raised when data sources are not loaded but are required."""
 
     def __init__(self, message: str = "Sample data is not loaded."):
+        """Initialize the error with an optional custom message.
+
+        Args:
+            message: The error message to display. Defaults to a standard message.
+        """
         self.message = message
         super().__init__(self.message)
 
@@ -50,13 +66,30 @@ class DataImportError(Exception):
 
 
 class InvalidFilterError(Exception):
-    """Custom exception for invalid filter queries."""
+    """Custom exception for invalid filter queries.
+
+    Attributes:
+        query: The raw filter query that failed validation.
+        reason: A human-readable explanation of why the query is invalid.
+    """
 
     def __init__(self, query: str, reason: str):
+        """Initialize the error with the offending query and reason.
+
+        Args:
+            query: The filter query string that is invalid.
+            reason: Description of the validation failure.
+        """
         self.query = query
         self.reason = reason
 
     def __str__(self) -> str:
+        """Return a markdown-formatted representation of the error.
+
+        Returns:
+            A dedented multi-line string with the reason and query, suitable
+            for display in the UI.
+        """
         return textwrap.dedent(f"""
             **InvalidFilterError**: {self.reason}
             Query: `{self.query}`
