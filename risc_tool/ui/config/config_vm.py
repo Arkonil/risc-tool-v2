@@ -56,6 +56,11 @@ class ConfigViewModel(ChangeTracker):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.CONFIG_VIEW_MODEL
+        """
         return Signature.CONFIG_VIEW_MODEL
 
     def __init__(
@@ -64,6 +69,13 @@ class ConfigViewModel(ChangeTracker):
         scalar_repository: ScalarRepository,
         metric_repository: MetricRepository,
     ) -> None:
+        """Initialize the ConfigViewModel with its dependency repositories.
+
+        Args:
+            option_repository: Repository for risk segment config.
+            scalar_repository: Repository for loss rate scalars.
+            metric_repository: Repository for metric MOB settings.
+        """
         super().__init__(
             dependencies=[option_repository, scalar_repository, metric_repository]
         )
@@ -77,6 +89,7 @@ class ConfigViewModel(ChangeTracker):
     # Risk Segment Details
     @property
     def segments(self):
+        """The mapping of RiskSegmentID to RiskSegment from the option repository."""
         return self._option_repository.segments
 
     @property
@@ -112,6 +125,14 @@ class ConfigViewModel(ChangeTracker):
 
         # Monotonicity validation for Upper Bad Rate
         def get_upper_rate_val(val: t.Any) -> float:
+            """Coerce an upper bad rate cell value to a float.
+
+            Args:
+                val: The raw cell value.
+
+            Returns:
+                The numeric value, or inf for missing/unparseable values.
+            """
             if pd.isna(val) or val is None:
                 return float("inf")
             try:
@@ -177,66 +198,150 @@ class ConfigViewModel(ChangeTracker):
         return needs_rerun
 
     def add_risk_seg_row(self) -> None:
+        """Add a new empty risk segment row via the option repository."""
         self._option_repository.add_risk_seg_row()
 
     def delete_selected_risk_seg_rows(self, segment_ids: list[RiskSegmentID]) -> None:
+        """Delete the given risk segment rows via the option repository.
+
+        Args:
+            segment_ids: The IDs of the segments to delete.
+        """
         self._option_repository.delete_selected_risk_seg_rows(segment_ids)
 
     def set_risk_seg_font_color(
         self, segment_ids: list[RiskSegmentID], color: str
     ) -> None:
+        """Set the font color for the given risk segments.
+
+        Args:
+            segment_ids: The IDs of the segments to update.
+            color: The new font color.
+        """
         self._option_repository.set_risk_seg_font_color(segment_ids, color)
 
     def set_risk_seg_bg_color(
         self, segment_ids: list[RiskSegmentID], color: str
     ) -> None:
+        """Set the background color for the given risk segments.
+
+        Args:
+            segment_ids: The IDs of the segments to update.
+            color: The new background color.
+        """
         self._option_repository.set_risk_seg_bg_color(segment_ids, color)
 
     def set_risk_seg_default_values(self) -> None:
+        """Reset risk segment config to default values."""
         self._option_repository.reset_risk_seg_defaults()
 
     def set_risk_seg_name(self, segment_id: RiskSegmentID, name: str) -> None:
+        """Update the name of a risk segment.
+
+        Args:
+            segment_id: The ID of the segment to rename.
+            name: The new segment name.
+        """
         self._option_repository.set_risk_seg_name(segment_id, name)
 
     def set_risk_seg_upper_rate(
         self, segment_id: RiskSegmentID, upper_rate: float
     ) -> None:
+        """Update the upper bad rate bound of a risk segment.
+
+        Args:
+            segment_id: The ID of the segment to update.
+            upper_rate: The new upper rate bound (as a fraction).
+        """
         self._option_repository.set_risk_seg_upper_rate(segment_id, upper_rate)
 
     def set_risk_seg_maf(
         self, segment_id: RiskSegmentID, maf: float, loss_rate_type: LossRateTypes
     ) -> None:
+        """Update the maturity adjustment factor of a risk segment.
+
+        Args:
+            segment_id: The ID of the segment to update.
+            maf: The new MAF value.
+            loss_rate_type: Which loss rate type the MAF applies to.
+        """
         self._option_repository.set_risk_seg_maf(segment_id, maf, loss_rate_type)
 
     def get_color(self, segment_id: RiskSegmentID) -> tuple[str, str]:
+        """Get the (font_color, bg_color) pair for a risk segment.
+
+        Args:
+            segment_id: The ID of the segment.
+
+        Returns:
+            A tuple of font color and background color.
+        """
         return self._option_repository.get_color(segment_id)
 
     # Scalars & MOB
     @property
     def current_rate_mob(self) -> int:
+        """Month-on-book used for current rate metrics."""
         return self._metric_repository.current_rate_mob
 
     @property
     def lifetime_rate_mob(self) -> int:
+        """Month-on-book used for lifetime rate metrics."""
         return self._metric_repository.lifetime_rate_mob
 
     def get_scalar(self, loss_rate_type: LossRateTypes) -> LossRateScalar:
+        """Get the LossRateScalar for the given loss rate type.
+
+        Args:
+            loss_rate_type: The loss rate type (ULR or DLR).
+
+        Returns:
+            The matching LossRateScalar.
+        """
         return self._scalar_repository.get_scalar(loss_rate_type)
 
     def get_current_rate(self, loss_rate_type: LossRateTypes) -> float | None:
+        """Get the current bad rate for a loss rate type.
+
+        Args:
+            loss_rate_type: The loss rate type.
+
+        Returns:
+            The current bad rate, or None if not set.
+        """
         return self.get_scalar(loss_rate_type).current_rate
 
     def get_lifetime_rate(self, loss_rate_type: LossRateTypes) -> float | None:
+        """Get the lifetime bad rate for a loss rate type.
+
+        Args:
+            loss_rate_type: The loss rate type.
+
+        Returns:
+            The lifetime bad rate, or None if not set.
+        """
         return self.get_scalar(loss_rate_type).lifetime_rate
 
     def set_current_rate(
         self, loss_rate_type: LossRateTypes, rate: float | None
     ) -> None:
+        """Set the current bad rate for a loss rate type.
+
+        Args:
+            loss_rate_type: The loss rate type.
+            rate: The new current bad rate.
+        """
         self._scalar_repository.set_current_rate(loss_rate_type, rate)
 
     def set_lifetime_rate(
         self, loss_rate_type: LossRateTypes, rate: float | None
     ) -> None:
+        """Set the lifetime bad rate for a loss rate type.
+
+        Args:
+            loss_rate_type: The loss rate type.
+            rate: The new lifetime bad rate.
+        """
         self._scalar_repository.set_lifetime_rate(loss_rate_type, rate)
 
     # Annualization Factor Table

@@ -22,9 +22,15 @@ class HomeViewModel(ChangeTracker):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.HOME_VIEW_MODEL
+        """
         return Signature.HOME_VIEW_MODEL
 
     def __init__(self) -> None:
+        """Initialize the HomeViewModel with default state."""
         super().__init__(dependencies=[])
 
         self.home_page_view: t.Literal["welcome", "import-json"] = "welcome"
@@ -33,7 +39,7 @@ class HomeViewModel(ChangeTracker):
         self.validated_session_json: SessionJSON | None = None
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
-        pass  # No specific action needed for HomeViewModel on dependency updates
+        """Handle changes in dependencies (no-op for the Home page)."""
 
     def set_home_page_view(self, view: t.Literal["welcome", "import-json"]) -> None:
         """Switch between welcome and import-json sub-views."""
@@ -89,6 +95,12 @@ class HomeViewModel(ChangeTracker):
         )
 
     def validate_columns(self):
+        """Validate the imported session JSON against the data schema.
+
+        Returns:
+            A tuple of validation results for filters, metrics, metric variables,
+            iterations, data explorer variables, and summary variables.
+        """
         if self.validated_session_json is None:
             raise ValueError("Validated session JSON is not available.")
 

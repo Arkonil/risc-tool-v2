@@ -22,6 +22,11 @@ class SummaryViewModel(ChangeNotifier):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.SUMMARY_VIEW_MODEL
+        """
         return Signature.SUMMARY_VIEW_MODEL
 
     def __init__(
@@ -31,6 +36,14 @@ class SummaryViewModel(ChangeNotifier):
         metric_repository: MetricRepository,
         iteration_repository: IterationsRepository,
     ):
+        """Initialize the SummaryViewModel with its dependency repositories.
+
+        Args:
+            data_repository: Repository for data sources and lazyframes.
+            filter_repository: Repository for filters and outlier rules.
+            metric_repository: Repository for metrics.
+            iteration_repository: Repository for iterations.
+        """
         super().__init__(
             dependencies=[
                 data_repository,
@@ -164,6 +177,14 @@ class SummaryViewModel(ChangeNotifier):
         common_columns = {c[0] for c in self._data_repository.common_columns()}
 
         def is_valid_pv_var(var: str | tuple[IterationID, bool]) -> bool:
+            """Check whether a pivot variable is still valid against current data.
+
+            Args:
+                var: A column name or (iteration_id, default) tuple.
+
+            Returns:
+                True if the variable resolves to an existing iteration or column.
+            """
             if isinstance(var, tuple):
                 return var[0] in all_iteration_ids
             return var in common_columns
@@ -425,6 +446,14 @@ class SummaryViewModel(ChangeNotifier):
         long_df = long_df[~long_df.index.duplicated(keep="last")]
 
         def sort_key(t_val: t.Any) -> tuple[tuple[bool, str], ...]:
+            """Build a sort key placing the total row/column last.
+
+            Args:
+                t_val: A single index value or tuple of values.
+
+            Returns:
+                A tuple of (is_total, value) pairs for stable ordering.
+            """
             values: tuple[object, ...]
             if isinstance(t_val, tuple):
                 values = t.cast(tuple[object, ...], t_val)
@@ -455,6 +484,14 @@ class SummaryViewModel(ChangeNotifier):
                 pivot_df = pivot_df[ordered_cols]
 
             def replace_total(tup: object) -> object:
+                """Replace RowIndex.TOTAL with "Total" in index or column values.
+
+                Args:
+                    tup: A single index value or tuple of values.
+
+                Returns:
+                    The value with any TOTAL sentinel replaced by "Total".
+                """
                 if not isinstance(tup, tuple):
                     return "Total" if tup == RowIndex.TOTAL else tup
 

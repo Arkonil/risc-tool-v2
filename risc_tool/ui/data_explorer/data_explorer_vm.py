@@ -153,6 +153,11 @@ class DataExplorerViewModel(ChangeTracker):
 
     @property
     def common_columns(self):
+        """Common columns shared across all loaded data sources.
+
+        Returns:
+            A list of (column_name, variable_type) tuples.
+        """
         return self.data_repository.common_columns()
 
     @property
@@ -163,10 +168,16 @@ class DataExplorerViewModel(ChangeTracker):
     # IV Calculation Properties
     @property
     def iv_data_sources(self):
+        """Data source IDs used for IV calculations."""
         return self.__iv_data_sources
 
     @iv_data_sources.setter
     def iv_data_sources(self, value: list[DataSourceID]):
+        """Set the IV data sources and refresh IV inputs.
+
+        Args:
+            value: The new DataSourceIDs.
+        """
         self.__iv_data_sources = value
 
         self._update_iv_inputs()
@@ -581,6 +592,20 @@ class DataExplorerViewModel(ChangeTracker):
         comparison_op: ComparisonOperation,
         comparison_base: PercentileOptions | str,
     ) -> OutlierRule:
+        """Validate outlier rule parameters and build an OutlierRule.
+
+        Args:
+            outlier_id: The ID to assign to the validated rule.
+            variable_name: The column the rule applies to.
+            comparison_op: The comparison operator.
+            comparison_base: A percentile option or numeric threshold.
+
+        Returns:
+            A validated OutlierRule with the given ID.
+
+        Raises:
+            ValueError: If the variable name is empty or the comparison base is invalid.
+        """
         if variable_name == "":
             self.logger.warning("Outlier validation failed: empty variable name")
             raise ValueError("Variable name cannot be empty.")
@@ -612,6 +637,14 @@ class DataExplorerViewModel(ChangeTracker):
         comparison_op: ComparisonOperation,
         comparison_base: PercentileOptions | str,
     ) -> None:
+        """Validate and persist an outlier rule, creating or modifying as needed.
+
+        Args:
+            outlier_id: The ID of the rule (TEMPORARY to create, otherwise modify).
+            variable_name: The column the rule applies to.
+            comparison_op: The comparison operator.
+            comparison_base: A percentile option or numeric threshold.
+        """
         self.logger.info(
             "Request to save outlier rule ID %s for variable '%s'",
             outlier_id,
@@ -650,6 +683,11 @@ class DataExplorerViewModel(ChangeTracker):
             del self.ol_errors[outlier_id]
 
     def delete_outlier_rule(self, outlier_id: FilterID) -> None:
+        """Delete an outlier rule via the filter repository.
+
+        Args:
+            outlier_id: The ID of the rule to delete.
+        """
         self.logger.info("Request to delete outlier rule ID %s", outlier_id)
         self.filter_repository.remove_filter(outlier_id)
 

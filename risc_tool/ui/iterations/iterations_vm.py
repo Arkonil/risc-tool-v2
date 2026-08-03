@@ -1,3 +1,5 @@
+"""View Model for the Iterations page and its metric tables/grids."""
+
 import typing as t
 
 import pandas as pd
@@ -94,6 +96,11 @@ class IterationsViewModel(ChangeTracker):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.ITERATION_VIEW_MODEL
+        """
         return Signature.ITERATION_VIEW_MODEL
 
     def __init__(
@@ -105,6 +112,16 @@ class IterationsViewModel(ChangeTracker):
         metric_repository: MetricRepository,
         scalar_repository: ScalarRepository,
     ) -> None:
+        """Initialize the IterationsViewModel.
+
+        Args:
+            data_repository: Repository for data sources and lazyframes.
+            iterations_repository: Repository for iterations and risk segments.
+            options_repository: Repository for risk segment options.
+            filter_repository: Repository for filters and outlier rules.
+            metric_repository: Repository for metrics.
+            scalar_repository: Repository for loss rate scalars.
+        """
         super().__init__(
             dependencies=[
                 data_repository,
@@ -129,6 +146,11 @@ class IterationsViewModel(ChangeTracker):
         self.__editable_grid_cache: dict[tuple[IterationID, bool], pd.DataFrame] = {}
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
+        """Prune cached metadata when iterations, filters, or metrics change.
+
+        Args:
+            change_ids: The change IDs of the updated dependencies.
+        """
         # Pruning metadata
         all_iterations = self.__iterations_repository.iterations
         all_filters = self.__filter_repository.filters
@@ -156,6 +178,12 @@ class IterationsViewModel(ChangeTracker):
 
     @property
     def current_status(self) -> tuple[IterationView, IterationID | None]:
+        """The current view state and selected iteration ID.
+
+        Returns:
+            A tuple of (view, iteration_id). "view" falls back to ("graph", None)
+            if the selected iteration no longer exists.
+        """
         if self.__view_status.view == "view":
             if (
                 self.__view_status.iteration_id is None
@@ -168,6 +196,7 @@ class IterationsViewModel(ChangeTracker):
 
     @property
     def current_iteration(self) -> Iteration | None:
+        """The iteration currently being viewed, or None if not in view mode."""
         v_type, i_id = self.current_status
 
         if v_type != "view" or i_id is None:
@@ -177,6 +206,7 @@ class IterationsViewModel(ChangeTracker):
 
     @property
     def current_iteration_type(self) -> IterationType | None:
+        """The iteration type of the current iteration, or None if not in view mode."""
         current_iteration = self.current_iteration
 
         if current_iteration is None:
@@ -186,6 +216,11 @@ class IterationsViewModel(ChangeTracker):
 
     @property
     def current_iteration_create_mode(self) -> IterationType:
+        """The iteration type to create in the current create view.
+
+        Returns:
+            IterationType.DOUBLE if a parent iteration is selected, otherwise SINGLE.
+        """
         view, i_id = self.current_status
 
         if view != "create":
@@ -201,6 +236,12 @@ class IterationsViewModel(ChangeTracker):
 
     @property
     def current_iteration_create_parent_id(self) -> IterationID | None:
+        """The parent iteration ID for the current create view.
+
+        Returns:
+            The parent IterationID when creating a double-variable iteration,
+            otherwise None.
+        """
         view, i_id = self.current_status
 
         if view != "create":
@@ -218,6 +259,17 @@ class IterationsViewModel(ChangeTracker):
         selected_iteration_id: IterationID | None = None,
         iteration_create_parent_id: IterationID | None = None,
     ) -> None:
+        """Set the current view state.
+
+        Args:
+            view: The target view ("view", "create", or "graph").
+            current_iteration_id: The iteration to view (required for "view").
+            selected_iteration_id: The iteration to highlight on the graph.
+            iteration_create_parent_id: The parent for a new double-variable iteration.
+
+        Raises:
+            ValueError: If view is "view" without a current_iteration_id.
+        """
         if view == "view":
             if current_iteration_id is None:
                 raise ValueError("Must provide a current iteration ID")
@@ -231,12 +283,30 @@ class IterationsViewModel(ChangeTracker):
             self.__view_status.iteration_id = selected_iteration_id
 
     def get_iteration_metadata(self, iteration_id: IterationID) -> IterationMetadata:
+        """Get the metadata cache for an iteration.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            The IterationMetadata for the iteration.
+
+        Raises:
+            ValueError: If no metadata exists for the iteration.
+        """
         if iteration_id not in self.__metadata:
             raise ValueError(f"Iteration {iteration_id} does not exist.")
 
         return self.__metadata[iteration_id]
 
     def set_metadata(self, iteration_id: IterationID, **kwargs: t.Any) -> None:
+        """Update metadata fields for an iteration.
+
+        Args:
+            iteration_id: The ID of the iteration.
+            **kwargs: Metadata fields to update. "filter_ids" is mapped to
+                "current_filter_ids".
+        """
         meta = self.get_iteration_metadata(iteration_id)
         if "filter_ids" in kwargs:
             kwargs["current_filter_ids"] = kwargs.pop("filter_ids")
@@ -244,38 +314,90 @@ class IterationsViewModel(ChangeTracker):
 
     @property
     def data_loaded(self) -> bool:
+        """Whether valid data sources are loaded."""
         return self.__data_repository.has_valid_sources
 
     @property
     def common_columns(self) -> list[str]:
+        """Common column names across all loaded data sources.
+
+        Returns:
+            A list of column names.
+        """
         return [c[0] for c in self.__data_repository.common_columns()]
 
     @property
     def iterations(self) -> dict[IterationID, Iteration]:
+        """All iterations managed by the iterations repository.
+
+        Returns:
+            A mapping of IterationID to Iteration.
+        """
         return self.__iterations_repository.iterations
 
     @property
     def iteration_graph(self) -> IterationGraph:
+        """The iteration dependency graph.
+
+        Returns:
+            The IterationGraph of the iterations repository.
+        """
         return self.__iterations_repository.graph
 
     def can_have_child(self, iteration_id: IterationID) -> bool:
+        """Check whether an iteration exists and can have a child.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            True if the iteration exists.
+        """
         return iteration_id in self.iterations
 
     def delete_iteration(self, iteration_id: IterationID) -> None:
+        """Delete an iteration and reset the view to the graph.
+
+        Args:
+            iteration_id: The ID of the iteration to delete.
+        """
         self.__iterations_repository.delete_iteration(iteration_id)
         self.set_current_status("graph")
 
     def rename_iteration(self, iteration_id: IterationID, name: str) -> None:
+        """Rename an iteration and select it on the graph.
+
+        Args:
+            iteration_id: The ID of the iteration to rename.
+            name: The new iteration name.
+        """
         self.__iterations_repository.rename_iteration(iteration_id, name)
         self.set_current_status("graph", selected_iteration_id=iteration_id)
 
     def get_iteration_name(self, iteration_id: IterationID) -> str:
+        """Get the name of an iteration.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            The iteration name.
+        """
         return self.__iterations_repository.get_iteration(iteration_id).name
 
     def get_iteration(self, iteration_id: IterationID) -> Iteration:
+        """Get an iteration by ID.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            The Iteration model.
+        """
         return self.__iterations_repository.get_iteration(iteration_id)
 
     def global_risk_segment_details(self):
+        """Get the global risk segment details as a styled pandas Styler."""
         return self.__options_repository.risk_segments.to_pandas_styler(
             apply_colors_to_name_col=True,
             format_numbers=True,
@@ -283,6 +405,14 @@ class IterationsViewModel(ChangeTracker):
         )
 
     def get_risk_segment_details(self, iteration_id: IterationID):
+        """Get an iteration's risk segment details as a styled pandas Styler.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            A styled Styler for the iteration's risk segment details.
+        """
         return self.__iterations_repository.get_risk_segment_details(
             iteration_id
         ).to_pandas_styler(
@@ -292,6 +422,14 @@ class IterationsViewModel(ChangeTracker):
         )
 
     def get_variable_schema(self, variable_name: str):
+        """Get the schema entry for a variable.
+
+        Args:
+            variable_name: The column name.
+
+        Returns:
+            The column schema entry, or None if not present.
+        """
         return self.__data_repository.data_config.schema.get(variable_name)
 
     def validate_iter_create_params(
@@ -303,6 +441,19 @@ class IterationsViewModel(ChangeTracker):
         use_scalars: bool,
         selected_segment_ids: list[RiskSegmentID] | None = None,
     ) -> list[str]:
+        """Validate parameters before creating a new iteration.
+
+        Args:
+            variable_name: The variable to iterate on.
+            variable_dtype: Whether the variable is numerical or categorical.
+            auto_band: Whether automatic banding is requested.
+            loss_rate_type: The loss rate type for auto banding.
+            use_scalars: Whether scalar rates are requested.
+            selected_segment_ids: Optional selected risk segment IDs.
+
+        Returns:
+            A list of error messages (empty if validation passes).
+        """
         errors: list[str] = []
 
         if (
@@ -378,6 +529,23 @@ class IterationsViewModel(ChangeTracker):
         remove_outliers: bool,
         hv_imp_hr: bool | None = None,
     ):
+        """Create a single-variable iteration and its metadata.
+
+        Args:
+            name: The iteration name.
+            variable_name: The variable to iterate on.
+            variable_dtype: Whether the variable is numerical or categorical.
+            selected_segment_ids: The risk segment IDs to use.
+            loss_rate_type: The loss rate type.
+            filter_ids: The initial filter IDs.
+            auto_band: Whether to use automatic banding.
+            use_scalar: Whether to use scalar rates.
+            remove_outliers: Whether to remove outliers.
+            hv_imp_hr: Optional high-value-implies-high-risk flag.
+
+        Returns:
+            The created iteration.
+        """
         iteration = self.__iterations_repository.add_single_var_iteration(
             name,
             variable_name,
@@ -415,6 +583,23 @@ class IterationsViewModel(ChangeTracker):
         downgrade_limit: int | None = None,
         auto_rank_ordering: bool | None = None,
     ):
+        """Create a double-variable iteration and its metadata.
+
+        Args:
+            name: The iteration name.
+            previous_iteration_id: The parent iteration ID.
+            variable_name: The variable to iterate on.
+            variable_dtype: Whether the variable is numerical or categorical.
+            auto_band: Whether to use automatic banding.
+            use_scalar: Whether to use scalar rates.
+            remove_outliers: Whether to remove outliers.
+            upgrade_limit: Optional upgrade limit for auto banding.
+            downgrade_limit: Optional downgrade limit for auto banding.
+            auto_rank_ordering: Optional auto rank ordering flag.
+
+        Returns:
+            The created iteration.
+        """
         prev_metadata = self.get_iteration_metadata(previous_iteration_id)
         loss_rate_type = prev_metadata.loss_rate_type
         filter_ids = prev_metadata.initial_filter_ids
@@ -446,9 +631,25 @@ class IterationsViewModel(ChangeTracker):
         return iteration
 
     def get_filters(self, filter_ids: list[FilterID] | None = None):
+        """Get filters, optionally filtered to the given IDs.
+
+        Args:
+            filter_ids: Optional list of filter IDs to return.
+
+        Returns:
+            A mapping of FilterID to Filter.
+        """
         return self.__filter_repository.get_filters(filter_ids)
 
     def metric_variables_selected(self, loss_rate_type: LossRateTypes) -> bool:
+        """Check whether the metric variables for a loss rate type are selected.
+
+        Args:
+            loss_rate_type: The loss rate type (ULR or DLR).
+
+        Returns:
+            True if the required dev variables are configured.
+        """
         if loss_rate_type == LossRateTypes.ULR:
             return self.__metric_repository.var_dev_unt_bad is not None
         return (
@@ -461,26 +662,67 @@ class IterationsViewModel(ChangeTracker):
     #     return self.__options_repository.max_categorical_unique
 
     def scalar_selected(self, loss_rate_type: LossRateTypes) -> bool:
+        """Check whether both scalar rates are set for a loss rate type.
+
+        Args:
+            loss_rate_type: The loss rate type.
+
+        Returns:
+            True if current and lifetime rates are both configured.
+        """
         scalar = self.__scalar_repository.get_scalar(loss_rate_type)
         return scalar.current_rate is not None and scalar.lifetime_rate is not None
 
     def is_rs_details_same(
         self, iteration_id: IterationID
     ) -> t.Literal["equal", "unequal", "updatable"]:
+        """Compare an iteration's risk segment details to the global config.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            "equal", "unequal", or "updatable".
+        """
         return self.__iterations_repository.is_rs_details_same(iteration_id)
 
     def update_rs_details(self, iteration_id: IterationID) -> bool:
+        """Sync an iteration's risk segment details from the global config.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            True if details were updated, False if not updatable.
+        """
         if self.__iterations_repository.is_rs_details_same(iteration_id) != "updatable":
             return False
         self.__iterations_repository.update_rs_details(iteration_id)
         return True
 
     def get_all_groups(self, iteration_id: IterationID) -> pd.DataFrame:
+        """Get all groups for an iteration as a DataFrame.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            A DataFrame indexed by GroupID.
+        """
         return self.__iterations_repository.get_all_groups(iteration_id)
 
     def select_groups(
         self, iteration_id: IterationID, selected_indices: list[GroupID]
     ) -> bool:
+        """Set the active groups for a double-variable iteration.
+
+        Args:
+            iteration_id: The ID of the iteration.
+            selected_indices: The GroupIDs to select.
+
+        Returns:
+            True if the selection changed, False otherwise.
+        """
         current = self.__iterations_repository.get_all_groups(iteration_id)
         selected_col = RangeColumn.SELECTED.value
         current_selected: set[GroupID] = (
@@ -495,6 +737,14 @@ class IterationsViewModel(ChangeTracker):
         return True
 
     def add_new_group(self, iteration_id: IterationID) -> bool:
+        """Add a new blank group to a double-variable iteration.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            True if a group was added, False otherwise.
+        """
         before_count = len(self.__iterations_repository.get_all_groups(iteration_id))
         self.__iterations_repository.add_new_group(iteration_id)
         after_count = len(self.__iterations_repository.get_all_groups(iteration_id))
@@ -632,6 +882,14 @@ class IterationsViewModel(ChangeTracker):
         return bool(control_df_columns)
 
     def _group_display_labels(self, iteration_id: IterationID) -> list[str]:
+        """Build display labels for the custom groups of an iteration.
+
+        Args:
+            iteration_id: The ID of the iteration.
+
+        Returns:
+            A list of label strings for each custom group.
+        """
         iteration = self.__iterations_repository.get_iteration(iteration_id)
         controls = self.__iterations_repository.get_controls(
             iteration_id, default=False
@@ -656,6 +914,16 @@ class IterationsViewModel(ChangeTracker):
     def get_editable_grid(
         self, iteration_id: IterationID, default: bool, editable: bool
     ) -> GridEditorViewComponents:
+        """Build the editable risk segment grid with styling.
+
+        Args:
+            iteration_id: The ID of the double-variable iteration.
+            default: Whether to use default or custom groups.
+            editable: Whether the grid is in edit mode.
+
+        Returns:
+            A dict with the styled grid and column positions/options.
+        """
         control_df = self.__iterations_repository.get_controls(iteration_id, default)
         risk_segment_grid = self.__iterations_repository.get_risk_segment_grid(
             iteration_id,
@@ -744,6 +1012,16 @@ class IterationsViewModel(ChangeTracker):
     def editable_grid_edit_handler(
         self, iteration_id: IterationID, default: bool, edited_final_df: pd.DataFrame
     ) -> bool:
+        """Handle edits to the risk segment grid and persist them.
+
+        Args:
+            iteration_id: The ID of the iteration.
+            default: Whether editing the default grid.
+            edited_final_df: The edited DataFrame from the data editor.
+
+        Returns:
+            True if changes were persisted, False otherwise.
+        """
         self.logger.info(
             "Handling grid edit event for iteration ID %s (default: %s)",
             iteration_id,
@@ -792,6 +1070,19 @@ class IterationsViewModel(ChangeTracker):
         show_total_column: bool = False,
         theme: ColorTheme = "dark",
     ) -> tuple[list[GridMetricView], list[str], list[str]]:
+        """Calculate and style metric grids for a double-variable iteration.
+
+        Args:
+            iteration_id: The ID of the iteration.
+            default: Whether to use default or custom groups.
+            show_controls_idx: Which grids show controls ("all", "alternate", or indices).
+            show_total_row: Whether to include a total row.
+            show_total_column: Whether to include a total column.
+            theme: The color theme for total row/column styling.
+
+        Returns:
+            A tuple of styled metric grid views, list of errors, and list of warnings.
+        """
         metadata = self.get_iteration_metadata(iteration_id)
         metric_summaries, errors, warnings = (
             self.__iterations_repository.get_metric_grids(

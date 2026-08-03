@@ -11,9 +11,19 @@ class ExportViewModel(ChangeTracker):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.EXPORT_VIEW_MODEL
+        """
         return Signature.EXPORT_VIEW_MODEL
 
     def __init__(self, iterations_repository: IterationsRepository) -> None:
+        """Initialize the ExportViewModel.
+
+        Args:
+            iterations_repository: Repository providing iterations and generated code.
+        """
         super().__init__(dependencies=[iterations_repository])
 
         self.__iterations_repository = iterations_repository

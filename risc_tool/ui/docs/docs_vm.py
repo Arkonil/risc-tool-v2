@@ -10,9 +10,15 @@ class DocsViewModel(ChangeTracker):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.DOCS_VIEW_MODEL
+        """
         return Signature.DOCS_VIEW_MODEL
 
     def __init__(self) -> None:
+        """Initialize the DocsViewModel with the first documentation page active."""
         super().__init__(dependencies=[])
         self.documentation_page_idx: int = 0
 

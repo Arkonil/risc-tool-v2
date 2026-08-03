@@ -27,11 +27,22 @@ class MetricViewModel(ChangeTracker):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.METRIC_VIEW_MODEL
+        """
         return Signature.METRIC_VIEW_MODEL
 
     def __init__(
         self, data_repository: DataRepository, metric_repository: MetricRepository
     ) -> None:
+        """Initialize the MetricViewModel.
+
+        Args:
+            data_repository: Repository for data sources and lazyframes.
+            metric_repository: Repository for metric persistence.
+        """
         super().__init__(dependencies=[data_repository, metric_repository])
         self.__data_repository = data_repository
         self.__metric_repository = metric_repository
@@ -44,12 +55,18 @@ class MetricViewModel(ChangeTracker):
         self.__errors: list[Exception] = []
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
+        """Reset editor state when data dependencies change.
+
+        Args:
+            change_ids: The change IDs of the updated dependencies.
+        """
         self.__metric_cache = self.__empty_metric
         self.is_verified = False
         self.__errors = []
 
     @property
     def __empty_metric(self) -> Metric:
+        """A blank Metric used as a default editor cache."""
         return Metric(
             uid=MetricID.EMPTY,
             name="",
@@ -60,11 +77,18 @@ class MetricViewModel(ChangeTracker):
 
     @property
     def mode(self) -> t.Literal["view", "edit"]:
+        """Whether the editor is in view or edit mode."""
         return self.__view_mode
 
     def set_mode(
         self, mode: t.Literal["view", "edit"], metric_id: MetricID = MetricID.EMPTY
     ) -> None:
+        """Switch between view and edit modes, loading the metric to edit.
+
+        Args:
+            mode: The target mode.
+            metric_id: The metric to edit (ignored in view mode).
+        """
         self.__view_mode = mode
         self.__errors.clear()
         self.is_verified = False
@@ -80,10 +104,12 @@ class MetricViewModel(ChangeTracker):
 
     @property
     def data_loaded(self) -> bool:
+        """Whether valid data sources are loaded."""
         return self.__data_repository.has_valid_sources
 
     @property
     def metric_cache(self) -> Metric:
+        """The Metric currently being edited."""
         return self.__metric_cache
 
     def set_metric_property(
@@ -96,6 +122,18 @@ class MetricViewModel(ChangeTracker):
         is_percentage: bool | None = None,
         decimal_places: int | None = None,
     ) -> None:
+        """Update editable properties of the metric cache.
+
+        Name and query changes invalidate verification.
+
+        Args:
+            name: New metric name, or None to keep unchanged.
+            query: New metric query, or None to keep unchanged.
+            is_cumulative: New cumulative flag, or None to keep unchanged.
+            use_thousand_sep: New thousand separator flag, or None to keep unchanged.
+            is_percentage: New percentage flag, or None to keep unchanged.
+            decimal_places: New decimal places, or None to keep unchanged.
+        """
         if name is not None:
             self.__metric_cache.name = name
             self.is_verified = False
@@ -118,26 +156,58 @@ class MetricViewModel(ChangeTracker):
 
     @property
     def all_data_source_ids(self) -> list[DataSourceID]:
+        """All available data source IDs.
+
+        Returns:
+            A list of DataSourceIDs.
+        """
         return [ds_id for ds_id in self.__data_repository.data_sources]
 
     @property
     def selected_data_source_ids(self) -> list[DataSourceID]:
+        """The data source IDs selected for the metric being edited."""
         return self.__metric_cache.data_source_ids
 
     @selected_data_source_ids.setter
     def selected_data_source_ids(self, value: list[DataSourceID]) -> None:
+        """Set the metric's data source IDs and invalidate verification.
+
+        Args:
+            value: The new DataSourceIDs.
+        """
         self.__metric_cache.data_source_ids = value
         self.is_verified = False
 
     def get_data_source_label(self, data_source_id: DataSourceID) -> str:
+        """Get the label for a data source.
+
+        Args:
+            data_source_id: The ID of the data source.
+
+        Returns:
+            The data source label string.
+        """
         return self.__data_repository.data_sources[data_source_id].label
 
     def get_column_completions(self) -> list[Completion]:
+        """Get column name completions for the selected data sources.
+
+        Returns:
+            A list of Completion objects.
+        """
         return self.__data_repository.get_completions_for_columns(
             self.selected_data_source_ids
         )
 
     def get_unique_values(self, column_name: str) -> list[str]:
+        """Get sorted unique values of a column from the selected data sources.
+
+        Args:
+            column_name: The column to query.
+
+        Returns:
+            A list of unique values, or an empty list on error.
+        """
         try:
             return (
                 self.__data_repository
@@ -161,6 +231,13 @@ class MetricViewModel(ChangeTracker):
             return []
 
     def validate_metric(self, name: str, query: str, latest_editor_id: str) -> None:
+        """Validate the metric under edit and mark it verified on success.
+
+        Args:
+            name: The metric name to validate.
+            query: The metric query to validate.
+            latest_editor_id: The editor instance that last triggered validation.
+        """
         if not query.strip():
             self.__errors.append(ValueError("Metric query cannot be empty"))
             self.is_verified = False
@@ -203,6 +280,11 @@ class MetricViewModel(ChangeTracker):
             self.is_verified = False
 
     def error_message(self) -> str:
+        """Format accumulated validation errors as a single message.
+
+        Returns:
+            An empty string if there are no errors, otherwise the joined messages.
+        """
         if not self.__errors:
             return ""
 
@@ -213,6 +295,11 @@ class MetricViewModel(ChangeTracker):
         return "\n\n".join(messages)
 
     def save_metric(self) -> None:
+        """Persist the verified metric by creating or modifying it.
+
+        Raises:
+            RuntimeError: If the metric is not verified or has an invalid ID.
+        """
         if not self.is_verified or self.__errors:
             raise RuntimeError("Metric is not verified")
 
@@ -245,12 +332,27 @@ class MetricViewModel(ChangeTracker):
 
     @property
     def metrics(self) -> OrderedDict[MetricID, Metric]:
+        """All available metrics from the repository.
+
+        Returns:
+            An ordered mapping of MetricID to Metric.
+        """
         return self.__metric_repository.metrics
 
     def duplicate_metric(self, metric_id: MetricID) -> None:
+        """Duplicate a metric via the repository.
+
+        Args:
+            metric_id: The ID of the metric to duplicate.
+        """
         self.__metric_repository.duplicate_metric(metric_id)
 
     def remove_metric(self, metric_id: MetricID) -> None:
+        """Remove a metric via the repository.
+
+        Args:
+            metric_id: The ID of the metric to remove.
+        """
         self.__metric_repository.remove_metric(metric_id)
 
 

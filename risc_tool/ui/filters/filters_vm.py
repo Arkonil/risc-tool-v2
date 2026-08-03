@@ -153,6 +153,13 @@ class FilterViewModel(ChangeTracker):
         return completions
 
     def validate_filter(self, name: str, query: str, latest_editor_id: str) -> None:
+        """Validate the filter under edit and mark it verified on success.
+
+        Args:
+            name: The filter name to validate.
+            query: The filter query to validate.
+            latest_editor_id: The editor instance that last triggered validation.
+        """
         self.logger.info("Request to validate filter '%s'", name)
         if not query.strip():
             self.__errors.append(ValueError("Filter query cannot be empty"))
@@ -187,6 +194,11 @@ class FilterViewModel(ChangeTracker):
             self.is_verified = False
 
     def error_message(self) -> str:
+        """Format accumulated validation errors as a single message.
+
+        Returns:
+            An empty string if there are no errors, otherwise the joined messages.
+        """
         if not self.__errors:
             return ""
 
