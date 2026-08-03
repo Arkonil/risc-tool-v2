@@ -307,7 +307,8 @@ def editable_grid_widget(iteration_id: IterationID, default: bool, key: str) -> 
             "edited_rows"
         ]
         edited_final_df = t.cast(pd.DataFrame, grid_components["styler"].data).copy()
-        for row_index, row_change in edited_rows.items():
+        for row_pos, row_change in edited_rows.items():
+            row_index = edited_final_df.index[row_pos]
             for col_index, change in row_change.items():
                 edited_final_df.at[row_index, col_index] = change
         iterations_vm.editable_grid_edit_handler(iteration_id, default, edited_final_df)

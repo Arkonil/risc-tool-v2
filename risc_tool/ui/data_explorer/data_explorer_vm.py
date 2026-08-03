@@ -727,7 +727,10 @@ class DataExplorerViewModel(ChangeTracker):
         cls, data_repository: DataRepository, data: DataExplorerViewModelJSON
     ) -> list[str]:
         """Return variables referenced in the JSON that are missing from the data schema."""
-        available_columns = {col for col, _ in data_repository.common_columns()}
+        available_columns = {
+            col
+            for col, _ in data_repository.common_columns(data.iv_data_sources or None)
+        }
         variables = set(data.iv_current_variables)
         if data.iv_current_target is not None:
             variables.add(data.iv_current_target)

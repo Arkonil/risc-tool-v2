@@ -102,7 +102,8 @@ def iteration_metric_table(
         )
         edited_final_df: pd.DataFrame = final_df_styled.data.copy()  # type: ignore
 
-        for row_index, row_change in edited_rows.items():
+        for row_pos, row_change in edited_rows.items():
+            row_index = edited_final_df.index[row_pos]  # type: ignore
             if row_index not in edited_final_df.index or row_index == RowIndex.TOTAL:  # type: ignore
                 continue
             for col_index, change in row_change.items():

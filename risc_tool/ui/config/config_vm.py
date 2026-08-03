@@ -2,6 +2,7 @@
 
 import typing as t
 from collections import OrderedDict
+from itertools import pairwise
 
 import numpy as np
 import pandas as pd
@@ -140,17 +141,21 @@ class ConfigViewModel(ChangeTracker):
             except (ValueError, TypeError):
                 return float("inf")
 
-        rates = [
-            get_upper_rate_val(edited_df.at[idx, RSDetCol.UPPER_RATE])
-            for idx in range(len(edited_df))
-        ]
+        rates: OrderedDict[RiskSegmentID, float] = OrderedDict(
+            (
+                RiskSegmentID(idx),
+                get_upper_rate_val(edited_df.at[idx, RSDetCol.UPPER_RATE]),
+            )
+            for idx in edited_df.index
+        )
 
-        for idx in range(1, len(edited_df)):
-            prev_rate = rates[idx - 1]
-            curr_rate = rates[idx]
+        if len(rates) < 2:
+            return errors
+
+        for (prev_id, prev_rate), (curr_id, curr_rate) in pairwise(rates.items()):
             if curr_rate < prev_rate:
-                prev_name = str(edited_df.at[idx - 1, RSDetCol.RISK_SEGMENT]).strip()
-                curr_name = str(edited_df.at[idx, RSDetCol.RISK_SEGMENT]).strip()
+                prev_name = str(edited_df.at[prev_id, RSDetCol.RISK_SEGMENT]).strip()
+                curr_name = str(edited_df.at[curr_id, RSDetCol.RISK_SEGMENT]).strip()
 
                 prev_str = "None" if prev_rate == float("inf") else f"{prev_rate:.2f}%"
                 curr_str = "None" if curr_rate == float("inf") else f"{curr_rate:.2f}%"
@@ -172,10 +177,7 @@ class ConfigViewModel(ChangeTracker):
             True if state was changed, requiring a rerun.
         """
         needs_rerun = False
-        for idx in range(len(edited_df)):
-            if idx >= len(self.segments):
-                break
-
+        for idx in edited_df.index:
             orig_seg = self.segments.get(RiskSegmentID(idx))
             if orig_seg is None:
                 continue
@@ -186,7 +188,7 @@ class ConfigViewModel(ChangeTracker):
                 needs_rerun = True
 
             new_upper_val = edited_df.at[idx, RSDetCol.UPPER_RATE]
-            if pd.isna(new_upper_val):
+            if new_upper_val is None or pd.isna(new_upper_val):
                 new_upper = float("inf")
             else:
                 new_upper = _coerce_to_float(new_upper_val) / 100.0
@@ -366,8 +368,8 @@ class ConfigViewModel(ChangeTracker):
     ) -> bool:
         """Process edits on annualization rate DataFrame and update ScalarRepository."""
         needs_rerun = False
-        new_curr = _coerce_to_float(edited_df.at[0, "Loss Rates"]) / 100.0
-        new_life = _coerce_to_float(edited_df.at[1, "Loss Rates"]) / 100.0
+        new_curr = _coerce_to_float(edited_df.iloc[0]["Loss Rates"]) / 100.0
+        new_life = _coerce_to_float(edited_df.iloc[1]["Loss Rates"]) / 100.0
 
         if new_curr != self.get_current_rate(loss_rate_type):
             self.set_current_rate(loss_rate_type, new_curr)
@@ -423,11 +425,8 @@ class ConfigViewModel(ChangeTracker):
     ) -> bool:
         """Process edits on MAF values and update OptionRepository."""
         needs_rerun = False
-        for idx in range(len(edited_df)):
-            if idx >= len(self.segments):
-                break
-
-            orig_seg = self.segments.get(RiskSegmentID(idx))
+        for segment_id in edited_df.index:
+            orig_seg = self.segments.get(RiskSegmentID(segment_id))
             if orig_seg is None:
                 continue
 
@@ -436,10 +435,15 @@ class ConfigViewModel(ChangeTracker):
                 if loss_rate_type == LossRateTypes.DLR
                 else orig_seg.maf_ulr
             )
-            new_maf = _coerce_to_float(edited_df.at[idx, ScalarTableColumn.MAF]) / 100.0
+            new_maf = (
+                _coerce_to_float(edited_df.at[segment_id, ScalarTableColumn.MAF])
+                / 100.0
+            )
 
             if abs(new_maf - curr_maf) > 1e-6:
-                self.set_risk_seg_maf(RiskSegmentID(idx), new_maf, loss_rate_type)
+                self.set_risk_seg_maf(
+                    RiskSegmentID(segment_id), new_maf, loss_rate_type
+                )
                 needs_rerun = True
 
         return needs_rerun

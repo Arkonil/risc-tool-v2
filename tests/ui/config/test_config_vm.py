@@ -140,3 +140,37 @@ def test_config_view_model_styler_and_edit_processing():
     has_maf_changes = vm.process_maf_edits(LossRateTypes.DLR, edited_rsf_df)
     assert has_maf_changes is True
     assert vm.segments[RiskSegmentID(0)].maf_dlr == 1.4
+
+
+def test_annualization_edits_use_row_position():
+    data_repo = DataRepository()
+    metric_repo = MetricRepository(data_repo)
+    option_repo = OptionRepository()
+    scalar_repo = ScalarRepository()
+
+    vm = ConfigViewModel(option_repo, scalar_repo, metric_repo)
+
+    edited_df = vm.get_annualization_df(LossRateTypes.DLR).set_axis([10, 20])
+    edited_df.loc[10, "Loss Rates"] = 2.5  # 2.5% -> 0.025
+    edited_df.loc[20, "Loss Rates"] = 7.5  # 7.5% -> 0.075
+
+    assert vm.process_annualization_edits(LossRateTypes.DLR, edited_df) is True
+    assert vm.get_current_rate(LossRateTypes.DLR) == 0.025
+    assert vm.get_lifetime_rate(LossRateTypes.DLR) == 0.075
+
+
+def test_maf_edits_support_sparse_risk_segment_ids():
+    data_repo = DataRepository()
+    metric_repo = MetricRepository(data_repo)
+    option_repo = OptionRepository()
+    scalar_repo = ScalarRepository()
+
+    vm = ConfigViewModel(option_repo, scalar_repo, metric_repo)
+
+    vm.delete_selected_risk_seg_rows([RiskSegmentID(0)])
+
+    edited_df = vm.get_risk_scalar_factor_styler(LossRateTypes.DLR).data.copy()
+    edited_df.at[RiskSegmentID(9), ScalarTableColumn.MAF] = 140.0
+
+    assert vm.process_maf_edits(LossRateTypes.DLR, edited_df) is True
+    assert vm.segments[RiskSegmentID(9)].maf_dlr == 1.4

@@ -481,6 +481,56 @@ class TestEditableGridWidget:
 
             mock_editor.assert_called_once()
 
+    def grid_editor_maps_row_position_to_sparse_group_id(
+        self, session, double_var_iteration
+    ):
+        """Test that edited rows map row position to sparse group ID."""
+        from risc_tool.ui.iterations.common import editable_grid_widget
+
+        iterations_vm = session.iterations_view_model
+        iterations_vm.set_metadata(double_var_iteration.uid, editable=True)
+        grid_components = iterations_vm.get_editable_grid(
+            double_var_iteration.uid, default=False, editable=True
+        )
+        sparse_df = grid_components["styler"].data.copy()  # type: ignore
+        sparse_group_ids = [
+            GroupID(idx + 1) * 10 for idx in range(len(sparse_df))
+        ]  # Sparse IDs
+        sparse_df.index = sparse_group_ids
+        grid_components["styler"] = sparse_df.style
+
+        widget_key = f"edited_grid-test-{double_var_iteration.uid}"
+        session_state = {
+            "session": session,
+            widget_key: {"edited_rows": {1: {RangeColumn.LOWER_BOUND.value: 123.0}}},
+        }
+
+        with (
+            patch.object(
+                iterations_vm, "get_editable_grid", return_value=grid_components
+            ),
+            patch.object(iterations_vm, "editable_grid_edit_handler") as mock_handler,
+            patch("streamlit.data_editor") as mock_editor,
+            patch("streamlit.container"),
+            patch("streamlit.markdown"),
+            patch("streamlit.session_state", session_state),
+        ):
+            # Mock edited rows with row positions
+            editable_grid_widget(
+                iteration_id=double_var_iteration.uid, default=False, key="test"
+            )
+            mock_editor.call_args.kwargs["on_change"]()  # Trigger on_change
+
+        edited_df = mock_handler.call_args.args[
+            2
+        ]  # The edited DataFrame passed to the handler
+        assert (
+            edited_df.at[GroupID(20), RangeColumn.LOWER_BOUND.value] == 123.0
+        )  # Maps to GroupID(20)
+        assert GroupID(1) in edited_df.index  # Ensure the index is the sparse GroupID
+
+        # Verify that the edited row maps to GroupID(0) and not the sparse index
+
     def test_widget_renders_dataframe_when_default(self, session, double_var_iteration):
         """Test widget renders dataframe for default view even if editable."""
         from risc_tool.ui.iterations.common import editable_grid_widget

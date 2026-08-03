@@ -49,7 +49,7 @@ def color_selector(
             disabled=disabled,
             on_click=callback,
             kwargs={
-                "indices": selected_indices,
+                "segment_ids": selected_indices,
                 "color": chosen_color,
             },
             key=f"btn_apply_color_{color_type}",
