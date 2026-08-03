@@ -433,7 +433,7 @@ class DataRepository(BaseRepository):
         for next_lf in sub_lfs[1:]:
             result_lf = result_lf.join(next_lf, on=join_keys, how="full", coalesce=True)
 
-        return result_lf
+        return result_lf.filter(~pl.all_horizontal(pl.col(join_keys).is_null()))
 
     def get_cumulative_metrics(
         self,
@@ -527,7 +527,7 @@ class DataRepository(BaseRepository):
                 next_lf, on=groupby_variable, how="full", coalesce=True
             )
 
-        return result_lf
+        return result_lf.filter(pl.col(groupby_variable).is_not_null())
 
     def to_dict(self) -> DataRepositoryJSON:
         """Serialize DataRepository state to DataRepositoryJSON Pydantic model."""
