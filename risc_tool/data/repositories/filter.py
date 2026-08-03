@@ -265,6 +265,13 @@ class FilterRepository(BaseRepository):
         comparison_op: ComparisonOperation,
         comparison_base: PercentileOptions | float,
     ) -> None:
+        """Create and store a new outlier rule.
+
+        Args:
+            variable_name: The column name the rule applies to.
+            comparison_op: The comparison operator (>, >=, <, <=).
+            comparison_base: The percentile option or fixed threshold value.
+        """
         self.logger.info("Creating new outlier rule for '%s'", variable_name)
         new_outlier = self.validate_outlier_rule(
             variable_name, comparison_op, comparison_base

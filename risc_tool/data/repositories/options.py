@@ -15,9 +15,15 @@ class OptionRepository(BaseRepository):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.OPTION_REPOSITORY
+        """
         return Signature.OPTION_REPOSITORY
 
     def __init__(self) -> None:
+        """Initialize the OptionRepository with default configs."""
         super().__init__()
         self.__risk_segment_config = RiskSegmentConfig()
         self.__options_config = OptionsConfig()
@@ -27,14 +33,17 @@ class OptionRepository(BaseRepository):
 
     @property
     def risk_segments(self):
+        """The RiskSegmentConfig with all defined risk segments."""
         return self.__risk_segment_config
 
     @property
     def segments(self):
+        """The mapping of RiskSegmentID to RiskSegment."""
         return self.risk_segments.segments
 
     @property
     def max_categorical_unique(self) -> int:
+        """Maximum allowed unique categorical values before a warning is shown."""
         return self.__options_config.max_categorical_unique
 
     def get_color(self, segment_id: RiskSegmentID) -> tuple[str, str]:

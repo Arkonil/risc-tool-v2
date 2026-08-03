@@ -15,9 +15,15 @@ class ScalarRepository(BaseRepository):
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.SCALAR_REPOSITORY
+        """
         return Signature.SCALAR_REPOSITORY
 
     def __init__(self) -> None:
+        """Initialize the ScalarRepository with default ULR and DLR scalars."""
         super().__init__()
         self._scalars = {
             LossRateTypes.ULR: LossRateScalar(loss_rate_type=LossRateTypes.ULR),

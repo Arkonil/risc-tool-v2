@@ -1,3 +1,10 @@
+"""Repository for managing iterations and risk segment calculations.
+
+Provides CRUD operations for single- and double-variable iterations,
+manages the iteration dependency graph, and computes risk segments,
+metrics, and code templates using Polars.
+"""
+
 import itertools
 import re
 import textwrap
@@ -55,10 +62,20 @@ from risc_tool.utils.wrap_text import TAB
 
 
 class IterationsRepository(BaseRepository):
-    """Repository for managing iterations and calculating risk segments lazily via Polars."""
+    """Repository for managing iterations and calculating risk segments lazily via Polars.
+
+    Attributes:
+        iterations: Mapping of IterationID to Iteration models.
+        graph: The iteration parent-child DAG.
+    """
 
     @property
     def signature(self) -> Signature:
+        """Get the component signature for change tracking.
+
+        Returns:
+            Signature.ITERATION_REPOSITORY
+        """
         return Signature.ITERATION_REPOSITORY
 
     def __init__(
@@ -69,6 +86,15 @@ class IterationsRepository(BaseRepository):
         options_repository: OptionRepository,
         scalar_repository: ScalarRepository,
     ) -> None:
+        """Initialize the IterationsRepository with its dependency repositories.
+
+        Args:
+            data_repository: Repository for data sources and lazyframes.
+            filter_repository: Repository for filters and outlier rules.
+            metric_repository: Repository for metrics.
+            options_repository: Repository for risk segment options.
+            scalar_repository: Repository for scalar rates.
+        """
         super().__init__(
             dependencies=[
                 data_repository,
@@ -91,6 +117,14 @@ class IterationsRepository(BaseRepository):
     def _default_group_ids(
         self, selected_segment_config: RiskSegmentConfig
     ) -> list[GroupID]:
+        """Return a GroupID for each segment in the selected config.
+
+        Args:
+            selected_segment_config: The risk segment config to derive group IDs from.
+
+        Returns:
+            A list of GroupIDs mirroring the segment IDs.
+        """
         return [GroupID(seg_id.value) for seg_id in selected_segment_config.segments]
 
     def _group_display_labels(
@@ -100,6 +134,16 @@ class IterationsRepository(BaseRepository):
         *,
         default: bool,
     ) -> list[str]:
+        """Generate display labels for the given group IDs of an iteration.
+
+        Args:
+            iteration: The iteration to read groups from.
+            group_ids: The group IDs to label.
+            default: If True, use default_groups; otherwise use groups.
+
+        Returns:
+            A list of label strings (empty string for missing groups).
+        """
         target_groups = iteration.default_groups if default else iteration.groups
 
         labels: list[str] = []
@@ -121,6 +165,14 @@ class IterationsRepository(BaseRepository):
     def _risk_segment_name_map(
         self, iteration_id: IterationID
     ) -> dict[RiskSegmentID, str]:
+        """Return a mapping from risk segment IDs to their names.
+
+        Args:
+            iteration_id: The iteration whose root risk segments to map.
+
+        Returns:
+            A dictionary of RiskSegmentID to segment name.
+        """
         return {
             seg_id: seg.name
             for seg_id, seg in self.get_risk_segment_details(
@@ -133,6 +185,15 @@ class IterationsRepository(BaseRepository):
         variable_name: str,
         group_ids: list[GroupID],
     ) -> OrderedDict[GroupID, NumericalGroup]:
+        """Create default numerical groups split by quantiles of the variable.
+
+        Args:
+            variable_name: The column used to compute quantile bounds.
+            group_ids: Group IDs to populate, in order.
+
+        Returns:
+            An ordered mapping of GroupID to NumericalGroup.
+        """
         default_groups: OrderedDict[GroupID, NumericalGroup] = OrderedDict()
         group_count = len(group_ids)
 
@@ -182,6 +243,15 @@ class IterationsRepository(BaseRepository):
         variable_name: str,
         group_ids: list[GroupID],
     ) -> OrderedDict[GroupID, CategoricalGroup]:
+        """Create default categorical groups by evenly splitting unique values.
+
+        Args:
+            variable_name: The column whose unique values are split across groups.
+            group_ids: Group IDs to populate, in order.
+
+        Returns:
+            An ordered mapping of GroupID to CategoricalGroup.
+        """
         default_groups: OrderedDict[GroupID, CategoricalGroup] = OrderedDict()
         group_count = len(group_ids)
 
@@ -227,6 +297,13 @@ class IterationsRepository(BaseRepository):
         | OrderedDict[GroupID, CategoricalGroup],
         grid: dict[GroupID, dict[RiskSegmentID, RiskSegmentID]],
     ) -> None:
+        """Set default groups, group masks, and risk segment grids on a double-variable iteration.
+
+        Args:
+            iteration: The double-variable iteration to update.
+            groups: Default groups to store.
+            grid: Mapping of GroupID to parent-to-child risk segment mapping.
+        """
         if isinstance(iteration, NumericalDoubleVarIteration):
             assert all(isinstance(v, NumericalGroup) for v in groups.values())
             typed_groups = t.cast(OrderedDict[GroupID, NumericalGroup], groups)
@@ -253,6 +330,15 @@ class IterationsRepository(BaseRepository):
         OrderedDict[GroupID, NumericalGroup] | OrderedDict[GroupID, CategoricalGroup],
         dict[GroupID, dict[RiskSegmentID, RiskSegmentID]],
     ]:
+        """Reindex groups and grid to use contiguous integer GroupIDs.
+
+        Args:
+            groups: Groups keyed by their original GroupIDs.
+            grid: Risk segment grid keyed by the original GroupIDs.
+
+        Returns:
+            A tuple of the reindexed groups and reindexed grid.
+        """
         reindexed_groups: OrderedDict[
             GroupID,
             NumericalGroup | CategoricalGroup,
@@ -299,6 +385,17 @@ class IterationsRepository(BaseRepository):
         return options
 
     def get_iteration(self, iteration_id: IterationID) -> Iteration:
+        """Get an iteration by its ID.
+
+        Args:
+            iteration_id: The ID of the iteration to fetch.
+
+        Returns:
+            The requested Iteration model.
+
+        Raises:
+            ValueError: If no iteration exists with the given ID.
+        """
         if iteration_id not in self.iterations:
             raise ValueError(f"Iteration {iteration_id} does not exist.")
 
@@ -307,6 +404,17 @@ class IterationsRepository(BaseRepository):
     def get_root_iteration(
         self, iteration_id: IterationID
     ) -> SingleVarIteration[NumericalGroup] | SingleVarIteration[CategoricalGroup]:
+        """Get the root single-variable iteration for the given iteration ID.
+
+        Args:
+            iteration_id: The ID of the iteration whose root to fetch.
+
+        Returns:
+            The root SingleVarIteration of the dependency tree.
+
+        Raises:
+            ValueError: If the root iteration is not a single-variable iteration.
+        """
         root_id = self.graph.get_root_iter_id(iteration_id)
         root_iter = self.get_iteration(root_id)
 
@@ -318,6 +426,14 @@ class IterationsRepository(BaseRepository):
         )
 
     def get_risk_segment_details(self, iteration_id: IterationID):
+        """Get the risk segment details of the root iteration.
+
+        Args:
+            iteration_id: The ID of the iteration to read segment details for.
+
+        Returns:
+            The risk segment details of the root iteration.
+        """
         root_iter = self.get_root_iteration(iteration_id)
         return root_iter.risk_segment_details
 
@@ -912,6 +1028,15 @@ class IterationsRepository(BaseRepository):
     def is_rs_details_same(
         self, iteration_id: IterationID
     ) -> t.Literal["equal", "unequal", "updatable"]:
+        """Compare the iteration's risk segment details to the global segment config.
+
+        Args:
+            iteration_id: The ID of the iteration to compare.
+
+        Returns:
+            "equal" if core and styling match, "updatable" if only styling differs,
+            otherwise "unequal".
+        """
         current = self.get_risk_segment_details(iteration_id)
         global_segments = self.__options_repository.risk_segments.segments
 
@@ -950,6 +1075,13 @@ class IterationsRepository(BaseRepository):
         return "unequal"
 
     def update_rs_details(self, iteration_id: IterationID) -> None:
+        """Sync an iteration's MAF and color details from the global segment config.
+
+        Only acts when details are "updatable" (styling differs, core matches).
+
+        Args:
+            iteration_id: The ID of the iteration to update.
+        """
         if self.is_rs_details_same(iteration_id) != "updatable":
             return
 
@@ -992,6 +1124,15 @@ class IterationsRepository(BaseRepository):
         self.notify_subscribers()
 
     def get_all_groups(self, iteration_id: IterationID) -> pd.DataFrame:
+        """Get all custom groups for an iteration as a DataFrame.
+
+        Args:
+            iteration_id: The ID of the iteration to read groups from.
+
+        Returns:
+            A DataFrame indexed by GroupID with bounds/categories and (for
+            double-variable iterations) a selection mask column.
+        """
         iteration = self.get_iteration(iteration_id)
 
         all_group_ids = list(iteration.groups.keys())
@@ -1021,6 +1162,12 @@ class IterationsRepository(BaseRepository):
     def select_groups(
         self, iteration_id: IterationID, selected_indices: list[GroupID]
     ) -> None:
+        """Set the active groups mask for a double-variable iteration.
+
+        Args:
+            iteration_id: The ID of the double-variable iteration.
+            selected_indices: GroupIDs to mark as selected.
+        """
         iteration = self.get_iteration(iteration_id)
         if not isinstance(
             iteration,
@@ -1040,6 +1187,13 @@ class IterationsRepository(BaseRepository):
         self.notify_subscribers()
 
     def add_new_group(self, iteration_id: IterationID) -> None:
+        """Append a new blank group to a double-variable iteration.
+
+        The new group inherits the risk segment grid row of the last group.
+
+        Args:
+            iteration_id: The ID of the double-variable iteration.
+        """
         iteration = self.get_iteration(iteration_id)
         if not isinstance(
             iteration,
@@ -1158,6 +1312,20 @@ class IterationsRepository(BaseRepository):
         default: bool,
         details_column: RSDetCol,
     ) -> pd.DataFrame:
+        """Get the parent-to-target risk segment grid for a double-variable iteration.
+
+        Args:
+            iteration_id: The ID of the double-variable iteration.
+            default: Whether to read the default or custom risk segment grid.
+            details_column: Which segment detail to display as cell values.
+
+        Returns:
+            A DataFrame indexed by GroupID with one column per parent risk segment.
+
+        Raises:
+            TypeError: If the iteration is not a double-variable iteration.
+            ValueError: If details_column is not a supported RSDetCol value.
+        """
         iteration = self.get_iteration(iteration_id)
         if not isinstance(
             iteration,
@@ -1208,6 +1376,16 @@ class IterationsRepository(BaseRepository):
         iteration_id: IterationID,
         risk_segment_grid: pd.DataFrame,
     ) -> None:
+        """Apply an edited risk segment grid to a double-variable iteration.
+
+        Args:
+            iteration_id: The ID of the double-variable iteration.
+            risk_segment_grid: The edited grid, indexed by GroupID with one column
+                per parent risk segment.
+
+        Raises:
+            TypeError: If the iteration is not a double-variable iteration.
+        """
         iteration = self.get_iteration(iteration_id)
         if not isinstance(
             iteration,
@@ -1416,6 +1594,24 @@ class IterationsRepository(BaseRepository):
         show_total_row: bool,
         show_total_column: bool,
     ) -> tuple[list[GridMetricSummary], list[str], list[str]]:
+        """Calculate metric grids for a double-variable iteration.
+
+        Args:
+            iteration_id: The ID of the double-variable iteration.
+            default: Whether to use default or custom groups.
+            filter_ids: Filters to apply to the data.
+            metric_ids: Metrics to compute.
+            scalars_enabled: Whether to use scalar rates.
+            remove_outliers: Whether to remove outliers.
+            show_total_row: Whether to include a total row.
+            show_total_column: Whether to include a total column.
+
+        Returns:
+            A tuple of the metric grid summaries, list of errors, and list of warnings.
+
+        Raises:
+            ValueError: If the iteration is not a double-variable iteration.
+        """
         iteration = self.get_iteration(iteration_id)
         parent_iteration_id = self.graph.get_parent(iteration_id)
 
