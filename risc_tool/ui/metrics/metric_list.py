@@ -1,3 +1,5 @@
+"""Metric list view showing all metrics with edit/duplicate/delete actions."""
+
 import streamlit as st
 
 from risc_tool.data.models.types import MetricID
@@ -6,6 +8,7 @@ from risc_tool.ui.metrics.no_metric_placeholder import no_metric_placeholder
 
 
 def sidebar_widgets():
+    """Render sidebar widgets with a button to create a new metric."""
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 
@@ -21,6 +24,11 @@ def sidebar_widgets():
 
 @st.dialog("Confirm Deletion")
 def delete_confirmation_dialog(metric_id: MetricID):
+    """Show a confirmation dialog before deleting a metric.
+
+    Args:
+        metric_id: The ID of the metric to delete.
+    """
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 
@@ -40,6 +48,7 @@ def delete_confirmation_dialog(metric_id: MetricID):
 
 
 def metric_list():
+    """Render the full metric list page."""
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 

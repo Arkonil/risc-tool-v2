@@ -17,6 +17,15 @@ from risc_tool.ui.data_importer.data_selector import (
 
 
 def file_selector(data_source: DataSource, disabled: bool) -> DataSource | None:
+    """Render read config inputs for a data source.
+
+    Args:
+        data_source: The data source to edit.
+        disabled: Whether the inputs are read-only.
+
+    Returns:
+        An updated DataSource with the edited config, or None if no filepath is set.
+    """
     key = f"file_selector-{data_source.uid}-disabled_{disabled}"
 
     with st.container(border=True, width="stretch", key=key):
@@ -103,6 +112,7 @@ def import_json_page() -> None:
         )
 
         def clear_uploaded_file():
+            """Clear the uploaded file and reset the uploader widget."""
             home_vm.clear_uploaded_file()
             del st.session_state["json-file-uploader"]
 

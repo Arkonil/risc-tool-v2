@@ -23,6 +23,19 @@ def iteration_metric_table(
     editable: bool,
     key: str,
 ) -> None:
+    """Render the iteration metric table in an editable data editor.
+
+    Args:
+        iteration_id: The ID of the iteration to display.
+        default: Whether to use default or custom groups.
+        show_controls: Whether to show group control columns.
+        filter_ids: Filters to apply to the data.
+        metric_ids: Metrics to compute.
+        scalars_enabled: Whether to use scalar rates.
+        remove_outliers: Whether to remove outliers.
+        editable: Whether the table is editable.
+        key: The widget key.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -83,6 +96,7 @@ def iteration_metric_table(
         )
 
     def control_edit_handler() -> None:
+        """Apply edited control cells from the data editor to the iteration."""
         edited_rows: dict[int, dict[str, t.Any]] = st.session_state[key_name].get(
             "edited_rows", {}
         )

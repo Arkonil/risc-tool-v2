@@ -19,6 +19,7 @@ from risc_tool.ui.iterations.navigation import navigation_widgets
 
 
 def sidebar_widgets() -> None:
+    """Render sidebar widgets with a button to open the variable selector dialog."""
     st.button(
         label="Set Variables",
         width="stretch",
@@ -30,6 +31,11 @@ def sidebar_widgets() -> None:
 
 
 def variable_selector() -> str:
+    """Render a dropdown to select the variable to iterate on.
+
+    Returns:
+        The selected variable name.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -46,6 +52,11 @@ def variable_selector() -> str:
 
 
 def iteration_name_input() -> str:
+    """Render a text input for the iteration name.
+
+    Returns:
+        The entered iteration name.
+    """
     label = "##### Iteration Name"
 
     st.markdown(label)
@@ -55,6 +66,11 @@ def iteration_name_input() -> str:
 
 
 def variable_type_selector() -> VariableType:
+    """Render a dropdown to select the variable type.
+
+    Returns:
+        The selected VariableType.
+    """
     label = "##### Variable Type"
 
     st.markdown(label)
@@ -69,6 +85,11 @@ def variable_type_selector() -> VariableType:
 
 
 def loss_rate_type_selector() -> LossRateTypes:
+    """Render a dropdown to select the loss rate type.
+
+    Returns:
+        The selected LossRateTypes.
+    """
     label = "##### Loss Rate Type"
 
     st.markdown(label)
@@ -83,6 +104,11 @@ def loss_rate_type_selector() -> LossRateTypes:
 
 
 def upgrade_downgrade_selector() -> tuple[bool, int, int]:
+    """Render inputs for auto rank ordering and upgrade/downgrade limits.
+
+    Returns:
+        A tuple of (auto_rank_ordering, upgrade_limit, downgrade_limit).
+    """
     auto_rank_ordering = st.checkbox("Auto Rank Ordering", value=True)
     upgrade_cont_t, downgrade_cont_t = st.columns(2)
     upgrade_cont_i, downgrade_cont_i = st.columns(2)
@@ -119,6 +145,11 @@ def upgrade_downgrade_selector() -> tuple[bool, int, int]:
 
 
 def filter_selector():
+    """Render a multiselect widget for choosing filters.
+
+    Returns:
+        The selected filter IDs.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -149,6 +180,11 @@ def filter_selector():
 
 
 def risk_segment_details_selector() -> list[RiskSegmentID]:
+    """Render an editable table of risk segment details for selection.
+
+    Returns:
+        The list of selected RiskSegmentIDs.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
     is_single = iterations_vm.current_iteration_create_mode == IterationType.SINGLE
@@ -206,6 +242,7 @@ def risk_segment_details_selector() -> list[RiskSegmentID]:
 
 
 def iteration_creator() -> None:
+    """Render the iteration creation form page."""
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 

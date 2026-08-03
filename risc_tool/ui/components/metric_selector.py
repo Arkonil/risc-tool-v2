@@ -15,6 +15,14 @@ def metric_selector_one(
     key: int = 0,
     is_double_var: bool = False,
 ) -> None:
+    """Render a single metric dropdown selector.
+
+    Args:
+        current_metric_id: The currently selected metric ID, or None.
+        set_metric: Callback invoked with the newly selected metric ID.
+        key: The widget key.
+        is_double_var: If True, excludes cumulative metrics.
+    """
     session: Session = st.session_state["session"]
     metric_repository = session.metric_repository
     all_metrics = metric_repository.metrics
@@ -53,6 +61,14 @@ def metric_selector(
     key: int = 0,
     is_double_var: bool = False,
 ) -> None:
+    """Render a metric multiselect and reordering widget.
+
+    Args:
+        current_metric_ids: The currently selected metric IDs.
+        set_metrics: Callback invoked with the reordered metric IDs.
+        key: The widget key.
+        is_double_var: If True, excludes cumulative metrics.
+    """
     session: Session = st.session_state["session"]
     metric_repository = session.metric_repository
     all_metrics = metric_repository.metrics
@@ -105,6 +121,14 @@ def metric_selector_dialog(
     key: int = 0,
     is_double_var: bool = False,
 ) -> None:
+    """Open a modal dialog wrapping the metric selector.
+
+    Args:
+        current_metric_ids: The currently selected metric IDs.
+        set_metrics: Callback invoked with the reordered metric IDs.
+        key: The widget key.
+        is_double_var: If True, excludes cumulative metrics.
+    """
     metric_selector(
         current_metric_ids=current_metric_ids,
         set_metrics=set_metrics,
@@ -124,6 +148,14 @@ def metric_selector_button(
     key: int = 0,
     is_double_var: bool = False,
 ) -> None:
+    """Render a button that opens the metric selector dialog.
+
+    Args:
+        current_metrics: The currently selected metric IDs.
+        set_metrics: Callback invoked with the reordered metric IDs.
+        key: The widget key.
+        is_double_var: If True, excludes cumulative metrics.
+    """
     if current_metrics is None:
         current_metrics = []
 

@@ -274,6 +274,14 @@ def pivot() -> None:
         var_keys = list(available_vars.keys())
 
         def format_var(x: str | tuple[IterationID, bool]) -> str:
+            """Format a pivot variable key into its display label.
+
+            Args:
+                x: A column name or (iteration_id, default) tuple.
+
+            Returns:
+                The display label, or the key string if unknown.
+            """
             return available_vars.get(x, str(x))
 
         selected_row_vars = st.multiselect(

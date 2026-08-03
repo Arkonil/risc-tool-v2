@@ -19,6 +19,16 @@ def streamlit_flow_graph(
     iteration_graph: IterationGraph,
     selected_node_id: IterationID | None,
 ) -> StreamlitFlowState:
+    """Build and render the interactive iteration flow graph.
+
+    Args:
+        iterations: Mapping of IterationID to Iteration.
+        iteration_graph: The iteration dependency graph.
+        selected_node_id: Optional iteration to select initially.
+
+    Returns:
+        The updated StreamlitFlowState after user interaction.
+    """
     connections = iteration_graph.connections
 
     node_style = {
@@ -117,6 +127,11 @@ def streamlit_flow_graph(
 
 @st.dialog("Confirm Delete")
 def delete_confirmation_dialog(node_id: IterationID):
+    """Show a confirmation dialog before deleting an iteration.
+
+    Args:
+        node_id: The ID of the iteration to delete.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -142,6 +157,11 @@ def delete_confirmation_dialog(node_id: IterationID):
 
 @st.dialog("Rename Iteration")
 def rename_iteration_dialog(node_id: IterationID):
+    """Show a dialog to rename an iteration.
+
+    Args:
+        node_id: The ID of the iteration to rename.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -164,6 +184,7 @@ def rename_iteration_dialog(node_id: IterationID):
 
 
 def iteration_graph() -> None:
+    """Render the iteration graph page with sidebar actions."""
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 

@@ -9,6 +9,15 @@ from risc_tool.data.session import Session
 def filter_selector(
     key: str, filter_ids: list[FilterID] | None = None
 ) -> list[FilterID]:
+    """Render a multiselect widget for choosing filters.
+
+    Args:
+        key: The widget key.
+        filter_ids: Optional default selection of filter IDs.
+
+    Returns:
+        The selected filter IDs.
+    """
     session: Session = st.session_state["session"]
     filters = session.filter_repository.get_filters()
 

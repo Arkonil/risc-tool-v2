@@ -22,6 +22,7 @@ def export_view() -> None:
     key = "export-page-tabs"
 
     def on_tab_change() -> None:
+        """Sync the active tab name when the user switches tabs."""
         export_vm.current_tab_name = ExportTabName(st.session_state[key])
 
     st.tabs(

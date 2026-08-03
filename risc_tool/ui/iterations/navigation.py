@@ -6,6 +6,7 @@ from risc_tool.data.session import Session
 
 
 def navigation_widgets() -> None:
+    """Render navigation buttons to move between iterations in the graph."""
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
     iteration_graph = iterations_vm.iteration_graph

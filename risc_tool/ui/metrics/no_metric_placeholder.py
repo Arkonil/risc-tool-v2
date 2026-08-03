@@ -1,3 +1,5 @@
+"""Empty-state placeholder shown when no metrics exist."""
+
 import streamlit as st
 
 from risc_tool.data.models.asset_path import AssetPath
@@ -5,6 +7,11 @@ from risc_tool.data.session import Session
 
 
 def no_metric_placeholder(key: int = 0):
+    """Render an empty-state with a button to create the first metric.
+
+    Args:
+        key: The widget key for the create button.
+    """
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 

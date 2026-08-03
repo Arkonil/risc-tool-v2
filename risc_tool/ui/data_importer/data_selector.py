@@ -138,6 +138,14 @@ def delimiter_input_widget(key: str, delimiter: str, disabled: bool = False) -> 
         current_index = 0
 
     def format_delimiter(delimiter: dict[str, str]) -> str:
+        """Format a delimiter option for display.
+
+        Args:
+            delimiter: A dict with "name" and "value" keys.
+
+        Returns:
+            A human-readable label like "Comma (,)".
+        """
         return f"{delimiter['name'].capitalize()} ({delimiter['value']})"
 
     st.markdown(widget_label)
@@ -276,6 +284,7 @@ def file_selector(
         )
 
         def import_button_clicked():
+            """Import or update the data source from the entered config."""
             logger.info("User initiated import for data source ID %s", data_source_uid)
             data_importer_view_model.update_data_source(
                 data_source_id=data_source_uid,
@@ -290,6 +299,7 @@ def file_selector(
             )
 
         def delete_button_clicked():
+            """Delete the data source."""
             logger.info("User deleted data source ID %s", data_source_uid)
             data_importer_view_model.delete_data_source(data_source_uid)
 

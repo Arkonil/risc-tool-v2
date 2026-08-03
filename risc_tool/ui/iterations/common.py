@@ -16,6 +16,11 @@ from risc_tool.ui.components.variable_selector import variable_selector_dialog
 
 @st.dialog("Set Groups")
 def set_groups_dialog_widget(iteration_id: IterationID) -> None:
+    """Open a dialog to select active groups for a double-variable iteration.
+
+    Args:
+        iteration_id: The ID of the iteration.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -66,6 +71,11 @@ def set_groups_dialog_widget(iteration_id: IterationID) -> None:
 
 
 def iteration_sidebar_components(iteration_id: IterationID) -> None:
+    """Render iteration sidebar widgets: variables, metrics, filters, and options.
+
+    Args:
+        iteration_id: The ID of the iteration.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
     iteration = iterations_vm.iterations.get(iteration_id)
@@ -203,6 +213,7 @@ def iteration_sidebar_components(iteration_id: IterationID) -> None:
 
 
 def check_current_rs_details() -> None:
+    """Warn or notify when the current iteration's risk segment details drift."""
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
     iteration = iterations_vm.current_iteration
@@ -236,6 +247,13 @@ def check_current_rs_details() -> None:
 
 
 def editable_grid_widget(iteration_id: IterationID, default: bool, key: str) -> None:
+    """Render the risk segment grid as a styled dataframe or data editor.
+
+    Args:
+        iteration_id: The ID of the double-variable iteration.
+        default: Whether to show the default or custom grid.
+        key: The widget key.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -284,6 +302,7 @@ def editable_grid_widget(iteration_id: IterationID, default: bool, key: str) -> 
     widget_key = f"edited_grid-{key}-{iteration_id}"
 
     def grid_edit_handler() -> None:
+        """Apply edited grid cells from the data editor to the iteration."""
         edited_rows: dict[int, dict[str, t.Any]] = st.session_state[widget_key][
             "edited_rows"
         ]

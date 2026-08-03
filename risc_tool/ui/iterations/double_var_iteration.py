@@ -19,6 +19,12 @@ from risc_tool.ui.iterations.navigation import navigation_widgets
 
 
 def metric_title_widget(metric_name: str, data_source_names: list[str]) -> None:
+    """Render a metric title with its data source badges.
+
+    Args:
+        metric_name: The name of the metric.
+        data_source_names: Labels of the data sources used.
+    """
     with st.container(horizontal=True, height=30, border=False):
         st.markdown(f"##### {metric_name}")
         for ds_name in data_source_names:
@@ -26,6 +32,13 @@ def metric_title_widget(metric_name: str, data_source_names: list[str]) -> None:
 
 
 def grid_layout_widget(iteration_id: IterationID, default: bool, key: str) -> None:
+    """Render the split grid layout with the risk segment grid beside metric grids.
+
+    Args:
+        iteration_id: The ID of the double-variable iteration.
+        default: Whether to show the default or editable grid.
+        key: The widget key.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
     metric_ids = iterations_vm.get_iteration_metadata(iteration_id).metric_ids
@@ -93,6 +106,13 @@ def grid_layout_widget(iteration_id: IterationID, default: bool, key: str) -> No
 
 
 def liner_layout_widget(iteration_id: IterationID, default: bool, key: str) -> None:
+    """Render the linear layout with the risk segment grid stacked above metrics.
+
+    Args:
+        iteration_id: The ID of the double-variable iteration.
+        default: Whether to show the default or editable grid.
+        key: The widget key.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
 
@@ -121,6 +141,7 @@ def liner_layout_widget(iteration_id: IterationID, default: bool, key: str) -> N
 
 
 def double_var_iteration() -> None:
+    """Render the double-variable iteration detail page."""
     navigation_widgets()
 
     session: Session = st.session_state["session"]

@@ -1,3 +1,5 @@
+"""Metric editor UI with code editor, template builder, and format controls."""
+
 import hashlib
 import typing as t
 
@@ -12,6 +14,7 @@ from risc_tool.ui.components.query_editor import query_editor
 
 
 def back_button():
+    """Render a back button that returns to the metric list view."""
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 
@@ -25,6 +28,7 @@ def back_button():
 
 
 def data_source_selector():
+    """Render a multiselect widget for choosing the metric's data sources."""
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 
@@ -49,6 +53,14 @@ def data_source_selector():
 
 
 def metric_name_selector(current_name: str):
+    """Render a text input for the metric name.
+
+    Args:
+        current_name: The current metric name.
+
+    Returns:
+        The edited metric name.
+    """
     edited_name = st.text_input(
         label="Metric Name",
         value=current_name,
@@ -59,6 +71,13 @@ def metric_name_selector(current_name: str):
 
 
 def format_display(use_thousand_sep: bool, is_percentage: bool, decimal_places: int):
+    """Render a format preview showing an example value transformation.
+
+    Args:
+        use_thousand_sep: Whether thousand separators are used.
+        is_percentage: Whether the value is formatted as a percentage.
+        decimal_places: Number of decimal places to display.
+    """
     with st.container(horizontal=True, vertical_alignment="center"):
         original_value = (
             st.text_input(
@@ -88,6 +107,7 @@ def format_display(use_thousand_sep: bool, is_percentage: bool, decimal_places: 
 
 
 def format_selector():
+    """Render checkboxes and inputs for configuring the metric display format."""
     session: Session = st.session_state["session"]
     mc = session.metric_editor_view_model
 
@@ -144,6 +164,7 @@ def format_selector():
 
 
 def on_save():
+    """Save the verified metric and notify on errors."""
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 
@@ -154,11 +175,24 @@ def on_save():
 
 
 def format_value_str(val: str):
+    """Escape and quote a string value for use in a query literal.
+
+    Args:
+        val: The raw value.
+
+    Returns:
+        A double-quoted, escaped string literal.
+    """
     val_str = str(val).replace('"', '\\"')
     return f'"{val_str}"'
 
 
 def template_builder() -> dict[str, str]:
+    """Render template widgets and generate a query from the selections.
+
+    Returns:
+        A dict with the generated "text" query and its "id" hash.
+    """
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 
@@ -197,6 +231,15 @@ def template_builder() -> dict[str, str]:
     columns = [c.value for c in completions if c.meta != "function"]
 
     def get_index(val: t.Any, options: t.Sequence[t.Any]) -> int | None:
+        """Get the index of a value in options, or None if absent.
+
+        Args:
+            val: The value to look up.
+            options: The sequence of options.
+
+        Returns:
+            The index, or None if not present.
+        """
         return options.index(val) if val in options else None
 
     query_text = ""
@@ -326,6 +369,7 @@ def template_builder() -> dict[str, str]:
 
 
 def metric_editor():
+    """Render the full metric editor page."""
     session: Session = st.session_state["session"]
     metric_editor_vm = session.metric_editor_view_model
 
@@ -380,6 +424,7 @@ def metric_editor():
     with controller_container:
 
         def on_verify():
+            """Trigger validation of the metric in the editor."""
             metric_editor_vm.validate_metric(
                 edited_name, edited_query["text"], edited_query["id"]
             )

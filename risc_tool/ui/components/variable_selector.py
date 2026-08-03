@@ -1,3 +1,5 @@
+"""Widgets for selecting metric variables, data sources, and MOB values."""
+
 import typing as t
 
 import streamlit as st
@@ -10,6 +12,12 @@ from risc_tool.data.session import Session
 
 
 def metric_text_widget(column: DeltaGenerator, text: str):
+    """Render a bold centered text label inside a streamlit column.
+
+    Args:
+        column: The DeltaGenerator column to render into.
+        text: The text to display.
+    """
     column.html(
         f"""
             <div style="display: flex; justify-content: center; font-size: 1.5em; font-weight: bold;">
@@ -20,6 +28,11 @@ def metric_text_widget(column: DeltaGenerator, text: str):
 
 
 def data_source_selector(ds_type: DataSourceType) -> None:
+    """Render a multiselect widget for choosing data sources of a type.
+
+    Args:
+        ds_type: Either "dev" or "tst".
+    """
     session: Session = st.session_state["session"]
     variable_selector_vm = session.variable_selector_view_model
 
@@ -56,6 +69,12 @@ def column_selector(
     ds_type: DataSourceType,
     usage: ColumnUsage,
 ) -> None:
+    """Render a dropdown for selecting the variable used in a metric.
+
+    Args:
+        ds_type: Either "dev" or "tst".
+        usage: The variable role (e.g. "unt_bad", "dlr_bad", "avg_bal").
+    """
     session: Session = st.session_state["session"]
     variable_selector_vm = session.variable_selector_view_model
 
@@ -97,6 +116,11 @@ def column_selector(
 
 
 def mob_selector(mob_type: t.Literal["current", "lifetime"]) -> None:
+    """Render a number input for the current or lifetime month-on-book.
+
+    Args:
+        mob_type: Either "current" or "lifetime".
+    """
     session: Session = st.session_state["session"]
     variable_selector_vm = session.variable_selector_view_model
 
@@ -125,6 +149,7 @@ def mob_selector(mob_type: t.Literal["current", "lifetime"]) -> None:
 
 
 def dev_unt_bad_selector() -> None:
+    """Render the development unit bad rate variable selector."""
     col1, col2, col3, col4, col5 = st.columns([4, 1, 5, 1, 5], gap=None)
     metric_text_widget(col1, DefaultMetricNames.DEV_UNT_BAD_RATE)
     metric_text_widget(col2, "=")
@@ -135,6 +160,7 @@ def dev_unt_bad_selector() -> None:
 
 
 def tst_unt_bad_selector() -> None:
+    """Render the test unit bad rate variable selector."""
     col1, col2, col3, col4, col5 = st.columns([4, 1, 5, 1, 5], gap=None)
     metric_text_widget(col1, DefaultMetricNames.TST_UNT_BAD_RATE)
     metric_text_widget(col2, "=")
@@ -145,6 +171,7 @@ def tst_unt_bad_selector() -> None:
 
 
 def dev_dlr_bad_selector() -> None:
+    """Render the development dollar bad rate variable selectors."""
     col1, col2, col3, col4, col5 = st.columns([4, 1, 5, 1, 5], gap=None)
     metric_text_widget(col1, DefaultMetricNames.DEV_DLR_BAD_RATE)
     metric_text_widget(col2, "=")
@@ -156,6 +183,7 @@ def dev_dlr_bad_selector() -> None:
 
 
 def tst_dlr_bad_selector() -> None:
+    """Render the test dollar bad rate variable selectors."""
     col1, col2, col3, col4, col5 = st.columns([4, 1, 5, 1, 5], gap=None)
     metric_text_widget(col1, DefaultMetricNames.TST_DLR_BAD_RATE)
     metric_text_widget(col2, "=")
@@ -167,6 +195,7 @@ def tst_dlr_bad_selector() -> None:
 
 
 def current_mob_selector() -> None:
+    """Render the current month-on-book selector."""
     col1, col2, col3, _ = st.columns([4, 1, 5, 6], gap=None)
     metric_text_widget(col1, "MOB")
     metric_text_widget(col2, "=")
@@ -175,6 +204,7 @@ def current_mob_selector() -> None:
 
 
 def lifetime_mob_selector() -> None:
+    """Render the lifetime month-on-book selector."""
     col1, col2, col3, _ = st.columns([4, 1, 5, 6], gap=None)
     metric_text_widget(col1, "Lifetime MOB")
     metric_text_widget(col2, "=")
@@ -183,6 +213,7 @@ def lifetime_mob_selector() -> None:
 
 
 def variable_selector():
+    """Render the full set of target bad rate and early bad rate selectors."""
     st.markdown("#### Target Bad Rates", text_alignment="center")
 
     data_source_selector("dev")
@@ -208,6 +239,7 @@ def variable_selector():
 
 @st.dialog("Set Variables", width="large", on_dismiss="rerun")
 def variable_selector_dialog():
+    """Open a modal dialog containing the variable selector widgets."""
     with st.container(border=True):
         variable_selector()
 

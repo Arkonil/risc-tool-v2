@@ -192,6 +192,14 @@ def filter_editor():
 
     # Code Completions
     def format_completion(col_name: str):
+        """Build a Completion for a column name.
+
+        Args:
+            col_name: The column name.
+
+        Returns:
+            A Completion object for the column.
+        """
         return Completion(
             caption=col_name,
             value=col_name,
@@ -216,6 +224,7 @@ def filter_editor():
     with controller_container:
 
         def on_verify():
+            """Trigger validation of the filter in the editor."""
             filter_editor_vm.validate_filter(
                 name=edited_name,
                 query=edited_query["text"],

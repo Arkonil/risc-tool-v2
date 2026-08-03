@@ -11,6 +11,16 @@ def iteration_selector(
     iteration_id: IterationID | None = None,
     default: bool | None = None,
 ) -> tuple[IterationID, bool]:
+    """Render a dropdown widget for selecting an iteration view.
+
+    Args:
+        key: The widget key.
+        iteration_id: Optional preselected iteration ID.
+        default: Optional preselected default/custom flag.
+
+    Returns:
+        A tuple of (iteration_id, default) for the selected option.
+    """
     session: Session = st.session_state["session"]
     iterations = session.iterations_repository.iteration_selector_options()
     options = list(iterations.keys())

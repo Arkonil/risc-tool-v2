@@ -13,6 +13,11 @@ from risc_tool.ui.iterations.navigation import navigation_widgets
 
 
 def sidebar_components(iteration_id: IterationID) -> None:
+    """Render iteration sidebar widgets: variables, metrics, filters, and options.
+
+    Args:
+        iteration_id: The ID of the iteration.
+    """
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
     iteration = iterations_vm.iterations.get(iteration_id)
@@ -64,6 +69,7 @@ def sidebar_components(iteration_id: IterationID) -> None:
 
 
 def single_var_iteration() -> None:
+    """Render the single-variable iteration detail page."""
     navigation_widgets()
     session: Session = st.session_state["session"]
     iterations_vm = session.iterations_view_model
