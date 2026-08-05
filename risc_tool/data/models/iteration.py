@@ -52,8 +52,8 @@ def _apply_groups[TTargetGroup: GroupBase](
     group_cls: type[TTargetGroup],
 ) -> None:
     """Apply typed groups/default_groups to an iteration instance."""
-    iteration.groups = rebuild_group_dict(groups_items, group_cls)
     iteration.set_default_groups(rebuild_group_dict(default_groups_items, group_cls))
+    iteration.groups = rebuild_group_dict(groups_items, group_cls)
 
 
 class IterationBase[TGroup: GroupBase](BaseModel):
