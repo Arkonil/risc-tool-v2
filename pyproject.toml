@@ -102,6 +102,9 @@ docstring-code-line-length = "dynamic"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = [
+    "integration: End-to-end workflow tests for the iterations feature",
+]
 
 [tool.pyright]
 typeCheckingMode = "strict"
