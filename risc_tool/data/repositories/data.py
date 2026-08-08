@@ -431,7 +431,9 @@ class DataRepository(BaseRepository):
 
         result_lf = sub_lfs[0]
         for next_lf in sub_lfs[1:]:
-            result_lf = result_lf.join(next_lf, on=join_keys, how="full", coalesce=True)
+            result_lf = result_lf.join(
+                next_lf, on=join_keys, how="full", coalesce=True, nulls_equal=True
+            )
 
         return result_lf.filter(~pl.all_horizontal(pl.col(join_keys).is_null()))
 
@@ -524,7 +526,11 @@ class DataRepository(BaseRepository):
         result_lf = sub_lfs[0]
         for next_lf in sub_lfs[1:]:
             result_lf = result_lf.join(
-                next_lf, on=groupby_variable, how="full", coalesce=True
+                next_lf,
+                on=groupby_variable,
+                how="full",
+                coalesce=True,
+                nulls_equal=True,
             )
 
         return result_lf.filter(pl.col(groupby_variable).is_not_null())

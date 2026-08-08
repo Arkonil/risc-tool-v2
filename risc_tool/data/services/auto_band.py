@@ -1,6 +1,8 @@
 """Auto-banding calculation services for numeric and categorical variables."""
 
+import math
 from collections import OrderedDict
+from decimal import Decimal
 
 import polars as pl
 
@@ -8,6 +10,30 @@ from risc_tool.data.models.config import LossRateScalar, RiskSegmentConfig
 from risc_tool.data.models.enums import LossRateTypes
 from risc_tool.data.models.iteration import CategoricalGroup, NumericalGroup
 from risc_tool.data.models.types import GroupID
+
+
+def _cummin_mask(expr: pl.Expr) -> pl.Expr:
+    """Create a cumulative minimum mask for a given expression."""
+    return expr.cast(pl.Int8).cum_min().cast(pl.Boolean)
+
+
+def _delta_from_min_difference(minimum_difference: float | None) -> float:
+    if (
+        (minimum_difference is None)
+        or (minimum_difference <= 0)
+        or not math.isfinite(minimum_difference)
+    ):
+        return 1.0
+
+    difference = Decimal(str(minimum_difference)).normalize()
+
+    if difference >= 1:
+        return float(10 ** math.floor(math.log10(float(difference))))
+
+    decimal_places = difference.as_tuple().exponent
+    assert isinstance(decimal_places, int), "Decimal places must be an integer"
+
+    return float(Decimal(1).scaleb(decimal_places))
 
 
 def does_high_value_implies_high_risk(
@@ -115,30 +141,58 @@ def create_auto_numeric_bands(
     if not hv_imp_hr:
         base_lf = base_lf.with_columns((-variable_expr).alias(variable))
 
-    group_lf = (
+    group_df = (
         base_lf
-        .group_by(variable_expr)
+        .group_by(variable_expr.alias("variable"))
         .agg(
             numerator_expr.alias("numerator"),
             denominator_expr.alias("denominator"),
-            ((numerator_expr / denominator_expr) * (12 / mob)).alias("ratio"),
         )
-        .sort(variable_expr)
+        .sort(pl.col("variable"))
+        .with_row_index("__row_id")
+        .collect()
     )
 
-    last_cutoff = float("-inf")
     groups: OrderedDict[GroupID, NumericalGroup] = OrderedDict()
+
+    minimum_difference = (
+        group_df
+        .get_column("variable")
+        .cast(pl.Float64)
+        .sort()
+        .diff()
+        .abs()
+        .drop_nulls()
+        .min()
+    )
+    if isinstance(minimum_difference, (int, float, Decimal)):
+        minimum_difference = (
+            float(minimum_difference) if minimum_difference is not None else None
+        )
+        delta = _delta_from_min_difference(minimum_difference)
+    else:
+        delta = 1.0
+
+    annualization_factor = 12 / mob
+
+    if group_df.is_empty():
+        for risk_seg_id, risk_seg in risk_segment_config.get_segments(
+            original=False
+        ).items():
+            groups[GroupID(risk_seg_id)] = NumericalGroup(
+                lower_bound=0.0,
+                upper_bound=0.0,
+            )
+        return groups
+
+    transformed_variable = not hv_imp_hr
+    current_lower_bound = float(group_df.item(0, "variable")) - delta
+    last_value = current_lower_bound
+    transformed_variable_max = float(group_df.item(-1, "variable"))
 
     for risk_seg_id, risk_seg in risk_segment_config.get_segments(
         original=False
     ).items():
-        if risk_seg.upper_rate == float("inf"):
-            groups[GroupID(risk_seg_id)] = NumericalGroup(
-                lower_bound=last_cutoff,
-                upper_bound=risk_seg.upper_rate,
-            )
-            break
-
         if use_scalar:
             risk_scalar_factor = (
                 risk_seg.maf(loss_rate_scalar.loss_rate_type)
@@ -147,42 +201,106 @@ def create_auto_numeric_bands(
         else:
             risk_scalar_factor = 1.0
 
-        result_df = (
-            group_lf
-            .with_columns(
-                (pl.col("ratio") * risk_scalar_factor < risk_seg.upper_rate)
-                .cast(pl.Int8)
-                .cum_min()
-                .cast(pl.Boolean)
-                .alias("mask")
-            )
-            .filter(pl.col("mask"))
-            .select(variable_expr)
-            .collect()
-            .to_series()
-            .cast(pl.Float64)
+        mask_state = group_df.select(
+            "__row_id", pl.lit(None, dtype=pl.Boolean).alias("__mask_state")
         )
+        mtc_temp = group_df
 
-        if result_df.len() == 0:
-            groups[GroupID(risk_seg_id)] = NumericalGroup(
-                lower_bound=last_cutoff,
-                upper_bound=last_cutoff,
+        for _ in range(100):
+            if mtc_temp.is_empty():
+                break
+
+            forward = mtc_temp.with_columns(
+                _cummin_mask(
+                    (pl.col("numerator") / pl.col("denominator")) * annualization_factor
+                    < risk_seg.upper_rate / risk_scalar_factor
+                ).alias("__mask")
             )
-            continue
+            mask_state = (
+                mask_state
+                .join(
+                    forward.select("__row_id", "__mask"),
+                    on="__row_id",
+                    how="left",
+                )
+                .with_columns(
+                    pl
+                    .when(pl.col("__mask") == False)
+                    .then(pl.lit(False))
+                    .otherwise(pl.col("__mask_state"))
+                    .alias("__mask_state")
+                )
+                .drop("__mask")
+            )
+            mtc_temp = forward.filter(pl.col("__mask")).drop("__mask")
 
-        max_value = max(result_df.to_list())
+            if mtc_temp.is_empty():
+                break
+
+            backward = (
+                mtc_temp
+                .reverse()
+                .with_columns(
+                    pl.col("numerator").cum_sum().alias("__cum_numerator"),
+                    pl.col("denominator").cum_sum().alias("__cum_denominator"),
+                )
+                .reverse()
+                .with_columns(
+                    _cummin_mask(
+                        (pl.col("__cum_numerator") / pl.col("__cum_denominator"))
+                        * annualization_factor
+                        < risk_seg.upper_rate / risk_scalar_factor
+                    ).alias("__mask")
+                )
+                .drop("__cum_numerator", "__cum_denominator")
+            )
+            mask_state = (
+                mask_state
+                .join(
+                    backward.select("__row_id", "__mask"),
+                    on="__row_id",
+                    how="left",
+                )
+                .with_columns(
+                    pl
+                    .when(pl.col("__mask").fill_null(False))
+                    .then(pl.lit(True))
+                    .otherwise(pl.col("__mask_state"))
+                    .alias("__mask_state")
+                )
+                .drop("__mask")
+            )
+
+            mtc_temp = backward.filter(~pl.col("__mask")).drop("__mask")
+
+        selected = group_df.join(mask_state, on="__row_id", how="left").filter(
+            pl.col("__mask_state") == True
+        )
+        if not selected.is_empty():
+            last_value = float(selected.select(pl.col("variable").max()).item())
 
         groups[GroupID(risk_seg_id)] = NumericalGroup(
-            lower_bound=last_cutoff,
-            upper_bound=max_value,
+            lower_bound=current_lower_bound,
+            upper_bound=last_value,
         )
-        last_cutoff = max_value
+        group_df = (
+            group_df
+            .join(mask_state, on="__row_id", how="left")
+            .filter((pl.col("__mask_state") != True) | pl.col("__mask_state").is_null())
+            .drop("__mask_state")
+        )
+        current_lower_bound = last_value
 
-        group_lf = group_lf.filter(variable_expr > last_cutoff)
+    last_group_id = next(reversed(groups), None)
+    if last_group_id is not None:
+        last_group = groups[last_group_id]
+        if last_group.upper_bound < transformed_variable_max:
+            groups[last_group_id] = NumericalGroup(
+                lower_bound=last_group.lower_bound,
+                upper_bound=transformed_variable_max,
+            )
 
-    if not hv_imp_hr:
-        delta = 1.0
-
+    if transformed_variable:
         for group_id in groups:
             group = groups[group_id]
 
@@ -244,7 +362,7 @@ def create_auto_categorical_bands(
         pl.col(denominator).sum() if denominator is not None else pl.len()
     )
 
-    group_lf = (
+    group_df = (
         base_lf
         .group_by(variable_expr)
         .agg(
@@ -252,22 +370,14 @@ def create_auto_categorical_bands(
             denominator_expr.alias("denominator"),
             ((numerator_expr / denominator_expr) * (12 / mob)).alias("ratio"),
         )
-        .sort(pl.col("ratio"))
+        .collect()
     )
 
     groups: OrderedDict[GroupID, CategoricalGroup] = OrderedDict()
 
-    found_categories: set[str] = set()
-
     for risk_seg_id, risk_seg in risk_segment_config.get_segments(
         original=False
     ).items():
-        if risk_seg.upper_rate == float("inf"):
-            groups[GroupID(risk_seg_id)] = CategoricalGroup(
-                categories=set(group_lf.select(variable_expr).collect().to_series())
-            )
-            break
-
         if use_scalar:
             risk_scalar_factor = (
                 risk_seg.maf(loss_rate_scalar.loss_rate_type)
@@ -277,20 +387,26 @@ def create_auto_categorical_bands(
             risk_scalar_factor = 1.0
 
         categories: set[str] = set(
-            group_lf
+            group_df
             .filter((pl.col("ratio") * risk_scalar_factor) < risk_seg.upper_rate)
-            .select(variable_expr)
-            .unique(variable_expr)
-            .cast(pl.Utf8)
-            .collect()
-            .to_series()
+            .get_column(variable)
+            .unique()
+            .cast(pl.String)
             .to_list()
         )
 
         groups[GroupID(risk_seg_id)] = CategoricalGroup(categories=categories)
-        found_categories.update(categories)
+        group_df = group_df.filter(~pl.col(variable).cast(pl.String).is_in(categories))
 
-        group_lf = group_lf.filter(~variable_expr.cast(pl.Utf8).is_in(found_categories))
+    last_group_id = next(reversed(groups), None)
+    if last_group_id is not None:
+        last_group = groups[last_group_id]
+        remaining_categories: set[str] = set(
+            group_df.get_column(variable).unique().cast(pl.String).to_list()
+        )
+        groups[last_group_id] = CategoricalGroup(
+            categories=last_group.categories | remaining_categories
+        )
 
     return groups
 

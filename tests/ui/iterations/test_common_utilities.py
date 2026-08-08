@@ -481,7 +481,7 @@ class TestEditableGridWidget:
 
             mock_editor.assert_called_once()
 
-    def grid_editor_maps_row_position_to_sparse_group_id(
+    def test_grid_editor_maps_row_position_to_sparse_group_id(
         self, session, double_var_iteration
     ):
         """Test that edited rows map row position to sparse group ID."""
@@ -493,9 +493,7 @@ class TestEditableGridWidget:
             double_var_iteration.uid, default=False, editable=True
         )
         sparse_df = grid_components["styler"].data.copy()  # type: ignore
-        sparse_group_ids = [
-            GroupID(idx + 1) * 10 for idx in range(len(sparse_df))
-        ]  # Sparse IDs
+        sparse_group_ids = [GroupID((idx + 1) * 10) for idx in range(len(sparse_df))]
         sparse_df.index = sparse_group_ids
         grid_components["styler"] = sparse_df.style
 
@@ -521,13 +519,12 @@ class TestEditableGridWidget:
             )
             mock_editor.call_args.kwargs["on_change"]()  # Trigger on_change
 
-        edited_df = mock_handler.call_args.args[
-            2
-        ]  # The edited DataFrame passed to the handler
-        assert (
-            edited_df.at[GroupID(20), RangeColumn.LOWER_BOUND.value] == 123.0
-        )  # Maps to GroupID(20)
-        assert GroupID(1) in edited_df.index  # Ensure the index is the sparse GroupID
+        # The edited DataFrame passed to the handler
+        edited_df = mock_handler.call_args.args[2]
+
+        # Maps to GroupID(20)
+        assert edited_df.at[GroupID(20), RangeColumn.LOWER_BOUND.value] == 123.0
+        assert GroupID(1) not in edited_df.index
 
         # Verify that the edited row maps to GroupID(0) and not the sparse index
 

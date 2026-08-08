@@ -40,6 +40,7 @@ from risc_tool.data.models.iteration_graph import IterationGraph
 from risc_tool.data.models.json_models import IterationJSON, IterationRepositoryJSON
 from risc_tool.data.models.types import (
     ChangeIDs,
+    DataSourceID,
     FilterID,
     GridMetricSummary,
     GroupID,
@@ -126,6 +127,79 @@ class IterationsRepository(BaseRepository):
             A list of GroupIDs mirroring the segment IDs.
         """
         return [GroupID(seg_id.value) for seg_id in selected_segment_config.segments]
+
+    def _get_unfiltered_numeric_range(
+        self, variable_name: str, data_source_ids: list[DataSourceID]
+    ) -> tuple[float, float] | None:
+        """Get the min and max of a numeric variable across specified data sources.
+
+        Args:
+            variable_name: The column name to compute the range for.
+            data_source_ids: List of data source IDs to include in the range calculation.
+
+        Returns:
+            A tuple of (min, max) values for the variable, or None if no data is available.
+        """
+
+        min_max_row = (
+            self.__data_repository
+            .get_lazyframe(data_source_ids=data_source_ids)
+            .select([
+                pl.col(variable_name).min().alias("min"),
+                pl.col(variable_name).max().alias("max"),
+            ])
+            .collect()
+            .row(0, named=True)
+        )
+
+        minimum = min_max_row.get("min")
+        maximum = min_max_row.get("max")
+
+        if minimum is None or maximum is None:
+            return None
+
+        return float(minimum), float(maximum)
+
+    @staticmethod
+    def _replace_outer_numeric_bounds(
+        groups: OrderedDict[GroupID, NumericalGroup],
+        value_range: tuple[float, float] | None,
+    ) -> OrderedDict[GroupID, NumericalGroup]:
+        """Replace the outer bounds of numerical groups with the provided value range."""
+        if value_range is None or not groups:
+            return groups
+
+        minimum, maximum = value_range
+        lowest_group_id = min(
+            groups.keys(),
+            key=lambda gid: (
+                groups[gid].lower_bound,
+                groups[gid].upper_bound,
+                gid.value,
+            ),
+        )
+        highest_group_id = max(
+            groups.keys(),
+            key=lambda gid: (
+                groups[gid].upper_bound,
+                groups[gid].lower_bound,
+                gid.value,
+            ),
+        )
+
+        lowest_group = groups[lowest_group_id]
+        groups[lowest_group_id] = NumericalGroup(
+            lower_bound=minimum,
+            upper_bound=lowest_group.upper_bound,
+        )
+
+        highest_group = groups[highest_group_id]
+        groups[highest_group_id] = NumericalGroup(
+            lower_bound=highest_group.lower_bound,
+            upper_bound=maximum,
+        )
+
+        return groups
 
     def _group_display_labels(
         self,
@@ -513,6 +587,10 @@ class IterationsRepository(BaseRepository):
 
         if auto_band:
             dev_ds_ids = self.__metric_repository.dev_data_source_ids
+            unfiltered_value_range = self._get_unfiltered_numeric_range(
+                variable_name=variable_name,
+                data_source_ids=dev_ds_ids,
+            )
             lf = self.__data_repository.get_lazyframe(data_source_ids=dev_ds_ids)
             lf = lf.filter(
                 self.__filter_repository.get_combined_expression(
@@ -543,6 +621,10 @@ class IterationsRepository(BaseRepository):
                     hv_imp_hr=hv_imp_hr,
                 )
 
+                groups = self._replace_outer_numeric_bounds(
+                    groups=groups,
+                    value_range=unfiltered_value_range,
+                )
                 iteration.set_default_groups(groups)
             else:
                 assert isinstance(iteration, CategoricalSingleVarIteration)
@@ -662,6 +744,13 @@ class IterationsRepository(BaseRepository):
                 )
 
             dev_ds_ids = self.__metric_repository.dev_data_source_ids
+            unfiltered_value_range = (
+                self._get_unfiltered_numeric_range(
+                    variable_name=variable_name, data_source_ids=dev_ds_ids
+                )
+                if variable_dtype == VariableType.NUMERICAL
+                else None
+            )
             data_filter = self.__filter_repository.get_combined_expression(
                 filter_ids,
                 remove_outliers=remove_outliers,
@@ -719,11 +808,20 @@ class IterationsRepository(BaseRepository):
             hv_imp_hr: bool | None = None
             if variable_dtype == VariableType.NUMERICAL:
                 assert denominator is not None or loss_rate_type == LossRateTypes.ULR
+                direction_base_lf = base_lf
+                direction_denominator = denominator
+
+                if direction_denominator is None:
+                    direction_denominator = "__DIRECTION_DENOM__"
+                    direction_base_lf = direction_base_lf.with_columns(
+                        pl.lit(1.0).alias(direction_denominator)
+                    )
+
                 hv_imp_hr = does_high_value_implies_high_risk(
-                    base_lf=base_lf,
+                    base_lf=direction_base_lf,
                     variable=variable_name,
                     numerator=numerator,
-                    denominator=denominator if denominator is not None else numerator,
+                    denominator=direction_denominator,
                 )
 
                 cut_points: set[float] = set()
@@ -771,6 +869,11 @@ class IterationsRepository(BaseRepository):
                         lower_bound=float(lower),
                         upper_bound=float(upper),
                     )
+
+                numerical_groups = self._replace_outer_numeric_bounds(
+                    groups=numerical_groups,
+                    value_range=unfiltered_value_range,
+                )
 
                 t.cast(
                     NumericalDoubleVarIteration,
