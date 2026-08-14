@@ -2,22 +2,26 @@
   "python.analysis.inlayHints.functionReturnTypes": true,
   "python.analysis.inlayHints.variableTypes": true,
   "python.analysis.autoImportCompletions": true,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
   "editor.defaultFormatter": "charliermarsh.ruff",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports.ruff": "always"
+    "source.organizeImports.ruff": "explicit"
   },
   "files.exclude": {
     "**/__pycache__/": true
   },
   "python.analysis.diagnosticMode": "workspace",
   "python.analysis.inlayHints.callArgumentNames": "all",
+  "ruff.nativeServer": "on",
+  "ruff.format.backend": "uv",
+  "ruff.configuration": "${workspaceFolder}/pyproject.toml",
   "terminal.integrated.env.windows": {
     "UV_LINK_MODE": "copy"
   },
   "ruff.configurationPreference": "filesystemFirst",
-  "ruff.importStrategy": "fromEnvironment",
-  "ruff.path": ["${workspaceFolder}/.venv/Scripts/ruff.exe"],
   "python.testing.pytestArgs": ["tests"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true
