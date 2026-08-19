@@ -9,7 +9,7 @@ from streamlit_sortables import sort_items  # type: ignore
 
 from risc_tool.data.models.enums import RowIndex
 from risc_tool.data.models.metric import Metric
-from risc_tool.data.models.types import IterationID
+from risc_tool.data.models.object_id import IterationID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.filter_selector import filter_selector
 from risc_tool.ui.components.metric_selector import metric_selector_button

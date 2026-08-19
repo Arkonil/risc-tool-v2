@@ -17,7 +17,7 @@ from pandas.io.formats.style import Styler
 from pydantic import BaseModel, Field, field_validator
 
 from risc_tool.data.models.enums import LossRateTypes, RSDetCol
-from risc_tool.data.models.types import RiskSegmentID
+from risc_tool.data.models.object_id import RiskSegmentID
 
 
 def is_valid_hex_color(color: str) -> bool:

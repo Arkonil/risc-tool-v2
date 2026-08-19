@@ -194,7 +194,7 @@ class TestEditableGridEditHandler:
     def test_categorical_categories_edit_in_grid(self, iterations_vm):
         """Test handler processes categorical categories in grid for double var."""
         from risc_tool.data.models.enums import LossRateTypes, VariableType
-        from risc_tool.data.models.types import RiskSegmentID
+        from risc_tool.data.models.object_id import RiskSegmentID
 
         # Create a categorical double var iteration
         root = iterations_vm.add_single_var_iteration(
@@ -319,7 +319,7 @@ class TestEditableGridWidget:
     def test_get_editable_grid_categorical(self, iterations_vm):
         """Test get_editable_grid for categorical double var iteration."""
         from risc_tool.data.models.enums import LossRateTypes, VariableType
-        from risc_tool.data.models.types import RiskSegmentID
+        from risc_tool.data.models.object_id import RiskSegmentID
 
         root = iterations_vm.add_single_var_iteration(
             name="Root Cat",

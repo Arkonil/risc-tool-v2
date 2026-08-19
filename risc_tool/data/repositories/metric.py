@@ -19,7 +19,8 @@ from risc_tool.data.models.metric import (
     UnitBadRate,
     Volume,
 )
-from risc_tool.data.models.types import ChangeIDs, DataSourceID, MetricID
+from risc_tool.data.models.object_id import DataSourceID, MetricID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.utils.duplicate_name import create_duplicate_name

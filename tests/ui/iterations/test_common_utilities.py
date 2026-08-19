@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pandas as pd
 
 from risc_tool.data.models.enums import RangeColumn
-from risc_tool.data.models.types import GroupID
+from risc_tool.data.models.object_id import GroupID
 
 
 class TestSetGroupsDialogWidget:

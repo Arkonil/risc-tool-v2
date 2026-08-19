@@ -15,7 +15,8 @@ from risc_tool.data.models.enums import Signature, VariableType
 from risc_tool.data.models.exceptions import DataImportError
 from risc_tool.data.models.json_models import DataRepositoryJSON
 from risc_tool.data.models.metric import Metric
-from risc_tool.data.models.types import ChangeIDs, DataSourceID
+from risc_tool.data.models.object_id import DataSourceID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.base import BaseRepository
 
 

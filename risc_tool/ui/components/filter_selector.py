@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from risc_tool.data.models.types import FilterID
+from risc_tool.data.models.object_id import FilterID
 from risc_tool.data.session import Session
 
 

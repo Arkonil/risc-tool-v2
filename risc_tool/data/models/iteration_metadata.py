@@ -3,7 +3,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from risc_tool.data.models.enums import LossRateTypes
-from risc_tool.data.models.types import FilterID, MetricID
+from risc_tool.data.models.object_id import FilterID, MetricID
 
 
 class IterationMetadata(BaseModel):

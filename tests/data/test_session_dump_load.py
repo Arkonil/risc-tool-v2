@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from risc_tool.data.models.data_source import DataSource, ReadConfig
 from risc_tool.data.models.enums import IterationType, LossRateTypes, VariableType
 from risc_tool.data.models.json_models import SessionJSON
-from risc_tool.data.models.types import (
+from risc_tool.data.models.object_id import (
     DataSourceID,
     FilterID,
     MetricID,

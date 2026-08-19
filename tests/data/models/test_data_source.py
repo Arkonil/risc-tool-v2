@@ -3,7 +3,7 @@ from pathlib import Path
 import polars as pl
 
 from risc_tool.data.models.data_source import DataSource, ReadConfig
-from risc_tool.data.models.types import DataSourceID
+from risc_tool.data.models.object_id import DataSourceID
 
 
 def write_csv(path: Path, contents: str) -> None:

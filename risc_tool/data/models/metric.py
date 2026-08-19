@@ -14,7 +14,7 @@ import numpy as np
 import polars as pl
 
 from risc_tool.data.models.json_models import MetricJSON
-from risc_tool.data.models.types import DataSourceID, MetricID
+from risc_tool.data.models.object_id import DataSourceID, MetricID
 from risc_tool.utils.logging import get_logger
 
 MISSING = None

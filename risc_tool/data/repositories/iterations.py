@@ -38,15 +38,17 @@ from risc_tool.data.models.iteration import (
 )
 from risc_tool.data.models.iteration_graph import IterationGraph
 from risc_tool.data.models.json_models import IterationJSON, IterationRepositoryJSON
-from risc_tool.data.models.types import (
-    ChangeIDs,
+from risc_tool.data.models.object_id import (
     DataSourceID,
     FilterID,
-    GridMetricSummary,
     GroupID,
     IterationID,
     MetricID,
     RiskSegmentID,
+)
+from risc_tool.data.models.types import (
+    ChangeIDs,
+    GridMetricSummary,
 )
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.data.repositories.data import DataRepository

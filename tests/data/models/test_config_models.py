@@ -14,7 +14,7 @@ from risc_tool.data.models.config import (
     is_valid_hex_color,
 )
 from risc_tool.data.models.enums import LossRateTypes
-from risc_tool.data.models.types import RiskSegmentID
+from risc_tool.data.models.object_id import RiskSegmentID
 
 
 def test_hex_color_validation():

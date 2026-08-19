@@ -16,8 +16,9 @@ from risc_tool.data.models.enums import (
 from risc_tool.data.models.exceptions import InvalidFilterError
 from risc_tool.data.models.filter import Filter
 from risc_tool.data.models.json_models import FilterJSON, FilterRepositoryJSON
+from risc_tool.data.models.object_id import FilterID
 from risc_tool.data.models.outlier import OutlierRule
-from risc_tool.data.models.types import ChangeIDs, FilterID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.utils.duplicate_name import create_duplicate_name

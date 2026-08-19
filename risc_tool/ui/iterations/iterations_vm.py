@@ -22,17 +22,19 @@ from risc_tool.data.models.iteration import Iteration
 from risc_tool.data.models.iteration_graph import IterationGraph
 from risc_tool.data.models.iteration_metadata import IterationMetadata
 from risc_tool.data.models.json_models import IterationsViewModelJSON
+from risc_tool.data.models.object_id import (
+    FilterID,
+    GroupID,
+    IterationID,
+    MetricID,
+    RiskSegmentID,
+)
 from risc_tool.data.models.types import (
     ChangeIDs,
     ColorTheme,
-    FilterID,
     GridEditorViewComponents,
     GridMetricView,
-    GroupID,
-    IterationID,
     IterationView,
-    MetricID,
-    RiskSegmentID,
 )
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository

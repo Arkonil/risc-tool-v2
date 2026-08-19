@@ -14,7 +14,8 @@ from risc_tool.data.models.completion import Completion
 from risc_tool.data.models.enums import Signature
 from risc_tool.data.models.exceptions import format_error
 from risc_tool.data.models.metric import Metric
-from risc_tool.data.models.types import ChangeIDs, DataSourceID, MetricID
+from risc_tool.data.models.object_id import DataSourceID, MetricID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.utils.logging import get_logger

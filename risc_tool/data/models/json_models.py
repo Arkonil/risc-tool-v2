@@ -27,7 +27,7 @@ from risc_tool.data.models.iteration_group import (
     NumericalGroup,
 )
 from risc_tool.data.models.iteration_metadata import IterationMetadata
-from risc_tool.data.models.types import (
+from risc_tool.data.models.object_id import (
     DataSourceID,
     FilterID,
     GroupID,

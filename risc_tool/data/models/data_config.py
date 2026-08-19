@@ -4,7 +4,7 @@ import polars as pl
 
 from risc_tool.data.models.data_source import DataSource
 from risc_tool.data.models.enums import VariableType
-from risc_tool.data.models.types import DataSourceID
+from risc_tool.data.models.object_id import DataSourceID
 from risc_tool.utils.logging import get_logger
 
 logger = get_logger(__name__)

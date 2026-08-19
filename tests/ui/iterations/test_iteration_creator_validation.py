@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from risc_tool.data.models.enums import LossRateTypes, VariableType
-from risc_tool.data.models.types import RiskSegmentID
+from risc_tool.data.models.object_id import RiskSegmentID
 from risc_tool.ui.iterations.iteration_creator import (
     filter_selector,
     iteration_name_input,

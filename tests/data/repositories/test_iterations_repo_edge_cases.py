@@ -9,7 +9,7 @@ from risc_tool.data.models.enums import (
     RowIndex,
     RSDetCol,
 )
-from risc_tool.data.models.types import (
+from risc_tool.data.models.object_id import (
     GroupID,
     IterationID,
     MetricID,

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from risc_tool.data.models.data_source import ReadConfig
 from risc_tool.data.models.enums import LossRateTypes, VariableType
-from risc_tool.data.models.types import RiskSegmentID
+from risc_tool.data.models.object_id import RiskSegmentID
 from risc_tool.data.session import Session
 from risc_tool.ui.export.code_generator import iteration_code_generator
 

@@ -9,7 +9,7 @@ import polars as pl
 from risc_tool.data.models.config import LossRateScalar, RiskSegmentConfig
 from risc_tool.data.models.enums import LossRateTypes
 from risc_tool.data.models.iteration import CategoricalGroup, NumericalGroup
-from risc_tool.data.models.types import GroupID
+from risc_tool.data.models.object_id import GroupID
 
 
 def _cummin_mask(expr: pl.Expr) -> pl.Expr:

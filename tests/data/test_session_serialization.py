@@ -4,7 +4,7 @@ from pathlib import Path
 
 from risc_tool.data.models.data_source import ReadConfig
 from risc_tool.data.models.json_models import SessionJSON
-from risc_tool.data.models.types import MetricID
+from risc_tool.data.models.object_id import MetricID
 from risc_tool.data.session import Session
 
 

@@ -7,7 +7,7 @@ import streamlit as st
 import streamlit_antd_components as sac  # type: ignore
 
 from risc_tool.data.models.enums import IterationType, RangeColumn
-from risc_tool.data.models.types import GroupID, IterationID
+from risc_tool.data.models.object_id import GroupID, IterationID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.filter_selector import filter_selector
 from risc_tool.ui.components.metric_selector import metric_selector_button

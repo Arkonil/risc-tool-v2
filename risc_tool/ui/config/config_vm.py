@@ -16,7 +16,8 @@ from risc_tool.data.models.enums import (
     ScalarTableColumn,
     Signature,
 )
-from risc_tool.data.models.types import ChangeIDs, RiskSegmentID
+from risc_tool.data.models.object_id import RiskSegmentID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.data.repositories.options import OptionRepository
 from risc_tool.data.repositories.scalar import ScalarRepository

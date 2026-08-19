@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 from streamlit.testing.v1 import AppTest
 
 from risc_tool.data.models.enums import IterationType
-from risc_tool.data.models.types import IterationID, MetricID
+from risc_tool.data.models.object_id import IterationID, MetricID
 
 
 class TestDoubleVarIterationUI:
@@ -402,7 +402,7 @@ class TestDoubleVarPreviousIterationsChain:
         """Test chain display with multiple ancestor iterations."""
         # Create a chain: root -> child1 -> child2
         from risc_tool.data.models.enums import LossRateTypes, VariableType
-        from risc_tool.data.models.types import RiskSegmentID
+        from risc_tool.data.models.object_id import RiskSegmentID
 
         root = session.iterations_view_model.add_single_var_iteration(
             name="Root",

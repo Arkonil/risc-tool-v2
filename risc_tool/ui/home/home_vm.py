@@ -8,7 +8,8 @@ from risc_tool.data.models.changes import ChangeTracker
 from risc_tool.data.models.data_source import DataSource
 from risc_tool.data.models.enums import Signature
 from risc_tool.data.models.json_models import SessionJSON
-from risc_tool.data.models.types import ChangeIDs, DataSourceID
+from risc_tool.data.models.object_id import DataSourceID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.iterations import IterationsRepository

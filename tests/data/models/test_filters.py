@@ -7,8 +7,8 @@ import pytest
 from risc_tool.data.models.enums import ComparisonOperation, PercentileOptions
 from risc_tool.data.models.exceptions import InvalidFilterError
 from risc_tool.data.models.filter import Filter
+from risc_tool.data.models.object_id import FilterID
 from risc_tool.data.models.outlier import OutlierRule
-from risc_tool.data.models.types import FilterID
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 

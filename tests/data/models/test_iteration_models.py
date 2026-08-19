@@ -11,7 +11,7 @@ from risc_tool.data.models.iteration import (
 )
 from risc_tool.data.models.iteration_graph import IterationGraph
 from risc_tool.data.models.iteration_metadata import IterationMetadata
-from risc_tool.data.models.types import GroupID, IterationID
+from risc_tool.data.models.object_id import GroupID, IterationID
 
 
 def test_numerical_group_validation():
@@ -122,7 +122,7 @@ def test_double_var_iteration_type_matching():
     import polars as pl
 
     from risc_tool.data.models.iteration import NumericalDoubleVarIteration
-    from risc_tool.data.models.types import RiskSegmentID
+    from risc_tool.data.models.object_id import RiskSegmentID
 
     double_iter = NumericalDoubleVarIteration(
         uid=IterationID(2),

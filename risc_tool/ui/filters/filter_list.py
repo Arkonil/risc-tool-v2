@@ -6,8 +6,8 @@ actions and optional outlier filter display.
 
 import streamlit as st
 
+from risc_tool.data.models.object_id import FilterID
 from risc_tool.data.models.outlier import OutlierRule
-from risc_tool.data.models.types import FilterID
 from risc_tool.data.session import Session
 from risc_tool.ui.filters.no_filter_placeholder import no_filter_placeholder
 from risc_tool.utils.logging import get_logger

@@ -130,7 +130,7 @@ def session(iterations_vm):
 def single_var_iteration(iterations_vm):
     """Create a single variable iteration for testing."""
     from risc_tool.data.models.enums import LossRateTypes, VariableType
-    from risc_tool.data.models.types import RiskSegmentID
+    from risc_tool.data.models.object_id import RiskSegmentID
 
     return iterations_vm.add_single_var_iteration(
         name="Test Single Var",
@@ -165,7 +165,7 @@ def double_var_iteration(iterations_vm, single_var_iteration):
 def categorical_single_var_iteration(iterations_vm):
     """Create a categorical single variable iteration for testing."""
     from risc_tool.data.models.enums import LossRateTypes, VariableType
-    from risc_tool.data.models.types import RiskSegmentID
+    from risc_tool.data.models.object_id import RiskSegmentID
 
     return iterations_vm.add_single_var_iteration(
         name="Test Categorical",

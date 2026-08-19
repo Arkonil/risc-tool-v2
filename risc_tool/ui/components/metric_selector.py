@@ -5,7 +5,7 @@ import typing as t
 import streamlit as st
 from streamlit_sortables import sort_items  # type: ignore
 
-from risc_tool.data.models.types import MetricID
+from risc_tool.data.models.object_id import MetricID
 from risc_tool.data.session import Session
 
 

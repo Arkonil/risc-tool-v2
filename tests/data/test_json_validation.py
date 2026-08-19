@@ -21,7 +21,7 @@ from risc_tool.data.models.json_models import (
     MetricRepositoryJSON,
     SummaryViewModelJSON,
 )
-from risc_tool.data.models.types import (
+from risc_tool.data.models.object_id import (
     FilterID,
     GroupID,
     IterationID,

@@ -10,7 +10,7 @@ from streamlit_flow.state import StreamlitFlowState  # type: ignore
 
 from risc_tool.data.models.iteration import Iteration
 from risc_tool.data.models.iteration_graph import IterationGraph
-from risc_tool.data.models.types import IterationID
+from risc_tool.data.models.object_id import IterationID
 from risc_tool.data.session import Session
 
 

@@ -4,7 +4,7 @@ import pandas as pd
 from pandas.io.formats.style import Styler
 
 from risc_tool.data.models.enums import LossRateTypes, RSDetCol, ScalarTableColumn
-from risc_tool.data.models.types import RiskSegmentID
+from risc_tool.data.models.object_id import RiskSegmentID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.data.repositories.options import OptionRepository

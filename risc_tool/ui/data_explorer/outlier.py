@@ -12,7 +12,7 @@ from risc_tool.data.models.enums import (
     PercentileOptions,
     VariableType,
 )
-from risc_tool.data.models.types import FilterID
+from risc_tool.data.models.object_id import FilterID
 from risc_tool.data.session import Session
 from risc_tool.utils.logging import get_logger
 

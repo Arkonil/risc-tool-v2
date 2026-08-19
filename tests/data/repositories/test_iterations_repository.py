@@ -12,7 +12,7 @@ from risc_tool.data.models.iteration import (
     CategoricalSingleVarIteration,
     NumericalDoubleVarIteration,
 )
-from risc_tool.data.models.types import GroupID, IterationID, RiskSegmentID
+from risc_tool.data.models.object_id import GroupID, IterationID, RiskSegmentID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.iterations import IterationsRepository

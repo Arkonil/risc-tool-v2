@@ -8,7 +8,7 @@ import pandas as pd
 from risc_tool.data.models.data_source import ReadConfig
 from risc_tool.data.models.enums import Signature, SummaryPageTabName
 from risc_tool.data.models.iteration import CategoricalSingleVarIteration
-from risc_tool.data.models.types import IterationID, MetricID
+from risc_tool.data.models.object_id import IterationID, MetricID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.iterations import IterationsRepository

@@ -5,7 +5,7 @@ import pytest
 
 from risc_tool.data.models.data_source import ReadConfig
 from risc_tool.data.models.exceptions import MissingColumnError
-from risc_tool.data.models.types import DataSourceID
+from risc_tool.data.models.object_id import DataSourceID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.ui.components.variable_selector_vm import VariableSelectorViewModel

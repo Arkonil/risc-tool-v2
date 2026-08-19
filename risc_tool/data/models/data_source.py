@@ -5,7 +5,7 @@ from pathlib import Path
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from risc_tool.data.models.types import DataSourceID
+from risc_tool.data.models.object_id import DataSourceID
 from risc_tool.utils.logging import get_logger
 
 ReadMode = t.Literal[

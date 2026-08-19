@@ -9,7 +9,7 @@ from risc_tool.data.models.enums import (
     RowIndex,
     VariableType,
 )
-from risc_tool.data.models.types import GroupID, IterationID, MetricID
+from risc_tool.data.models.object_id import GroupID, IterationID, MetricID
 
 
 class TestViewModelNavigation:
@@ -29,7 +29,7 @@ class TestViewModelNavigation:
         assert iter_id is None
 
         # Create iteration
-        from risc_tool.data.models.types import RiskSegmentID
+        from risc_tool.data.models.object_id import RiskSegmentID
 
         iteration = iterations_vm.add_single_var_iteration(
             name="Root",
@@ -135,7 +135,7 @@ class TestViewModelCategoricalOptions:
 
     def test_nonexistent_iteration_returns_empty(self, iterations_vm):
         """Test nonexistent iteration raises error (current behavior)."""
-        from risc_tool.data.models.types import IterationID
+        from risc_tool.data.models.object_id import IterationID
 
         with pytest.raises(ValueError, match="does not exist"):
             iterations_vm.get_categorical_iteration_options(IterationID(999))

@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from risc_tool.data.models.enums import RangeColumn, RowIndex
-from risc_tool.data.models.types import FilterID, IterationID, MetricID
+from risc_tool.data.models.object_id import FilterID, IterationID, MetricID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.error_warnings import error_and_warning_widget
 from risc_tool.ui.components.theme_detector import get_theme

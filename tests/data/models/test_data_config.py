@@ -4,7 +4,7 @@ import polars as pl
 
 from risc_tool.data.models.data_config import DataConfig
 from risc_tool.data.models.data_source import DataSource, ReadConfig
-from risc_tool.data.models.types import DataSourceID
+from risc_tool.data.models.object_id import DataSourceID
 from risc_tool.data.repositories.data import DataRepository
 
 

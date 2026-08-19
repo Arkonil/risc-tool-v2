@@ -4,10 +4,10 @@ import typing as t
 
 from risc_tool.data.models.changes import ChangeTracker
 from risc_tool.data.models.enums import Signature, VariableType
+from risc_tool.data.models.object_id import DataSourceID
 from risc_tool.data.models.types import (
     ChangeIDs,
     ColumnUsage,
-    DataSourceID,
     DataSourceType,
 )
 from risc_tool.data.repositories.data import DataRepository

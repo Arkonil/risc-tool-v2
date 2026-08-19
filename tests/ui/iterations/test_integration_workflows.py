@@ -19,7 +19,7 @@ from risc_tool.data.models.enums import (
     RangeColumn,
     VariableType,
 )
-from risc_tool.data.models.types import MetricID, RiskSegmentID
+from risc_tool.data.models.object_id import MetricID, RiskSegmentID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.iterations import IterationsRepository

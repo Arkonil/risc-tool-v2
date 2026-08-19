@@ -2,7 +2,7 @@ import polars as pl
 import pytest
 
 from risc_tool.data.models.metric import DollarBadRate, Metric, Volume
-from risc_tool.data.models.types import DataSourceID, MetricID
+from risc_tool.data.models.object_id import DataSourceID, MetricID
 from risc_tool.data.repositories.data import DataRepository
 
 

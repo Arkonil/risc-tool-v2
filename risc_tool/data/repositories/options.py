@@ -3,7 +3,8 @@
 from risc_tool.data.models.config import OptionsConfig, RiskSegment, RiskSegmentConfig
 from risc_tool.data.models.enums import LossRateTypes, Signature
 from risc_tool.data.models.json_models import OptionsRepositoryJSON
-from risc_tool.data.models.types import ChangeIDs, RiskSegmentID
+from risc_tool.data.models.object_id import RiskSegmentID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.utils.logging import get_logger
 

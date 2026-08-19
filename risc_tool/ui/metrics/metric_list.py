@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from risc_tool.data.models.types import MetricID
+from risc_tool.data.models.object_id import MetricID
 from risc_tool.data.session import Session
 from risc_tool.ui.metrics.no_metric_placeholder import no_metric_placeholder
 

@@ -8,7 +8,7 @@ from pandas.io.formats.style import Styler
 
 from risc_tool.data.models.data_source import ReadConfig
 from risc_tool.data.models.enums import LossRateTypes, VariableType
-from risc_tool.data.models.types import MetricID, RiskSegmentID
+from risc_tool.data.models.object_id import MetricID, RiskSegmentID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.iterations import IterationsRepository

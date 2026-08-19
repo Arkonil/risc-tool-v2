@@ -3,7 +3,7 @@
 import streamlit as st
 
 from risc_tool.data.models.enums import IterationType
-from risc_tool.data.models.types import IterationID
+from risc_tool.data.models.object_id import IterationID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.filter_selector import filter_selector
 from risc_tool.ui.components.iteration_metric_table import iteration_metric_table

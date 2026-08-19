@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict
 
-from risc_tool.data.models.types import GroupID
+from risc_tool.data.models.object_id import GroupID
 
 
 class IterationOutput(BaseModel):

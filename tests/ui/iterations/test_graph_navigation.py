@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from streamlit.testing.v1 import AppTest
 
-from risc_tool.data.models.types import IterationID
+from risc_tool.data.models.object_id import IterationID
 
 
 class TestIterationGraphUI:

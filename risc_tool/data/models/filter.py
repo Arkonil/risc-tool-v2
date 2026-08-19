@@ -13,7 +13,7 @@ import polars as pl
 
 from risc_tool.data.models.exceptions import InvalidFilterError
 from risc_tool.data.models.json_models import FilterJSON
-from risc_tool.data.models.types import FilterID
+from risc_tool.data.models.object_id import FilterID
 from risc_tool.utils.logging import get_logger
 
 ScalarValue = str | int | float | bool | None

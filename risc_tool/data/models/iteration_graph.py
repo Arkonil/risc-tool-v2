@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from risc_tool.data.models.types import IterationID
+from risc_tool.data.models.object_id import IterationID
 
 
 class IterationGraph(BaseModel):

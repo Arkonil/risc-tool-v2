@@ -11,7 +11,8 @@ from risc_tool.data.models.completion import Completion
 from risc_tool.data.models.enums import Signature
 from risc_tool.data.models.exceptions import InvalidFilterError, format_error
 from risc_tool.data.models.filter import Filter
-from risc_tool.data.models.types import ChangeIDs, FilterID
+from risc_tool.data.models.object_id import FilterID
+from risc_tool.data.models.types import ChangeIDs
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 

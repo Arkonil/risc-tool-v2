@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 from streamlit.testing.v1 import AppTest
 
 from risc_tool.data.models.enums import IterationType
-from risc_tool.data.models.types import IterationID
+from risc_tool.data.models.object_id import IterationID
 
 
 class TestSingleVarIterationUI:
@@ -331,7 +331,7 @@ class TestSingleVarIterationWithMetrics:
     def test_with_metrics_renders_metric_columns(self, session, single_var_iteration):
         """Test metric columns appear when metrics are configured."""
         # Add a metric to metadata
-        from risc_tool.data.models.types import MetricID
+        from risc_tool.data.models.object_id import MetricID
 
         session.iterations_view_model.set_metadata(
             single_var_iteration.uid, metric_ids=[MetricID.DEV_VOLUME]

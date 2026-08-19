@@ -31,7 +31,7 @@ from risc_tool.data.models.iteration_group import (
     rebuild_group_dict,
 )
 from risc_tool.data.models.json_models import IterationJSON
-from risc_tool.data.models.types import GroupID, IterationID, RiskSegmentID
+from risc_tool.data.models.object_id import GroupID, IterationID, RiskSegmentID
 from risc_tool.utils.logging import get_logger
 from risc_tool.utils.wrap_text import TAB
 
