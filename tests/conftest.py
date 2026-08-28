@@ -1,200 +1,76 @@
-"""Shared fixtures for all tests."""
-
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
+import pandas as pd
 import pytest
 
-from risc_tool.data.models.data_source import ReadConfig
-from risc_tool.data.repositories.data import DataRepository
-from risc_tool.data.repositories.filter import FilterRepository
-from risc_tool.data.repositories.iterations import IterationsRepository
-from risc_tool.data.repositories.metric import MetricRepository
-from risc_tool.data.repositories.options import OptionRepository
-from risc_tool.data.repositories.scalar import ScalarRepository
-from risc_tool.data.session import Session
-from risc_tool.ui.iterations.iterations_vm import IterationsViewModel
+from risc_tool_v2.data.data_source.models.data_source import ReadConfig
+from risc_tool_v2.data.data_source.repositories.data_repository import DataRepository
+from risc_tool_v2.data.filter.repositories.filter_repository import FilterRepository
+from risc_tool_v2.data.metric.repositories.metric_repository import MetricRepository
 
 
 @pytest.fixture
-def test_data_path():
-    """Path to test data directory."""
-    return Path(__file__).parent / "test_data"
+def sample_csv(tmp_path):
+    csv_file = tmp_path / "sample_data.csv"
+    df = pd.DataFrame({
+        "credit_score": [650, 700, 750, 620, 800, 580, 710, 690, 740, 600],
+        "income": [
+            50000,
+            60000,
+            75000,
+            45000,
+            90000,
+            35000,
+            65000,
+            58000,
+            72000,
+            40000,
+        ],
+        "unt_bad": [0, 0, 0, 1, 0, 1, 0, 0, 0, 1],
+        "dlr_bad": [0.0, 0.0, 0.0, 500.0, 0.0, 1200.0, 0.0, 0.0, 0.0, 800.0],
+        "avg_bal": [
+            1000.0,
+            2000.0,
+            1500.0,
+            1200.0,
+            3000.0,
+            1800.0,
+            2200.0,
+            1600.0,
+            2500.0,
+            1400.0,
+        ],
+        "status": [
+            "Approved",
+            "Approved",
+            "Approved",
+            "Declined",
+            "Approved",
+            "Declined",
+            "Approved",
+            "Approved",
+            "Approved",
+            "Declined",
+        ],
+    })
+    df.to_csv(csv_file, index=False)
+    return csv_file
 
 
 @pytest.fixture
-def train_data_path(test_data_path):
-    """Path to training data CSV."""
-    return test_data_path / "train_data.csv"
-
-
-@pytest.fixture
-def val_data_path(test_data_path):
-    """Path to validation data CSV."""
-    return test_data_path / "val_data.csv"
-
-
-@pytest.fixture
-def test_data_path_csv(test_data_path):
-    """Path to test data CSV."""
-    return test_data_path / "test_data.csv"
-
-
-@pytest.fixture
-def data_repository(train_data_path):
-    """Create a DataRepository with test data loaded."""
+def data_repository(sample_csv):
     repo = DataRepository()
-    repo.add_data_source("Dev Data", train_data_path, ReadConfig())
+    repo.add_data_source(
+        label="Dev Data",
+        filepath=sample_csv,
+        read_config=ReadConfig(read_mode="CSV", delimiter=",", header_row=0),
+    )
     return repo
 
 
 @pytest.fixture
 def filter_repository(data_repository):
-    """Create a FilterRepository."""
-    return FilterRepository(data_repository)
+    return FilterRepository(data_repository=data_repository)
 
 
 @pytest.fixture
 def metric_repository(data_repository):
-    """Create a MetricRepository with required variables set."""
-    repo = MetricRepository(data_repository)
-    # Set up required metric variables for DLR and ULR
-    data_source_ids = list(data_repository.data_sources.keys())
-    repo.dev_data_source_ids = data_source_ids
-    repo.var_dev_dlr_bad = "credit_default_flag"
-    repo.var_dev_avg_bal = "average_balance"
-    repo.var_dev_unt_bad = "credit_default_flag"
-    repo.current_rate_mob = 12
-    return repo
-
-
-@pytest.fixture
-def option_repository():
-    """Create an OptionRepository."""
-    return OptionRepository()
-
-
-@pytest.fixture
-def scalar_repository():
-    """Create a ScalarRepository."""
-    return ScalarRepository()
-
-
-@pytest.fixture
-def iterations_repository(
-    data_repository,
-    filter_repository,
-    metric_repository,
-    option_repository,
-    scalar_repository,
-):
-    """Create an IterationsRepository."""
-    return IterationsRepository(
-        data_repository,
-        filter_repository,
-        metric_repository,
-        option_repository,
-        scalar_repository,
-    )
-
-
-@pytest.fixture
-def iterations_vm(
-    data_repository,
-    iterations_repository,
-    option_repository,
-    filter_repository,
-    metric_repository,
-    scalar_repository,
-):
-    """Create an IterationsViewModel with all dependencies."""
-    return IterationsViewModel(
-        data_repository=data_repository,
-        iterations_repository=iterations_repository,
-        options_repository=option_repository,
-        filter_repository=filter_repository,
-        metric_repository=metric_repository,
-        scalar_repository=scalar_repository,
-    )
-
-
-@pytest.fixture
-def session(iterations_vm):
-    """Create a Session with the iterations view model."""
-    session = Session()
-    session.iterations_view_model = iterations_vm
-    return session
-
-
-@pytest.fixture
-def single_var_iteration(iterations_vm):
-    """Create a single variable iteration for testing."""
-    from risc_tool.data.models.enums import LossRateTypes, VariableType
-    from risc_tool.data.models.object_id import RiskSegmentID
-
-    return iterations_vm.add_single_var_iteration(
-        name="Test Single Var",
-        variable_name="credit_score",
-        variable_dtype=VariableType.NUMERICAL,
-        selected_segment_ids=[RiskSegmentID(0), RiskSegmentID(1), RiskSegmentID(2)],
-        loss_rate_type=LossRateTypes.DLR,
-        filter_ids=[],
-        auto_band=False,
-        use_scalar=False,
-        remove_outliers=False,
-    )
-
-
-@pytest.fixture
-def double_var_iteration(iterations_vm, single_var_iteration):
-    """Create a double variable iteration for testing."""
-    from risc_tool.data.models.enums import VariableType
-
-    return iterations_vm.add_double_var_iteration(
-        name="Test Double Var",
-        previous_iteration_id=single_var_iteration.uid,
-        variable_name="income",
-        variable_dtype=VariableType.NUMERICAL,
-        auto_band=False,
-        use_scalar=False,
-        remove_outliers=False,
-    )
-
-
-@pytest.fixture
-def categorical_single_var_iteration(iterations_vm):
-    """Create a categorical single variable iteration for testing."""
-    from risc_tool.data.models.enums import LossRateTypes, VariableType
-    from risc_tool.data.models.object_id import RiskSegmentID
-
-    return iterations_vm.add_single_var_iteration(
-        name="Test Categorical",
-        variable_name="employment_status",
-        variable_dtype=VariableType.CATEGORICAL,
-        selected_segment_ids=[RiskSegmentID(0), RiskSegmentID(1), RiskSegmentID(2)],
-        loss_rate_type=LossRateTypes.DLR,
-        filter_ids=[],
-        auto_band=False,
-        use_scalar=False,
-        remove_outliers=False,
-    )
-
-
-def _make_context_columns(n: int) -> list[MagicMock]:
-    """Create column mocks that support the context manager protocol."""
-    return [MagicMock() for _ in range(n)]
-
-
-@pytest.fixture
-def patch_columns():
-    """Patch streamlit.columns to return context-manager columns.
-
-    Yields a helper that sets the number of columns returned by st.columns.
-    """
-    with patch("streamlit.columns") as mock_columns:
-        mock_columns.return_value = _make_context_columns(2)
-
-        def set_count(n: int) -> None:
-            mock_columns.return_value = _make_context_columns(n)
-
-        yield set_count
+    return MetricRepository(data_repository=data_repository)
