@@ -722,118 +722,147 @@ class Metric(BaseModel):
         return metric
 
 
-class DefaultUnitBadRate(Metric):
-    def __init__(self, data_source_ids: list[DataSourceID], uid: MetricID, name: str):
-        super().__init__(
-            uid=uid,
-            name=name,
-            query="__MISSING__",
-            is_cumulative=False,
-            use_thousand_sep=False,
-            is_percentage=True,
-            decimal_places=2,
-            data_source_ids=data_source_ids,
-        )
-        self.validate_query()
-
-
 class UnitBadRate(Metric):
+    """Unit bad rate metric computed from a unit bad column and current MOB.
+    
+    If var_unt_bad is None, the metric uses "__MISSING__" as a placeholder
+    for user-provided data (default unit bad rate).
+    """
+
     def __init__(
         self,
-        var_unt_bad: str,
+        var_unt_bad: str | None,
         current_rate_mob: int,
         data_source_ids: list[DataSourceID],
         uid: MetricID,
         name: str,
     ):
+        """Initialize the unit bad rate metric.
+
+        Args:
+            var_unt_bad: Column name containing the unit bad indicator. 
+                If None, uses "__MISSING__" as a placeholder for user-provided data.
+            current_rate_mob: Current month-on-book value for annualization.
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
+        is_default = var_unt_bad is None
+        query = "__MISSING__" if is_default else f"(`{var_unt_bad}`.sum() / `{var_unt_bad}`.size) * (12 / {current_rate_mob})"
         super().__init__(
             uid=uid,
             name=name,
-            query=f"(`{var_unt_bad}`.sum() / `{var_unt_bad}`.size) * (12 / {current_rate_mob})",
+            query=query,
             is_cumulative=False,
             use_thousand_sep=False,
             is_percentage=True,
             decimal_places=2,
             data_source_ids=data_source_ids,
         )
-
-
-class DefaultDollarBadRate(Metric):
-    def __init__(self, data_source_ids: list[DataSourceID], uid: MetricID, name: str):
-        super().__init__(
-            uid=uid,
-            name=name,
-            query="__MISSING__",
-            is_cumulative=False,
-            use_thousand_sep=False,
-            is_percentage=True,
-            decimal_places=2,
-            data_source_ids=data_source_ids,
-        )
+        self._var_unt_bad = var_unt_bad
         self.validate_query()
+
+    @property
+    def is_default(self) -> bool:
+        """Return True if this is a default unit bad rate metric (no column specified)."""
+        return self._var_unt_bad is None
 
 
 class DollarBadRate(Metric):
+    """Dollar bad rate metric computed from dollar bad and average balance columns.
+    
+    If var_dlr_bad or var_avg_bal is None, the metric uses "__MISSING__" as a placeholder
+    for user-provided data (default dollar bad rate).
+    """
+
     def __init__(
         self,
-        var_dlr_bad: str,
-        var_avg_bal: str,
+        var_dlr_bad: str | None,
+        var_avg_bal: str | None,
         current_rate_mob: int,
         data_source_ids: list[DataSourceID],
         uid: MetricID,
         name: str,
     ):
+        """Initialize the dollar bad rate metric.
+
+        Args:
+            var_dlr_bad: Column name containing the dollar bad indicator.
+                If None, uses "__MISSING__" as a placeholder for user-provided data.
+            var_avg_bal: Column name containing the average balance column.
+                If None, uses "__MISSING__" as a placeholder for user-provided data.
+            current_rate_mob: Current month-on-book value for annualization.
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
+        is_default = var_dlr_bad is None or var_avg_bal is None
+        query = "__MISSING__" if is_default else f"(`{var_dlr_bad}`.sum() / `{var_avg_bal}`.sum()) * (12 / {current_rate_mob})"
         super().__init__(
             uid=uid,
             name=name,
-            query=f"(`{var_dlr_bad}`.sum() / `{var_avg_bal}`.sum()) * (12 / {current_rate_mob})",
+            query=query,
             is_cumulative=False,
             use_thousand_sep=False,
             is_percentage=True,
             decimal_places=2,
             data_source_ids=data_source_ids,
         )
-
-
-class DefaultVolume(Metric):
-    def __init__(self, data_source_ids: list[DataSourceID], uid: MetricID, name: str):
-        super().__init__(
-            uid=uid,
-            name=name,
-            query="__MISSING__",
-            is_cumulative=False,
-            use_thousand_sep=True,
-            is_percentage=False,
-            decimal_places=0,
-            data_source_ids=data_source_ids,
-        )
+        self._var_dlr_bad = var_dlr_bad
+        self._var_avg_bal = var_avg_bal
         self.validate_query()
+
+    @property
+    def is_default(self) -> bool:
+        """Return True if this is a default dollar bad rate metric (no column specified)."""
+        return self._var_dlr_bad is None or self._var_avg_bal is None
 
 
 class Volume(Metric):
+    """Volume metric computed as the row count (size) of a column.
+    
+    If column_name is None, the metric uses "__MISSING__" as a placeholder
+    for user-provided data (default volume).
+    """
+
     def __init__(
         self,
-        column_name: str,
+        column_name: str | None,
         data_source_ids: list[DataSourceID],
         uid: MetricID,
         name: str,
     ):
+        """Initialize the volume metric.
+
+        Args:
+            column_name: Column used to count rows. If None, uses "__MISSING__"
+                as a placeholder for user-provided data (default volume).
+            data_source_ids: Data sources used to evaluate the metric.
+            uid: Unique identifier for the metric.
+            name: Human-readable metric name.
+        """
+        is_default = column_name is None
+        query = "__MISSING__" if is_default else f"`{column_name}`.size"
         super().__init__(
             uid=uid,
             name=name,
-            query=f"`{column_name}`.size",
+            query=query,
             is_cumulative=False,
             use_thousand_sep=True,
             is_percentage=False,
             decimal_places=0,
             data_source_ids=data_source_ids,
         )
+        self._column_name = column_name
+        self.validate_query()
+
+    @property
+    def is_default(self) -> bool:
+        """Return True if this is a default volume metric (no column specified)."""
+        return self._column_name is None
 
 
 __all__ = [
-    "DefaultDollarBadRate",
-    "DefaultUnitBadRate",
-    "DefaultVolume",
     "DollarBadRate",
     "Metric",
     "MetricQueryValidator",
