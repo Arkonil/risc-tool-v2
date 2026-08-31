@@ -679,7 +679,7 @@ class Metric(BaseModel):
 
 class UnitBadRate(Metric):
     """Unit bad rate metric computed from a unit bad column and current MOB.
-    
+
     If var_unt_bad is None, the metric uses "__MISSING__" as a placeholder
     for user-provided data (default unit bad rate).
     """
@@ -695,7 +695,7 @@ class UnitBadRate(Metric):
         """Initialize the unit bad rate metric.
 
         Args:
-            var_unt_bad: Column name containing the unit bad indicator. 
+            var_unt_bad: Column name containing the unit bad indicator.
                 If None, uses "__MISSING__" as a placeholder for user-provided data.
             current_rate_mob: Current month-on-book value for annualization.
             data_source_ids: Data sources used to evaluate the metric.
@@ -703,7 +703,11 @@ class UnitBadRate(Metric):
             name: Human-readable metric name.
         """
         is_default = var_unt_bad is None
-        query = "__MISSING__" if is_default else f"(`{var_unt_bad}`.sum() / `{var_unt_bad}`.size) * (12 / {current_rate_mob})"
+        query = (
+            "__MISSING__"
+            if is_default
+            else f"(`{var_unt_bad}`.sum() / `{var_unt_bad}`.size) * (12 / {current_rate_mob})"
+        )
         super().__init__(
             uid=uid,
             name=name,
@@ -725,7 +729,7 @@ class UnitBadRate(Metric):
 
 class DollarBadRate(Metric):
     """Dollar bad rate metric computed from dollar bad and average balance columns.
-    
+
     If var_dlr_bad or var_avg_bal is None, the metric uses "__MISSING__" as a placeholder
     for user-provided data (default dollar bad rate).
     """
@@ -752,7 +756,11 @@ class DollarBadRate(Metric):
             name: Human-readable metric name.
         """
         is_default = var_dlr_bad is None or var_avg_bal is None
-        query = "__MISSING__" if is_default else f"(`{var_dlr_bad}`.sum() / `{var_avg_bal}`.sum()) * (12 / {current_rate_mob})"
+        query = (
+            "__MISSING__"
+            if is_default
+            else f"(`{var_dlr_bad}`.sum() / `{var_avg_bal}`.sum()) * (12 / {current_rate_mob})"
+        )
         super().__init__(
             uid=uid,
             name=name,
@@ -775,7 +783,7 @@ class DollarBadRate(Metric):
 
 class Volume(Metric):
     """Volume metric computed as the row count (size) of a column.
-    
+
     If column_name is None, the metric uses "__MISSING__" as a placeholder
     for user-provided data (default volume).
     """
