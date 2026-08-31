@@ -20,14 +20,6 @@ ScalarValue = str | int | float | bool | None
 CompiledValue = pl.Expr | list[ScalarValue]
 
 
-def _content_str(name: str, query: str) -> str:
-    return f"{name}|{query}"
-
-
-def _uid_from_content(name: str, query: str) -> FilterID:
-    return FilterID(uuid5(NAMESPACE_URL, _content_str(name, query)))
-
-
 class FilterQueryValidator(ast.NodeVisitor):
     def __init__(self, placeholder_map: dict[str, str]):
         self.found_columns: set[str] = set()
@@ -87,7 +79,7 @@ class Filter(BaseModel):
         return self
 
     def create_hash(self) -> FilterID:
-        return _uid_from_content(self.name, self.query)
+        return FilterID(uuid5(NAMESPACE_URL, f"{self.name}|{self.query}"))
 
     @property
     def used_columns(self) -> list[str]:

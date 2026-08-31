@@ -14,41 +14,6 @@ ReadMode = t.Literal[
 ]  # , "EXCEL"]  # EXCEL support is planned for future implementation
 
 
-def _content_str(label: str, filepath: Path, read_config: "ReadConfig") -> str:
-    """Build a canonical string from a data source's content for hashing.
-
-    Args:
-        label: The data source label.
-        filepath: The data source file path.
-        read_config: The data source read configuration.
-
-    Returns:
-        A deterministic string that uniquely represents the content.
-    """
-    payload = json.dumps(
-        read_config.model_dump(mode="json"), sort_keys=True, default=str
-    )
-    return f"{label}|{filepath}|{payload}"
-
-
-def _uid_from_content(
-    label: str, filepath: Path, read_config: "ReadConfig"
-) -> DataSourceID:
-    """Derive a content-addressed DataSourceID from a data source's content.
-
-    Args:
-        label: The data source label.
-        filepath: The data source file path.
-        read_config: The data source read configuration.
-
-    Returns:
-        A DataSourceID whose value is a UUIDv5 hash of the content.
-    """
-    return DataSourceID(
-        uuid5(NAMESPACE_URL, _content_str(label, filepath, read_config))
-    )
-
-
 class ReadConfig(BaseModel, frozen=True):
     """Configuration for reading data from a file source.
 
@@ -119,7 +84,12 @@ class DataSource(BaseModel):
         Returns:
             A DataSourceID whose value is a UUIDv5 hash of the content.
         """
-        return _uid_from_content(self.label, self.filepath, self.read_config)
+        payload = json.dumps(
+            self.read_config.model_dump(mode="json"), sort_keys=True, default=str
+        )
+        return DataSourceID(
+            uuid5(NAMESPACE_URL, f"{self.label}|{self.filepath}|{payload}")
+        )
 
     def validate_read_config(self) -> None:
         """Validate the read configuration against the data file.

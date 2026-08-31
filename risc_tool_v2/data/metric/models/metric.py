@@ -19,55 +19,6 @@ MISSING = None
 Scalar = int | float | str | bool | None
 
 
-def _content_str(
-    name: str,
-    query: str,
-    data_source_ids: t.Sequence[DataSourceID],
-    is_cumulative: bool,
-    use_thousand_sep: bool,
-    is_percentage: bool,
-    decimal_places: int,
-) -> str:
-    payload = json.dumps(
-        {
-            "name": name,
-            "query": query,
-            "data_source_ids": sorted(str(ds_id) for ds_id in data_source_ids),
-            "is_cumulative": is_cumulative,
-            "use_thousand_sep": use_thousand_sep,
-            "is_percentage": is_percentage,
-            "decimal_places": decimal_places,
-        },
-        sort_keys=True,
-    )
-    return payload
-
-
-def _uid_from_content(
-    name: str,
-    query: str,
-    data_source_ids: t.Sequence[DataSourceID],
-    is_cumulative: bool,
-    use_thousand_sep: bool,
-    is_percentage: bool,
-    decimal_places: int,
-) -> MetricID:
-    return MetricID(
-        uuid5(
-            NAMESPACE_URL,
-            _content_str(
-                name,
-                query,
-                data_source_ids,
-                is_cumulative,
-                use_thousand_sep,
-                is_percentage,
-                decimal_places,
-            ),
-        )
-    )
-
-
 class MetricQueryValidator(ast.NodeVisitor):
     allowed_functions: t.ClassVar[set[str]] = {
         "sum",
@@ -258,15 +209,19 @@ class Metric(BaseModel):
         return self
 
     def create_hash(self) -> MetricID:
-        return _uid_from_content(
-            self.name,
-            self.query,
-            self.data_source_ids,
-            self.is_cumulative,
-            self.use_thousand_sep,
-            self.is_percentage,
-            self.decimal_places,
+        payload = json.dumps(
+            {
+                "name": self.name,
+                "query": self.query,
+                "data_source_ids": sorted(str(ds_id) for ds_id in self.data_source_ids),
+                "is_cumulative": self.is_cumulative,
+                "use_thousand_sep": self.use_thousand_sep,
+                "is_percentage": self.is_percentage,
+                "decimal_places": self.decimal_places,
+            },
+            sort_keys=True,
         )
+        return MetricID(uuid5(NAMESPACE_URL, payload))
 
     def with_updates(self, **updates: t.Any) -> "Metric":
         fields: dict[str, t.Any] = {
