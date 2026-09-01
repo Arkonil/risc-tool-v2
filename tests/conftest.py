@@ -1,3 +1,5 @@
+import pathlib
+
 import pandas as pd
 import pytest
 
@@ -5,6 +7,19 @@ from risc_tool_v2.data.data_source.models.data_source import ReadConfig
 from risc_tool_v2.data.data_source.repositories.data_repository import DataRepository
 from risc_tool_v2.data.filter.repositories.filter_repository import FilterRepository
 from risc_tool_v2.data.metric.repositories.metric_repository import MetricRepository
+
+ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(scope="session")
+def test_data_paths():
+    """Return sanitized absolute paths for test CSV datasets."""
+    data_dir = ROOT_DIR / "tests" / "test_data"
+    return {
+        "train": str((data_dir / "train_data.csv").resolve()).replace("\\", "/"),
+        "val": str((data_dir / "val_data.csv").resolve()).replace("\\", "/"),
+        "test": str((data_dir / "test_data.csv").resolve()).replace("\\", "/"),
+    }
 
 
 @pytest.fixture
