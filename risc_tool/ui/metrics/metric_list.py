@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from risc_tool.data.models.object_id import MetricID
+from risc_tool.data.models.uid import MetricID
 from risc_tool.data.session import Session
 from risc_tool.ui.metrics.no_metric_placeholder import no_metric_placeholder
 
@@ -88,9 +88,6 @@ def metric_list():
 
                     st.badge(f"Decimals: {metric_obj.decimal_places}", color="yellow")
 
-                    if metric_id.is_default:
-                        st.badge("Default", color="red")
-
                 st.code(metric_obj.query, language="python")
 
             with col2:
@@ -105,7 +102,6 @@ def metric_list():
                     on_click=metric_editor_vm.set_mode,
                     args=("edit", metric_id),
                     help="Edit",
-                    disabled=metric_id.is_default,
                 )
 
                 col22.button(
@@ -126,7 +122,6 @@ def metric_list():
                     on_click=delete_confirmation_dialog,
                     args=(metric_id,),
                     help="Delete",
-                    disabled=metric_id.is_default,
                 )
 
                 show_object = toggle_container.pills(

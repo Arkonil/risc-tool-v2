@@ -5,7 +5,7 @@ import typing as t
 import streamlit as st
 from streamlit_sortables import sort_items  # type: ignore
 
-from risc_tool.data.models.object_id import MetricID
+from risc_tool.data.models.uid import MetricID
 from risc_tool.data.session import Session
 
 
@@ -46,8 +46,8 @@ def metric_selector_one(
 
     if isinstance(selected_metric_id, str):
         try:
-            selected_metric_id = MetricID(int(selected_metric_id))
-        except ValueError:
+            selected_metric_id = MetricID(selected_metric_id)
+        except (ValueError, TypeError, AttributeError):
             selected_metric_id = None
 
     if selected_metric_id != current_metric_id:

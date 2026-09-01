@@ -200,7 +200,7 @@ def template_builder() -> dict[str, str]:
         st.session_state["metric_template_state"] = {
             "template": MetricTemplates.VOLUME,
             "last_generated_query": "",
-            MetricTemplates.VOLUME: {},
+            MetricTemplates.VOLUME: "Default (no column)",
             MetricTemplates.APPROVAL_RATE: {"a": None, "b": [], "c": []},
             MetricTemplates.OVERALL_APPROVAL_RATE: {"a": None, "b": []},
             MetricTemplates.DLR_BAD_RATE: {"a": None, "b": None},
@@ -212,7 +212,7 @@ def template_builder() -> dict[str, str]:
 
     # Reset state if the query was modified externally (in Code Editor)
     if state["last_generated_query"] and current_query != state["last_generated_query"]:
-        state[MetricTemplates.VOLUME] = {}
+        state[MetricTemplates.VOLUME] = "Default (no column)"
         state[MetricTemplates.APPROVAL_RATE] = {"a": None, "b": [], "c": []}
         state[MetricTemplates.OVERALL_APPROVAL_RATE] = {"a": None, "b": []}
         state[MetricTemplates.DLR_BAD_RATE] = {"a": None, "b": None}
@@ -245,11 +245,20 @@ def template_builder() -> dict[str, str]:
     query_text = ""
 
     if template == MetricTemplates.VOLUME:
-        if columns:
-            first_column_name = columns[0]
-            query_text = f"`{first_column_name}`.size"
+        volume_options = ["Default (no column)"] + columns
+        saved_vol_col = state.get(MetricTemplates.VOLUME, "Default (no column)")
+        vol_col = st.selectbox(
+            "Column",
+            options=volume_options,
+            index=volume_options.index(saved_vol_col) if saved_vol_col in volume_options else 0,
+            key="volume_column",
+            placeholder="Select a column for Volume",
+        )
+        state[MetricTemplates.VOLUME] = vol_col
+        if vol_col == "Default (no column)":
+            query_text = "__MISSING__"
         else:
-            query_text = "``.size"
+            query_text = f"`{vol_col}`.size"
 
     elif template == MetricTemplates.APPROVAL_RATE:
         col1, col2, col3 = st.columns(3)

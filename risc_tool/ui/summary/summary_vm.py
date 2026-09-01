@@ -10,8 +10,8 @@ from risc_tool.data.models.changes import ChangeNotifier
 from risc_tool.data.models.enums import RowIndex, Signature, SummaryPageTabName
 from risc_tool.data.models.json_models import SummaryViewModelJSON
 from risc_tool.data.models.metric import Metric
-from risc_tool.data.models.object_id import FilterID, IterationID, MetricID
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import FilterID, IterationID, MetricID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.repositories.iterations import IterationsRepository

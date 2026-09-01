@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from risc_tool.data.models.enums import RangeColumn, RowIndex
-from risc_tool.data.models.object_id import FilterID, IterationID, MetricID
+from risc_tool.data.models.uid import FilterID, IterationID, MetricID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.error_warnings import error_and_warning_widget
 from risc_tool.ui.components.theme_detector import get_theme
@@ -95,12 +95,14 @@ def iteration_metric_table(
             disabled=True,
         )
 
+    editable_df = iterations_vm.get_editable_range(iteration_id, default)
+
     def control_edit_handler() -> None:
         """Apply edited control cells from the data editor to the iteration."""
         edited_rows: dict[int, dict[str, t.Any]] = st.session_state[key_name].get(
             "edited_rows", {}
         )
-        edited_final_df: pd.DataFrame = final_df_styled.data.copy()  # type: ignore
+        edited_final_df: pd.DataFrame = editable_df.copy()
 
         for row_pos, row_change in edited_rows.items():
             row_index = edited_final_df.index[row_pos]  # type: ignore
@@ -115,10 +117,8 @@ def iteration_metric_table(
             edited_final_df,  # type: ignore
         )
 
-    # st.write(final_df_styled.data)  # type: ignore
-
     st.data_editor(
-        data=final_df_styled,
+        data=editable_df.reset_index(drop=True),
         width="stretch",
         hide_index=True,
         column_config=column_config,
