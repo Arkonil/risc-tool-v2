@@ -1,5 +1,5 @@
 [project]
-name = "risc-tool"
+name = "risc-tool-v2"
 version = "0.3.0"
 description = "RisC Tool (Risk Identifier and Segmentation Creator): A platform for risk analysts to build and validate risk segmentation strategies."
 readme = "README.md"
@@ -18,9 +18,24 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pandas-stubs>=3.0.3",
+    "pyright>=1.1.411",
     "pytest>=8.4.1",
     "ruff>=0.15.22",
 ]
+
+[project.optional-dependencies]
+e2e = [
+    "seleniumbase>=4.52.4",
+]
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["risc_tool_v2*"]
 
 [tool.ruff]
 preview = true
@@ -53,6 +68,9 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "logs",
+    "risc_tool",
+    "tests/_archive",
 ]
 
 # Same as Black.
@@ -102,16 +120,21 @@ docstring-code-line-length = "dynamic"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests"]
+norecursedirs = ["_archive", "__pycache__", ".venv", ".ruff_cache", ".pytest_cache"]
 markers = [
     "integration: End-to-end workflow tests for the iterations feature",
+    "e2e: SeleniumBase end-to-end UI tests",
+    "smoke: Critical path smoke tests",
+    "regression: Full workflow regression tests",
 ]
 
 [tool.pyright]
+pythonVersion = "3.12"
 typeCheckingMode = "strict"
-diagnosticMode = "workspace"
 strictListInference = true
 strictSetInference = true
 strictDictionaryInference = true
-exclude = ["**/tests/**", ".venv/**", "**/node_modules", "**/__pycache__", "**/.*"]
-ignore = ["**/tests/**", ".venv/**"]
+exclude = ["**/tests/**", ".venv/**", "**/node_modules", "**/__pycache__", "**/.*", "risc_tool", "tests/_archive"]
+ignore = ["**/tests/**", ".venv/**", "risc_tool", "tests/_archive"]
 reportUnnecessaryComparison = false

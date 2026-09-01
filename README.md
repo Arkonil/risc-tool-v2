@@ -76,6 +76,43 @@ For Windows users, a convenience script is provided:
 
 ---
 
+## Testing
+
+### Unit / integration tests
+
+Run the non-browser tests with:
+
+```bash
+uv run pytest
+```
+
+### End-to-end (E2E) UI tests
+
+The E2E tests drive a real browser through **SeleniumBase** and therefore
+require a webdriver (Chrome/Edge/Firefox) on the test machine. They are
+**opt-in** and **skipped by default** so that running `pytest` never fails
+on a machine that lacks a browser or webdriver.
+
+1. **Install the E2E extra** (includes SeleniumBase):
+   ```bash
+   uv sync --extra e2e
+   ```
+
+2. **Run the tests** by opting in with either:
+   ```bash
+   RUN_E2E=1 uv run pytest tests/e2e
+   # or, on Windows (PowerShell):
+   $env:RUN_E2E = "1"; uv run pytest tests/e2e
+   ```
+   ```bash
+   uv run pytest tests/e2e --run-e2e
+   ```
+
+Without opt-in, the E2E tests are reported as skipped.
+
+
+---
+
 ## 📖 Documentation
 
 The application includes a comprehensive, built-in documentation system. Once the app is running, navigate to the **Documentation** page in the sidebar to access detailed guides on:
