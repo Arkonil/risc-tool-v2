@@ -27,7 +27,7 @@ from risc_tool.data.models.iteration_group import (
     NumericalGroup,
 )
 from risc_tool.data.models.iteration_metadata import IterationMetadata
-from risc_tool.data.models.object_id import (
+from risc_tool.data.models.uid import (
     DataSourceID,
     FilterID,
     GroupID,
@@ -138,29 +138,9 @@ class MetricRepositoryJSON(BaseJSON):
 
     Attributes:
         metrics: Mapping of MetricID to MetricJSON models.
-        var_dev_unt_bad: Development unit bad rate variable name.
-        var_dev_dlr_bad: Development dollar bad rate variable name.
-        var_dev_avg_bal: Development average balance variable name.
-        var_tst_unt_bad: Test unit bad rate variable name.
-        var_tst_dlr_bad: Test dollar bad rate variable name.
-        var_tst_avg_bal: Test average balance variable name.
-        current_rate_mob: Current rate month-on-book value.
-        lifetime_rate_mob: Lifetime rate month-on-book value.
-        dev_data_source_ids: Development data source IDs.
-        tst_data_source_ids: Test data source IDs.
     """
 
     metrics: dict[MetricID, MetricJSON]
-    var_dev_unt_bad: str | None
-    var_dev_dlr_bad: str | None
-    var_dev_avg_bal: str | None
-    var_tst_unt_bad: str | None
-    var_tst_dlr_bad: str | None
-    var_tst_avg_bal: str | None
-    current_rate_mob: int
-    lifetime_rate_mob: int
-    dev_data_source_ids: list[DataSourceID]
-    tst_data_source_ids: list[DataSourceID]
 
 
 # Scalar Repository

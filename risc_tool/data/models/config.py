@@ -17,7 +17,7 @@ from pandas.io.formats.style import Styler
 from pydantic import BaseModel, Field, field_validator
 
 from risc_tool.data.models.enums import LossRateTypes, RSDetCol
-from risc_tool.data.models.object_id import RiskSegmentID
+from risc_tool.data.models.uid import RiskSegmentID
 
 
 def is_valid_hex_color(color: str) -> bool:
@@ -308,7 +308,10 @@ class RiskSegmentConfig(BaseModel):
                 else:
                     records[seg_id][RSDetCol.UPPER_RATE] = "∞"
 
-        df = pd.DataFrame.from_dict(records, orient="index")
+        df = pd.DataFrame(
+            [record for record in records.values()],
+            index=[int(seg_id) for seg_id in records],
+        )
         styler = df.style
 
         for row_idx in df.index:

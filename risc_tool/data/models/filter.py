@@ -2,22 +2,54 @@
 
 This module provides the Filter class, which stores a raw filter query,
 validates its syntax and column references, and compiles it into a Polars
-expression. OutlierRule (see outlier.py) reuses this compilation pipeline.
+expression. Filter is a frozen, content-addressed pydantic model: its uid
+is derived as a UUIDv5 hash of its content fields (name, query), so two
+filters with identical content share an identity. OutlierRule (see
+outlier.py) reuses this compilation pipeline.
 """
 
 import ast
+import logging
 import re
 import typing as t
+from uuid import NAMESPACE_URL, uuid5
 
 import polars as pl
+from pydantic import BaseModel, ConfigDict, PrivateAttr, model_validator
 
 from risc_tool.data.models.exceptions import InvalidFilterError
 from risc_tool.data.models.json_models import FilterJSON
-from risc_tool.data.models.object_id import FilterID
+from risc_tool.data.models.uid import FilterID
 from risc_tool.utils.logging import get_logger
 
 ScalarValue = str | int | float | bool | None
 CompiledValue = pl.Expr | list[ScalarValue]
+
+
+def _content_str(name: str, query: str) -> str:
+    """Build a canonical string from a filter's content for hashing.
+
+    Args:
+        name: The filter name.
+        query: The raw filter expression string.
+
+    Returns:
+        A deterministic string that uniquely represents the content.
+    """
+    return f"{name}|{query}"
+
+
+def _uid_from_content(name: str, query: str) -> FilterID:
+    """Derive a content-addressed FilterID from a filter's content.
+
+    Args:
+        name: The filter name.
+        query: The raw filter expression string.
+
+    Returns:
+        A FilterID whose value is a UUIDv5 hash of the content.
+    """
+    return FilterID(uuid5(NAMESPACE_URL, _content_str(name, query)))
 
 
 class FilterQueryValidator(ast.NodeVisitor):
@@ -104,34 +136,79 @@ class FilterQueryValidator(ast.NodeVisitor):
             self.visit(kwarg.value)
 
 
-class Filter:
+class Filter(BaseModel):
     """Represents a filter condition in the application, calculated using Polars.
 
     Stores the raw query string, validates and compiles it into a Polars
-    expression, and tracks which columns the filter depends on.
+    expression, and tracks which columns the filter depends on. The model is
+    frozen: compiled state lives in private attributes that are refreshed by
+    :meth:`validate_query`.
 
     Attributes:
-        uid: Unique identifier for this filter.
+        uid: Content-addressed unique identifier for this filter.
         name: Human-readable name for display.
         query: The raw filter expression string.
         used_columns: List of column names that appear in the query.
         filter_expr: Compiled Polars expression, or None if not yet validated.
+        _logger: Private logger instance for this filter.
     """
 
-    def __init__(self, uid: FilterID, name: str, query: str) -> None:
-        """Initialize a new Filter.
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
-        Args:
-            uid: Unique identifier for the filter.
-            name: Human-readable name.
-            query: The filter expression string in Python-like syntax.
+    uid: FilterID = FilterID.UNSET
+    name: str
+    query: str
+
+    _logger: logging.Logger = PrivateAttr(
+        default_factory=lambda: get_logger("Filter")
+    )
+    _used_columns: list[str] = PrivateAttr(default_factory=list)
+    _filter_expr: pl.Expr | None = PrivateAttr(default=None)
+
+    @model_validator(mode="after")
+    def _derive_uid(self) -> "Filter":
+        """Derive the content-addressed uid when it is left unset.
+
+        An explicitly provided uid is preserved, which allows the
+        EMPTY/TEMPORARY sentinels and deserialized identities to survive
+        construction. Passing UNSET explicitly behaves like omission.
+
+        Returns:
+            This instance with the uid derived if none was set.
         """
-        self.logger = get_logger(self.__class__.__name__)
-        self.uid: FilterID = uid
-        self.name: str = name
-        self.query: str = query
-        self.used_columns: list[str] = []
-        self.filter_expr: pl.Expr | None = None
+        if self.uid is FilterID.UNSET:
+            # Frozen model: bypass immutability to fill in the derived uid.
+            object.__setattr__(self, "uid", self.create_hash())
+        return self
+
+    def create_hash(self) -> FilterID:
+        """Return a content-addressed FilterID derived from this content.
+
+        The ID hashes all content fields (name, query) except the uid
+        itself, so identical content always produces the same identity.
+
+        Returns:
+            A FilterID whose value is a UUIDv5 hash of the content.
+        """
+        return _uid_from_content(self.name, self.query)
+
+    @property
+    def used_columns(self) -> list[str]:
+        """Get the column names referenced by the query.
+
+        Returns:
+            A list of column names extracted by the last validation.
+        """
+        return self._used_columns
+
+    @property
+    def filter_expr(self) -> pl.Expr | None:
+        """Get the compiled Polars expression.
+
+        Returns:
+            The compiled expression, or None if not yet validated.
+        """
+        return self._filter_expr
 
     @property
     def pretty_name(self) -> str:
@@ -144,9 +221,9 @@ class Filter:
 
     def validate_query(self, available_columns: list[str] | None = None) -> None:
         """Parse, validate structure, and extract used columns from the query."""
-        self.logger.info("Validating filter query: '%s'", self.query)
+        self._logger.info("Validating filter query: '%s'", self.query)
         if not self.query.strip():
-            self.logger.warning("Filter query is empty")
+            self._logger.warning("Filter query is empty")
             raise InvalidFilterError(self.query, "Query cannot be empty.")
 
         # --- 1. Preprocess Backticked Identifiers ---
@@ -172,11 +249,11 @@ class Filter:
         try:
             tree = ast.parse(processed_expression, mode="exec")
         except SyntaxError as e:
-            self.logger.warning("Syntax error in query '%s': %s", self.query, e)
+            self._logger.warning("Syntax error in query '%s': %s", self.query, e)
             raise InvalidFilterError(self.query, f"Syntax error in expression: {e}")
 
         if not tree.body or len(tree.body) > 1:
-            self.logger.warning(
+            self._logger.warning(
                 "Query expression has %d body elements, expected 1",
                 len(tree.body) if tree.body else 0,
             )
@@ -188,7 +265,7 @@ class Filter:
         statement = tree.body[0]
 
         if isinstance(statement, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
-            self.logger.warning(
+            self._logger.warning(
                 "Assignment statement detected in query '%s'", self.query
             )
             raise InvalidFilterError(
@@ -197,7 +274,7 @@ class Filter:
             )
 
         if not isinstance(statement, ast.Expr):
-            self.logger.warning(
+            self._logger.warning(
                 "Non-expression statement in query '%s': %s",
                 self.query,
                 type(statement).__name__,
@@ -235,7 +312,7 @@ class Filter:
             if isinstance(expr_node, ast.BinOp):
                 op_type_name = type(expr_node.op).__name__
                 reason = f"the top-level arithmetic operator is '{op_type_name}'."
-            self.logger.warning(
+            self._logger.warning(
                 "Non-boolean expression in query '%s': %s", self.query, reason
             )
             raise InvalidFilterError(
@@ -245,7 +322,7 @@ class Filter:
         # --- 4. Extract Columns ---
         finder = FilterQueryValidator(backticked_map)
         finder.visit(expr_node)
-        self.used_columns = sorted(finder.found_columns)
+        self._used_columns = sorted(finder.found_columns)
 
         # --- 5. Validate Columns Exist ---
         if available_columns is not None:
@@ -253,7 +330,7 @@ class Filter:
             used_set = set(self.used_columns)
             missing_columns = sorted(used_set - available_set)
             if missing_columns:
-                self.logger.warning("Missing columns in query: %s", missing_columns)
+                self._logger.warning("Missing columns in query: %s", missing_columns)
                 raise InvalidFilterError(
                     self.query,
                     f"Following columns are not found in the data: {', '.join(missing_columns)}",
@@ -261,14 +338,14 @@ class Filter:
 
         # --- 6. Compile Expression ---
         try:
-            self.filter_expr = self._compile_expression(expr_node, backticked_map)
+            self._filter_expr = self._compile_expression(expr_node, backticked_map)
         except Exception as e:
-            self.logger.exception("Failed to compile filter query '%s'", self.query)
+            self._logger.exception("Failed to compile filter query '%s'", self.query)
             raise InvalidFilterError(
                 self.query, f"Failed to compile to Polars expression: {e}"
             )
 
-        self.logger.debug(
+        self._logger.debug(
             "Query validated and compiled successfully. Columns used: %s",
             self.used_columns,
         )
@@ -309,7 +386,7 @@ class Filter:
             """
             if isinstance(value, pl.Expr):
                 return value
-            self.logger.warning(
+            self._logger.warning(
                 "%s expects an expression operand, got %s",
                 context,
                 type(value).__name__,
@@ -367,7 +444,7 @@ class Filter:
                     return -operand
                 elif isinstance(n.op, ast.UAdd):
                     return operand
-                self.logger.warning(
+                self._logger.warning(
                     "Unsupported unary operator: %s", type(n.op).__name__
                 )
                 raise ValueError(f"Unsupported unary operator: {type(n.op).__name__}")
@@ -400,7 +477,7 @@ class Filter:
                     return left | right
                 elif isinstance(op, ast.BitXor):
                     return left ^ right
-                self.logger.warning(
+                self._logger.warning(
                     "Unsupported binary operator: %s", type(op).__name__
                 )
                 raise ValueError(f"Unsupported binary operator: {type(op).__name__}")
@@ -419,7 +496,7 @@ class Filter:
                     for v in values[1:]:
                         res = res | v
                     return res
-                self.logger.warning(
+                self._logger.warning(
                     "Unsupported boolean operator: %s", type(n.op).__name__
                 )
                 raise ValueError(f"Unsupported boolean operator: {type(n.op).__name__}")
@@ -481,7 +558,7 @@ class Filter:
                             require_is_in_rhs(right_compiled)
                         )
                     else:
-                        self.logger.warning(
+                        self._logger.warning(
                             "Unsupported comparison operator: %s", type(op).__name__
                         )
                         raise TypeError(
@@ -507,7 +584,7 @@ class Filter:
                     fn_name = n.func.id
                     if fn_name == "arctan2":
                         if len(n.args) != 2:
-                            self.logger.warning(
+                            self._logger.warning(
                                 "arctan2 requires exactly 2 arguments, got %d",
                                 len(n.args),
                             )
@@ -521,7 +598,7 @@ class Filter:
                         return pl.arctan2(y_arg, x_arg)
                     elif fn_name == "expm1":
                         if len(n.args) != 1:
-                            self.logger.warning(
+                            self._logger.warning(
                                 "expm1 requires exactly 1 argument, got %d", len(n.args)
                             )
                             raise ValueError("expm1 requires exactly 1 argument")
@@ -547,7 +624,7 @@ class Filter:
                         "log10",
                     ):
                         if len(n.args) != 1:
-                            self.logger.warning(
+                            self._logger.warning(
                                 "%s requires exactly 1 argument, got %d",
                                 fn_name,
                                 len(n.args),
@@ -557,7 +634,7 @@ class Filter:
                             compile_sub(n.args[0]), f"{fn_name} argument"
                         )
                         return getattr(arg, fn_name)()
-                    self.logger.warning("Unsupported function call: %s", fn_name)
+                    self._logger.warning("Unsupported function call: %s", fn_name)
                     raise ValueError(f"Unsupported function call: {fn_name}")
 
                 elif isinstance(n.func, ast.Attribute):
@@ -571,7 +648,7 @@ class Filter:
                         return require_expr(target, "notna target").is_not_null()
                     elif method_name == "contains":
                         if len(compiled_args) != 1:
-                            self.logger.warning(
+                            self._logger.warning(
                                 "contains requires exactly 1 argument, got %d",
                                 len(compiled_args),
                             )
@@ -582,7 +659,7 @@ class Filter:
                         )
                     elif method_name in ("startswith", "starts_with"):
                         if len(compiled_args) != 1:
-                            self.logger.warning(
+                            self._logger.warning(
                                 "startswith requires exactly 1 argument, got %d",
                                 len(compiled_args),
                             )
@@ -593,7 +670,7 @@ class Filter:
                         ).str.starts_with(prefix)
                     elif method_name in ("endswith", "ends_with"):
                         if len(compiled_args) != 1:
-                            self.logger.warning(
+                            self._logger.warning(
                                 "endswith requires exactly 1 argument, got %d",
                                 len(compiled_args),
                             )
@@ -604,9 +681,9 @@ class Filter:
                         )
                     elif hasattr(target, method_name):
                         return getattr(target, method_name)(*compiled_args)
-                    self.logger.warning("Unsupported method call: %s", method_name)
+                    self._logger.warning("Unsupported method call: %s", method_name)
                     raise ValueError(f"Unsupported method call: {method_name}")
-                self.logger.warning("Unsupported function call structure")
+                self._logger.warning("Unsupported function call structure")
                 raise ValueError("Unsupported function call structure")
 
             elif isinstance(n, ast.Attribute):
@@ -616,7 +693,7 @@ class Filter:
                 elif n.attr == "notna":
                     obj = require_expr(compile_sub(n.value), "Attribute target")
                     return obj.is_not_null()
-                self.logger.warning("Unsupported attribute access: %s", n.attr)
+                self._logger.warning("Unsupported attribute access: %s", n.attr)
                 raise ValueError(f"Unsupported attribute access: {n.attr}")
 
             elif isinstance(n, (ast.List, ast.Tuple)):
@@ -636,7 +713,7 @@ class Filter:
                             vals.append(name)
                     else:
                         value = compile_sub(el)
-                        self.logger.warning(
+                        self._logger.warning(
                             "List/Tuple literal contains non-scalar value: %s",
                             type(value).__name__,
                         )
@@ -645,13 +722,13 @@ class Filter:
                         )
                 return vals
 
-            self.logger.warning("Unsupported syntax node type: %s", type(n).__name__)
+            self._logger.warning("Unsupported syntax node type: %s", type(n).__name__)
             raise ValueError(f"Unsupported syntax node: {type(n).__name__}")
 
         compiled = compile_sub(node)
 
         if not isinstance(compiled, pl.Expr):
-            self.logger.warning(
+            self._logger.warning(
                 "Expression compiled to %s, not a Polars Expression",
                 type(compiled).__name__,
             )
@@ -662,16 +739,28 @@ class Filter:
     def duplicate(
         self, uid: FilterID | None = None, name: str | None = None
     ) -> "Filter":
-        """Create a duplicate of this filter."""
-        if uid is None:
-            uid = self.uid
-        if name is None:
-            name = self.name
+        """Create a duplicate of this filter with optional new ID and name.
 
-        self.logger.debug("Duplicating filter '%s' as '%s'", self.name, name)
-        new_instance = Filter(uid=uid, name=name, query=self.query)
-        new_instance.used_columns = list(self.used_columns)
-        new_instance.filter_expr = self.filter_expr
+        Compiled state (used columns, expression) depends only on the query,
+        which duplicates share, so it is carried over without revalidation.
+
+        Args:
+            uid: Explicit unique identifier for the copy. When omitted, the
+                copy derives its content hash from the resulting name/query,
+                which equals this filter's ID unless the name changed.
+            name: Human-readable name for the copy. Defaults to this filter's
+                name; changing it yields a different content hash.
+
+        Returns:
+            A new Filter instance with the same query and copied state.
+        """
+        new_instance = Filter(
+            **({"uid": uid} if uid is not None else {}),
+            name=self.name if name is None else name,
+            query=self.query,
+        )
+        new_instance._used_columns = list(self.used_columns)
+        new_instance._filter_expr = self.filter_expr
         return new_instance
 
     def to_dict(self) -> FilterJSON:
@@ -684,10 +773,10 @@ class Filter:
         )
 
     @classmethod
-    def from_dict(cls, data: FilterJSON):
+    def from_dict(cls, data: FilterJSON) -> "Filter":
         """Reconstruct Filter from FilterJSON Pydantic model or dict."""
         obj = cls(uid=data.uid, name=data.name, query=data.query)
-        obj.used_columns = list(data.used_columns)
+        obj._used_columns = list(data.used_columns)
         return obj
 
 

@@ -11,6 +11,7 @@ from risc_tool.data.repositories.iterations import IterationsRepository
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.data.repositories.options import OptionRepository
 from risc_tool.data.repositories.scalar import ScalarRepository
+from risc_tool.data.repositories.simulation import SimulationRepository
 from risc_tool.ui.components.variable_selector_vm import VariableSelectorViewModel
 from risc_tool.ui.config.config_vm import ConfigViewModel
 from risc_tool.ui.data_explorer.data_explorer_vm import DataExplorerViewModel
@@ -21,6 +22,7 @@ from risc_tool.ui.filters.filters_vm import FilterViewModel
 from risc_tool.ui.home.home_vm import HomeViewModel
 from risc_tool.ui.iterations.iterations_vm import IterationsViewModel
 from risc_tool.ui.metrics.metrics_vm import MetricViewModel
+from risc_tool.ui.simulation.simulation_vm import SimulationViewModel
 from risc_tool.ui.summary.summary_vm import SummaryViewModel
 from risc_tool.utils.logging import get_logger
 
@@ -74,6 +76,7 @@ class Session:
             self.option_repository,
             self.scalar_repository,
         )
+        self.simulation_repository = SimulationRepository()
 
         # View Models
         self.data_importer_view_model = DataImporterViewModel(self.data_repository)
@@ -106,6 +109,7 @@ class Session:
             self.metric_repository,
             self.scalar_repository,
         )
+        self.simulation_view_model = SimulationViewModel(self.simulation_repository)
         self.summary_view_model = SummaryViewModel(
             self.data_repository,
             self.filter_repository,

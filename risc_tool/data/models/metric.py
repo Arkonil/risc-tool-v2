@@ -2,23 +2,112 @@
 
 This module defines the Metric class, which stores a raw metric query,
 validates its syntax, structure, and column references, and compiles it
-into a Polars expression. It also provides concrete metric subclasses for
-common volume and bad-rate metrics.
+into a Polars expression. Metric is a frozen, content-addressed pydantic
+model: its uid is derived as a UUIDv5 hash of its content fields (name,
+query, data source IDs, and display settings), so two metrics with
+identical content share an identity.
+
+Concrete metric subclasses for common volume and bad-rate metrics are
+retained; they derive their query strings from their parameters and share
+the base compilation pipeline.
 """
 
 import ast
+import json
+import logging
 import re
 import typing as t
+from uuid import NAMESPACE_URL, uuid5
 
 import numpy as np
 import polars as pl
+from pydantic import BaseModel, ConfigDict, PrivateAttr, model_validator
 
 from risc_tool.data.models.json_models import MetricJSON
-from risc_tool.data.models.object_id import DataSourceID, MetricID
+from risc_tool.data.models.uid import DataSourceID, MetricID
 from risc_tool.utils.logging import get_logger
 
 MISSING = None
 Scalar = int | float | str | bool | None
+
+
+def _content_str(
+    name: str,
+    query: str,
+    data_source_ids: t.Sequence[DataSourceID],
+    is_cumulative: bool,
+    use_thousand_sep: bool,
+    is_percentage: bool,
+    decimal_places: int,
+) -> str:
+    """Build a canonical string from a metric's content for hashing.
+
+    Data source IDs are sorted so list ordering does not affect identity.
+
+    Args:
+        name: The metric name.
+        query: The raw metric expression string.
+        data_source_ids: The data sources the metric applies to.
+        is_cumulative: Whether the metric is cumulative.
+        use_thousand_sep: Whether numbers use thousands separators.
+        is_percentage: Whether the value displays as a percentage.
+        decimal_places: Number of decimal places for formatted output.
+
+    Returns:
+        A deterministic string that uniquely represents the content.
+    """
+    payload = json.dumps(
+        {
+            "name": name,
+            "query": query,
+            "data_source_ids": sorted(str(ds_id) for ds_id in data_source_ids),
+            "is_cumulative": is_cumulative,
+            "use_thousand_sep": use_thousand_sep,
+            "is_percentage": is_percentage,
+            "decimal_places": decimal_places,
+        },
+        sort_keys=True,
+    )
+    return payload
+
+
+def _uid_from_content(
+    name: str,
+    query: str,
+    data_source_ids: t.Sequence[DataSourceID],
+    is_cumulative: bool,
+    use_thousand_sep: bool,
+    is_percentage: bool,
+    decimal_places: int,
+) -> MetricID:
+    """Derive a content-addressed MetricID from a metric's content.
+
+    Args:
+        name: The metric name.
+        query: The raw metric expression string.
+        data_source_ids: The data sources the metric applies to.
+        is_cumulative: Whether the metric is cumulative.
+        use_thousand_sep: Whether numbers use thousands separators.
+        is_percentage: Whether the value displays as a percentage.
+        decimal_places: Number of decimal places for formatted output.
+
+    Returns:
+        A MetricID whose value is a UUIDv5 hash of the content.
+    """
+    return MetricID(
+        uuid5(
+            NAMESPACE_URL,
+            _content_str(
+                name,
+                query,
+                data_source_ids,
+                is_cumulative,
+                use_thousand_sep,
+                is_percentage,
+                decimal_places,
+            ),
+        )
+    )
 
 
 class MetricQueryValidator(ast.NodeVisitor):
@@ -252,62 +341,133 @@ class MetricQueryValidator(ast.NodeVisitor):
         return False
 
 
-class Metric:
+class Metric(BaseModel):
     """Represents a metric query, parsed and compiled to a Polars expression.
 
+    The model is frozen: compiled state lives in private attributes that are
+    refreshed by :meth:`validate_query`.
+
     Attributes:
-        uid: Unique identifier for the metric.
+        uid: Content-addressed unique identifier for the metric.
         name: Human-readable metric name.
         query: The raw metric expression string.
         data_source_ids: Data sources used to evaluate the metric.
-        used_columns: Column names referenced by the query.
         is_cumulative: Whether the metric is cumulative over time.
         use_thousand_sep: Whether numbers use thousands separators.
         is_percentage: Whether the value is displayed as a percentage.
         decimal_places: Number of decimal places for formatted output.
+        used_columns: Column names referenced by the query.
         processed_query: Query with placeholders resolved.
         placeholder_map: Mapping from placeholders to original expressions.
         metric_expr: Compiled Polars expression, or None if not yet validated.
+        _logger: Private logger instance for this metric.
     """
 
-    def __init__(
-        self,
-        uid: MetricID,
-        name: str,
-        query: str,
-        data_source_ids: list[DataSourceID],
-        is_cumulative: bool,
-        use_thousand_sep: bool = True,
-        is_percentage: bool = False,
-        decimal_places: int = 2,
-    ) -> None:
-        """Initialize a new Metric.
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    uid: MetricID = MetricID.UNSET
+    name: str
+    query: str
+    data_source_ids: list[DataSourceID]
+    is_cumulative: bool
+    use_thousand_sep: bool = True
+    is_percentage: bool = False
+    decimal_places: int = 2
+
+    _logger: logging.Logger = PrivateAttr(default_factory=lambda: get_logger("Metric"))
+    _used_columns: list[str] = PrivateAttr(default_factory=list)
+    _processed_query: str = PrivateAttr(default="")
+    _placeholder_map: dict[str, str] = PrivateAttr(default_factory=dict)
+    _metric_expr: pl.Expr | None = PrivateAttr(default=None)
+
+    @model_validator(mode="after")
+    def _derive_uid(self) -> "Metric":
+        """Derive the content-addressed uid when it is left unset.
+
+        An explicitly provided uid is preserved, which allows the
+        EMPTY/TEMPORARY sentinels and deserialized identities to survive
+        construction. Passing UNSET explicitly behaves like omission. Also
+        seeds the processed-query cache used before validation.
+
+        Returns:
+            This instance with the uid derived if none was set.
+        """
+        if not self._processed_query:
+            object.__setattr__(self, "_processed_query", self.query)
+
+        if self.uid is MetricID.UNSET:
+            # Frozen model: bypass immutability to fill in the derived uid.
+            object.__setattr__(self, "uid", self.create_hash())
+        return self
+
+    def create_hash(self) -> MetricID:
+        """Return a content-addressed MetricID derived from this content.
+
+        The ID hashes all content fields except the uid itself, so identical
+        content always produces the same identity. Data source IDs are
+        sorted before hashing so list ordering does not affect identity.
+
+        Returns:
+            A MetricID whose value is a UUIDv5 hash of the content.
+        """
+        return _uid_from_content(
+            self.name,
+            self.query,
+            self.data_source_ids,
+            self.is_cumulative,
+            self.use_thousand_sep,
+            self.is_percentage,
+            self.decimal_places,
+        )
+
+    def with_updates(self, **updates: t.Any) -> "Metric":
+        """Return a copy of this metric with updated fields.
+
+        Identity handling: an explicit ``uid`` update pins the copy's ID;
+        otherwise a change to any content field re-derives the ID from the
+        new content, and an unchanged content keeps this metric's ID (so
+        EMPTY/TEMPORARY drafts stay stable across non-content edits).
+        Compiled state is carried over whenever the query is unchanged.
 
         Args:
-            uid: Unique identifier for the metric.
-            name: Human-readable metric name.
-            query: The metric expression string in Python-like syntax.
-            data_source_ids: Data sources used to evaluate the metric.
-            is_cumulative: Whether the metric is cumulative over time.
-            use_thousand_sep: Whether to display thousands separators.
-            is_percentage: Whether to display the value as a percentage.
-            decimal_places: Number of decimal places for formatted output.
+            **updates: Field values to override on the copy.
+
+        Returns:
+            A new Metric instance with the updates applied.
         """
-        self.logger = get_logger(self.__class__.__name__)
-        self.uid: MetricID = uid
-        self.name: str = name
-        self.query: str = query
-        self.data_source_ids: list[DataSourceID] = data_source_ids
-        self.used_columns: list[str] = []
+        fields: dict[str, t.Any] = {
+            "name": self.name,
+            "query": self.query,
+            "data_source_ids": list(self.data_source_ids),
+            "is_cumulative": self.is_cumulative,
+            "use_thousand_sep": self.use_thousand_sep,
+            "is_percentage": self.is_percentage,
+            "decimal_places": self.decimal_places,
+        }
+        content_changed = any(
+            key in updates and updates[key] != fields[key] for key in fields
+        )
+        fields.update(updates)
 
-        self.is_cumulative: bool = is_cumulative
-        self.use_thousand_sep: bool = use_thousand_sep
-        self.is_percentage: bool = is_percentage
-        self.decimal_places: int = decimal_places
+        uid: MetricID | None
+        if "uid" in updates:
+            uid = fields.pop("uid")
+        elif content_changed and self.uid not in (MetricID.EMPTY, MetricID.TEMPORARY):
+            uid = None  # Re-derive from the new content.
+        else:
+            # Unchanged content or an unsaved sentinel draft keeps its ID.
+            uid = self.uid
 
-        self.processed_query: str = query
-        self.placeholder_map: dict[str, str] = {}
-        self.metric_expr: pl.Expr | None = None
+        new_metric = Metric(**({"uid": uid} if uid is not None else {}), **fields)
+
+        # Compiled state depends only on the query; carry it when unchanged.
+        if new_metric.query == self.query:
+            new_metric._used_columns = list(self.used_columns)
+            new_metric._processed_query = self.processed_query
+            new_metric._placeholder_map = dict(self.placeholder_map)
+            new_metric._metric_expr = self.metric_expr
+
+        return new_metric
 
     @property
     def pretty_name(self) -> str:
@@ -334,6 +494,34 @@ class Metric:
         formatter = f"{{:{',' if self.use_thousand_sep else ''}.{self.decimal_places}f}}{'%' if self.is_percentage else ''}"
         return formatter.format(value)
 
+    @property
+    def used_columns(self) -> list[str]:
+        """Get the column names referenced by the query.
+
+        Returns:
+            A list of column names extracted by the last validation.
+        """
+        return self._used_columns
+
+    @property
+    def processed_query(self) -> str:
+        """Get the query with placeholders resolved to actual expressions."""
+        return self._processed_query
+
+    @property
+    def placeholder_map(self) -> dict[str, str]:
+        """Get the mapping from placeholders to original expressions."""
+        return self._placeholder_map
+
+    @property
+    def metric_expr(self) -> pl.Expr | None:
+        """Get the compiled Polars expression.
+
+        Returns:
+            The compiled expression, or None if not yet validated.
+        """
+        return self._metric_expr
+
     def validate_query(self, available_columns: list[str] | None = None) -> None:
         """Parse, validate structure, extract used columns, and compile the query.
 
@@ -346,7 +534,7 @@ class Metric:
                 scalar expression, references missing columns, or fails to
                 compile to a Polars expression.
         """
-        self.logger.info(
+        self._logger.info(
             "Validating metric query '%s' for metric '%s'", self.query, self.name
         )
 
@@ -376,7 +564,9 @@ class Metric:
         try:
             expr_node = ast.parse(processed_expression, mode="eval").body
         except SyntaxError as e:
-            self.logger.warning("Syntax error in metric query '%s': %s", self.query, e)
+            self._logger.warning(
+                "Syntax error in metric query '%s': %s", self.query, e
+            )
             raise ValueError(f"Syntax error in expression: {e}")
 
         # --- 3. Validate Query Structure ---
@@ -384,7 +574,7 @@ class Metric:
 
         if not validator.is_result_scalar(expr_node):
             node_type_name = type(expr_node).__name__
-            self.logger.error(
+            self._logger.error(
                 "Metric query validation failed: expression is not a scalar"
             )
             raise ValueError(
@@ -394,9 +584,9 @@ class Metric:
         validator.visit(expr_node)
 
         # --- 4. Extract Column Names and Compile ---
-        self.used_columns = sorted(validator.found_columns)
-        self.placeholder_map = validator.placeholder_map
-        self.processed_query = processed_expression
+        self._used_columns = sorted(validator.found_columns)
+        self._placeholder_map = validator.placeholder_map
+        self._processed_query = processed_expression
 
         # Check Columns
         if available_columns is not None:
@@ -404,7 +594,7 @@ class Metric:
             used_set = set(self.used_columns)
             missing_columns = sorted(used_set - available_set)
             if missing_columns:
-                self.logger.error(
+                self._logger.error(
                     "Metric query validation failed: missing columns %s",
                     missing_columns,
                 )
@@ -414,9 +604,11 @@ class Metric:
 
         # Compile Expression
         try:
-            self.metric_expr = self._compile_expression(expr_node, backticked_map)
+            self._metric_expr = self._compile_expression(expr_node, backticked_map)
         except (ValueError, TypeError) as e:
-            self.logger.error("Failed to compile metric query '%s': %s", self.query, e)
+            self._logger.error(
+                "Failed to compile metric query '%s': %s", self.query, e
+            )
             raise ValueError(f"Failed to compile to Polars expression: {e}")
 
     def _compile_expression(
@@ -758,33 +950,31 @@ class Metric:
     ) -> "Metric":
         """Create a copy of this metric with optional new uid and name.
 
+        Compiled state is carried over without revalidation. When uid is
+        omitted the copy derives its content hash from the resulting fields,
+        which equals this metric's ID unless content changed.
+
         Args:
-            uid: New unique identifier, or None to reuse the current uid.
+            uid: Explicit unique identifier for the copy.
             name: New display name, or None to reuse the current name.
 
         Returns:
             A new Metric instance with copied configuration and compiled state.
         """
-        if uid is None:
-            uid = self.uid
-        if name is None:
-            name = self.name
-
         new_metric = Metric(
-            uid=uid,
-            name=name,
+            **({"uid": uid} if uid is not None else {}),
+            name=self.name if name is None else name,
             query=self.query,
-            data_source_ids=self.data_source_ids.copy(),
+            data_source_ids=list(self.data_source_ids),
             is_cumulative=self.is_cumulative,
             use_thousand_sep=self.use_thousand_sep,
             is_percentage=self.is_percentage,
             decimal_places=self.decimal_places,
         )
-
-        new_metric.used_columns = self.used_columns.copy()
-        new_metric.processed_query = self.processed_query
-        new_metric.placeholder_map = self.placeholder_map.copy()
-        new_metric.metric_expr = self.metric_expr
+        new_metric._used_columns = list(self.used_columns)
+        new_metric._processed_query = self.processed_query
+        new_metric._placeholder_map = dict(self.placeholder_map)
+        new_metric._metric_expr = self.metric_expr
 
         return new_metric
 
@@ -819,9 +1009,9 @@ class Metric:
             data_source_ids=data.data_source_ids,
         )
 
-        metric.used_columns = data.used_columns
-        metric.processed_query = data.processed_query
-        metric.placeholder_map = data.placeholder_map
+        metric._used_columns = list(data.used_columns)
+        metric._processed_query = data.processed_query
+        metric._placeholder_map = dict(data.placeholder_map)
 
         return metric
 
@@ -924,7 +1114,7 @@ class DollarBadRate(Metric):
 
         Args:
             var_dlr_bad: Column name containing the dollar bad indicator.
-            var_avg_bal: Column name containing the average balance.
+            var_avg_bal: Column name containing the average balance columns.
             current_rate_mob: Current month-on-book value for annualization.
             data_source_ids: Data sources used to evaluate the metric.
             uid: Unique identifier for the metric.
@@ -942,37 +1132,16 @@ class DollarBadRate(Metric):
         )
 
 
-class DefaultVolume(Metric):
-    """Default volume metric (placeholder for user-provided data)."""
-
-    def __init__(self, data_source_ids: list[DataSourceID], uid: MetricID, name: str):
-        """Initialize the default volume metric.
-
-        Args:
-            data_source_ids: Data sources used to evaluate the metric.
-            uid: Unique identifier for the metric.
-            name: Human-readable metric name.
-        """
-        super().__init__(
-            uid=uid,
-            name=name,
-            query="__MISSING__",
-            is_cumulative=False,
-            use_thousand_sep=True,
-            is_percentage=False,
-            decimal_places=0,
-            data_source_ids=data_source_ids,
-        )
-
-        self.validate_query()
-
-
 class Volume(Metric):
-    """Volume metric computed as the row count (size) of a column."""
+    """Volume metric computed as the row count (size) of a column.
+    
+    If column_name is None, the metric uses "__MISSING__" as a placeholder
+    for user-provided data (default volume).
+    """
 
     def __init__(
         self,
-        column_name: str,
+        column_name: str | None,
         data_source_ids: list[DataSourceID],
         uid: MetricID,
         name: str,
@@ -980,24 +1149,36 @@ class Volume(Metric):
         """Initialize the volume metric.
 
         Args:
-            column_name: Column used to count rows.
+            column_name: Column used to count rows. If None, uses "__MISSING__"
+                as a placeholder for user-provided data (default volume).
             data_source_ids: Data sources used to evaluate the metric.
             uid: Unique identifier for the metric.
             name: Human-readable metric name.
         """
+        is_default = column_name is None
+        query = "__MISSING__" if is_default else f"`{column_name}`.size"
         super().__init__(
             uid=uid,
             name=name,
-            query=f"`{column_name}`.size",
+            query=query,
             is_cumulative=False,
             use_thousand_sep=True,
             is_percentage=False,
             decimal_places=0,
             data_source_ids=data_source_ids,
         )
+        self._column_name = column_name
+        self.validate_query()
+
+    @property
+    def is_default(self) -> bool:
+        """Return True if this is a default volume metric (no column specified)."""
+        return self._column_name is None
 
 
 __all__ = [
+    "DefaultDollarBadRate",
+    "DefaultUnitBadRate",
     "DollarBadRate",
     "Metric",
     "MetricQueryValidator",

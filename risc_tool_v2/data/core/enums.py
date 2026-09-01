@@ -26,12 +26,14 @@ class Signature(StrEnum):
     DATA_REPOSITORY = "DATA_REPOSITORY"
     METRIC_REPOSITORY = "METRIC_REPOSITORY"
     FILTER_REPOSITORY = "FILTER_REPOSITORY"
+    SIMULATION_REPOSITORY = "SIMULATION_REPOSITORY"
 
     # ViewModels
     DATA_IMPORTER_VIEW_MODEL = "DATA_IMPORTER_VIEW_MODEL"
     DATA_EXPLORER_VIEW_MODEL = "DATA_EXPLORER_VIEW_MODEL"
     METRIC_VIEW_MODEL = "METRIC_VIEW_MODEL"
     FILTER_VIEW_MODEL = "FILTER_VIEW_MODEL"
+    SIMULATION_VIEW_MODEL = "SIMULATION_VIEW_MODEL"
 
 
 class VariableType(StrEnum):
@@ -140,9 +142,22 @@ class MetricTemplates(StrEnum):
     UNT_BAD_RATE = "# Bad Rate"
 
 
+class LossRateTypes(StrEnum):
+    """Types of loss rates used in risk calculations.
+
+    Attributes:
+        DLR: Dollar bad rate ($).
+        ULR: Unit bad rate (#).
+    """
+
+    DLR = "$ Bad Rate"
+    ULR = "# Bad Rate"
+
+
 __all__ = [
     "ComparisonOperation",
     "DataExplorerTabName",
+    "LossRateTypes",
     "MetricTemplates",
     "PercentileOptions",
     "Signature",
