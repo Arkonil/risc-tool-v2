@@ -9,8 +9,8 @@ import streamlit as st
 from risc_tool_v2.data.core.utils.logging import get_logger
 from risc_tool_v2.data.data_source.models.completion import Completion
 from risc_tool_v2.data.filter.models.filter import Filter
-from risc_tool_v2.data.session import Session
 from risc_tool_v2.ui.core.components.query_editor import query_editor
+from risc_tool_v2.ui.core.session import get_session
 
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ math_functions = [
 
 
 def back_button():
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
 
     if st.button(
@@ -73,7 +73,7 @@ def pie_chart_widget(filter_obj: Filter | None):
     if filter_obj is None or filter_obj.filter_expr is None:
         return
 
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
     lf = filter_editor_vm.lazyframe
 
@@ -120,7 +120,7 @@ def pie_chart_widget(filter_obj: Filter | None):
 
 
 def on_save():
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
 
     try:
@@ -131,7 +131,7 @@ def on_save():
 
 
 def filter_editor():
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
 
     with st.sidebar:

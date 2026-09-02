@@ -4,8 +4,8 @@ import streamlit as st
 
 from risc_tool_v2.data.core.enums import DataExplorerTabName
 from risc_tool_v2.data.core.utils.logging import get_logger
-from risc_tool_v2.data.session import Session
 from risc_tool_v2.ui.core.components.load_data_prompt import load_data_prompt
+from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.data_source.data_explorer.iv_analysis import iv_analysis
 from risc_tool_v2.ui.data_source.data_explorer.outlier import outlier_rules
 
@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 def data_explorer_view():
     logger.debug("Rendering Data Explorer view")
-    session: Session = st.session_state["session"]
+    session = get_session()
     de_view_model = session.data_explorer_view_model
 
     if not de_view_model.data_loaded:

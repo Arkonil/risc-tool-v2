@@ -6,13 +6,13 @@ import polars as pl
 import streamlit as st
 
 from risc_tool_v2.data.core.utils.logging import get_logger
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 
 logger = get_logger(__name__)
 
 
 def data_source_selector():
-    session: Session = st.session_state["session"]
+    session = get_session()
     data_explorer_vm = session.data_explorer_view_model
 
     current_data_source_ids = data_explorer_vm.iv_data_sources
@@ -75,7 +75,7 @@ def iv_bar_chart(dataframe: pd.DataFrame):
 
 
 def iv_analysis():
-    session: Session = st.session_state["session"]
+    session = get_session()
     de_view_model = session.data_explorer_view_model
 
     chart_container, control_container = st.columns([2.5, 1])

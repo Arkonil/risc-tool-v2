@@ -3,13 +3,13 @@
 import streamlit as st
 
 from risc_tool_v2.data.core.utils.logging import get_logger
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 
 logger = get_logger(__name__)
 
 
 def data_viewer():
-    session: Session = st.session_state["session"]
+    session = get_session()
     data_importer_view_model = session.data_importer_view_model
 
     if data_importer_view_model.is_empty:

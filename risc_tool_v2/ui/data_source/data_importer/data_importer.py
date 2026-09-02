@@ -3,7 +3,7 @@
 import streamlit as st
 
 from risc_tool_v2.data.core.utils.logging import get_logger
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.data_source.data_importer.data_selector import data_selector
 from risc_tool_v2.ui.data_source.data_importer.data_viewer import data_viewer
 
@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 def data_importer_view():
     logger.debug("Rendering Data Importer page")
-    session: Session = st.session_state["session"]
+    session = get_session()
     data_importer_view_model = session.data_importer_view_model
 
     st.title("Data Importer")

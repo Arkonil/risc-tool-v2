@@ -8,7 +8,7 @@ import streamlit as st
 from risc_tool_v2.data.core.uid import DataSourceID
 from risc_tool_v2.data.core.utils.logging import get_logger
 from risc_tool_v2.data.data_source.models.data_source import ReadConfig, ReadMode
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.data_source.data_importer.data_importer_vm import (
     DataSourceViewModel,
 )
@@ -138,7 +138,7 @@ def file_selector(
     import_button_label: t.Literal["Add", "Refresh"],
     delete_btn_disabled: bool = False,
 ):
-    session: Session = st.session_state["session"]
+    session = get_session()
     data_importer_view_model = session.data_importer_view_model
 
     data_source = data_source_vm.data_source
@@ -234,7 +234,7 @@ def file_selector(
 
 
 def data_selector():
-    session: Session = st.session_state["session"]
+    session = get_session()
     data_importer_view_model = session.data_importer_view_model
 
     existing_count = 0

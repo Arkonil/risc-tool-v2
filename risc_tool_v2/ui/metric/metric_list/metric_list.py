@@ -3,12 +3,12 @@
 import streamlit as st
 
 from risc_tool_v2.data.core.uid import MetricID
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.metric.no_metric_placeholder import no_metric_placeholder
 
 
 def sidebar_widgets():
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     if st.button(
@@ -23,7 +23,7 @@ def sidebar_widgets():
 
 @st.dialog("Confirm Deletion")
 def delete_confirmation_dialog(metric_id: MetricID):
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     metric_obj = metric_editor_vm.metrics[metric_id]
@@ -42,7 +42,7 @@ def delete_confirmation_dialog(metric_id: MetricID):
 
 
 def metric_list():
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     if not metric_editor_vm.metrics:

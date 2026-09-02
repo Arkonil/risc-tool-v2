@@ -10,13 +10,13 @@ from risc_tool_v2.data.core.enums import (
 )
 from risc_tool_v2.data.core.uid import FilterID
 from risc_tool_v2.data.core.utils.logging import get_logger
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 
 logger = get_logger(__name__)
 
 
 def show_boxplot(variable: str):
-    session: Session = st.session_state["session"]
+    session = get_session()
     de_view_model = session.data_explorer_view_model
 
     df, perc_df = de_view_model.get_boxplot_data(
@@ -109,7 +109,7 @@ def show_boxplot(variable: str):
 
 
 def show_quantile_table(variable: str, quantiles: list[float]):
-    session: Session = st.session_state["session"]
+    session = get_session()
     de_view_model = session.data_explorer_view_model
 
     df = de_view_model.get_quantile_table(
@@ -144,7 +144,7 @@ def outlier_rule_input(
     frequency: int = 0,
     show_dist_as_chart: bool = True,
 ):
-    session: Session = st.session_state["session"]
+    session = get_session()
     de_view_model = session.data_explorer_view_model
 
     all_variables = [
@@ -259,7 +259,7 @@ def outlier_rule_input(
 
 
 def outlier_rules():
-    session: Session = st.session_state["session"]
+    session = get_session()
     de_view_model = session.data_explorer_view_model
 
     show_dist_as_chart = st.sidebar.checkbox(

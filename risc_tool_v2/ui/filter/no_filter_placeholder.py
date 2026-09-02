@@ -3,7 +3,7 @@
 import streamlit as st
 
 from risc_tool_v2.data.data_source.models.asset_path import AssetPath
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 
 
 def no_filter_placeholder(key: int = 0):
@@ -12,7 +12,7 @@ def no_filter_placeholder(key: int = 0):
     Args:
         key: The widget key for the create button.
     """
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
 
     with st.container(horizontal_alignment="center"):

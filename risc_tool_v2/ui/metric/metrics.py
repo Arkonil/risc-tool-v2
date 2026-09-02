@@ -3,8 +3,8 @@
 import streamlit as st
 
 from risc_tool_v2.data.core.utils.logging import get_logger
-from risc_tool_v2.data.session import Session
 from risc_tool_v2.ui.core.components.load_data_prompt import load_data_prompt
+from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.metric.metric_editor.metric_editor import metric_editor
 from risc_tool_v2.ui.metric.metric_list.metric_list import metric_list
 
@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 
 def metrics_view():
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     if not metric_editor_vm.data_loaded:

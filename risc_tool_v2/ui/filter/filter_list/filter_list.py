@@ -5,14 +5,14 @@ import streamlit as st
 from risc_tool_v2.data.core.uid import FilterID
 from risc_tool_v2.data.core.utils.logging import get_logger
 from risc_tool_v2.data.filter.models.outlier import OutlierRule
-from risc_tool_v2.data.session import Session
+from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.filter.no_filter_placeholder import no_filter_placeholder
 
 logger = get_logger(__name__)
 
 
 def sidebar_widgets():
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
 
     if st.button(
@@ -27,7 +27,7 @@ def sidebar_widgets():
 
 @st.dialog("Confirm Deletion")
 def delete_confirmation_dialog(filter_id: FilterID):
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
 
     filter_obj = filter_editor_vm.filters[filter_id]
@@ -50,7 +50,7 @@ def delete_confirmation_dialog(filter_id: FilterID):
 
 
 def filter_list():
-    session: Session = st.session_state["session"]
+    session = get_session()
     filter_editor_vm = session.filter_editor_view_model
     logger.debug(
         "Rendering filter list with %d filters", len(filter_editor_vm.get_filters())

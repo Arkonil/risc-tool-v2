@@ -8,12 +8,12 @@ import streamlit as st
 from risc_tool_v2.data.core.enums import MetricTemplates
 from risc_tool_v2.data.data_source.models.completion import Completion
 from risc_tool_v2.data.metric.models.metric import MetricQueryValidator
-from risc_tool_v2.data.session import Session
 from risc_tool_v2.ui.core.components.query_editor import query_editor
+from risc_tool_v2.ui.core.session import get_session
 
 
 def back_button():
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     if st.button(
@@ -26,7 +26,7 @@ def back_button():
 
 
 def data_source_selector():
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     current_data_source_ids = metric_editor_vm.metric_cache.data_source_ids
@@ -87,7 +87,7 @@ def format_display(use_thousand_sep: bool, is_percentage: bool, decimal_places: 
 
 
 def format_selector():
-    session: Session = st.session_state["session"]
+    session = get_session()
     mc = session.metric_editor_view_model
 
     st.markdown("##### Metric Format:")
@@ -143,7 +143,7 @@ def format_selector():
 
 
 def on_save():
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     try:
@@ -158,7 +158,7 @@ def format_value_str(val: str):
 
 
 def template_builder() -> dict[str, str]:
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     if "metric_template_state" not in st.session_state:
@@ -322,7 +322,7 @@ def template_builder() -> dict[str, str]:
 
 
 def metric_editor():
-    session: Session = st.session_state["session"]
+    session = get_session()
     metric_editor_vm = session.metric_editor_view_model
 
     back_button()
