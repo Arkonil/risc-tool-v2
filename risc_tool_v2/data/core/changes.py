@@ -13,6 +13,7 @@ Key concepts:
 - Callback: Function signature for change notifications.
 """
 
+import time
 import typing as t
 from abc import ABC, abstractmethod
 from uuid import uuid4
@@ -282,18 +283,29 @@ class ChangeNotifier(ChangeTracker):
             remaps: Optional identity remappings (``{id_class: {old_id: new_id}}``)
                 to deliver to subscribers alongside the change IDs.
         """
+        self.logger.info("NOTIFY_ENTRY %s at %.3f", self.signature, time.time())
         remaps = self._consume_pending_remaps(remaps)
 
         new_change_id: ChangeID = (self.signature, uuid4())
-
         if change_ids is None:
             all_change_ids: ChangeIDs = {new_change_id}
         else:
             all_change_ids: ChangeIDs = change_ids | {new_change_id}
 
         self.logger.debug("Notifying %d subscribers", len(self._subscribers))
-        for callback in self._subscribers.values():
+        for key, callback in self._subscribers.items():
+            _t0 = time.perf_counter()
             callback(all_change_ids, remaps)
+            _t1 = time.perf_counter()
+            _owner = getattr(getattr(callback, "__self__", None), "__class__", None)
+            _owner = getattr(_owner, "__name__", _owner) if _owner else "?"
+            if _t1 - _t0 > 0.05:
+                self.logger.info(
+                    "SUBSCRIBER %s (%s) took %.3fs",
+                    _owner,
+                    getattr(callback, "__name__", key),
+                    _t1 - _t0,
+                )
 
     def _on_dependency_update(
         self, change_ids: ChangeIDs, remaps: Remaps | None = None
