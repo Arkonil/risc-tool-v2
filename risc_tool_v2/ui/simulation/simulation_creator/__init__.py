@@ -23,18 +23,18 @@ from risc_tool_v2.ui.simulation.simulation_creator import (
 from risc_tool_v2.ui.simulation.simulation_creator.base import vm
 
 
-def _sidebar_widgets() -> None:
+def _back_button() -> None:
     simulation_vm = vm()
-
-    if st.button(
-        label="Cancel",
-        width="stretch",
-        type="secondary",
-        icon=":material/arrow_back:",
-    ):
-        simulation_vm.clear_draft()
-        simulation_vm.set_mode("graph")
-        st.rerun()
+    columns = st.columns([100, 900], vertical_alignment="center")
+    with columns[0]:
+        if st.button(
+            label="Back",
+            icon=":material/arrow_back_ios:",
+            type="primary",
+        ):
+            simulation_vm.clear_draft()
+            simulation_vm.set_mode("graph")
+            st.rerun()
 
 
 def simulation_creator() -> None:
@@ -42,8 +42,7 @@ def simulation_creator() -> None:
     simulation_vm = vm()
     simulation_vm.clear_errors()
 
-    with st.sidebar:
-        _sidebar_widgets()
+    _back_button()
 
     st.title("Create New Simulation")
 
