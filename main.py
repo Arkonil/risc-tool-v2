@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-from risc_tool import run_app
+from risc_tool_v2 import run_app
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

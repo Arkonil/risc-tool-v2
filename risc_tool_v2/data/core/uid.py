@@ -30,6 +30,24 @@ _FILTER_UNSET_INT = 2**128 - 6
 _METRIC_TEMPORARY_INT = 2**128 - 7
 _METRIC_EMPTY_INT = 2**128 - 8
 _METRIC_UNSET_INT = 2**128 - 9
+_SIM_GEN_TEMPORARY_INT = 2**128 - 10
+_SIM_GEN_EMPTY_INT = 2**128 - 11
+_SIM_GEN_UNSET_INT = 2**128 - 12
+_SIM_CFG_TEMPORARY_INT = 2**128 - 13
+_SIM_CFG_EMPTY_INT = 2**128 - 14
+_SIM_CFG_UNSET_INT = 2**128 - 15
+_SIM_OUT_TEMPORARY_INT = 2**128 - 16
+_SIM_OUT_EMPTY_INT = 2**128 - 17
+_SIM_OUT_UNSET_INT = 2**128 - 18
+_GROUP_TEMPORARY_INT = 2**128 - 19
+_GROUP_EMPTY_INT = 2**128 - 20
+_GROUP_UNSET_INT = 2**128 - 21
+_RISK_SEG_TEMPORARY_INT = 2**128 - 22
+_RISK_SEG_EMPTY_INT = 2**128 - 23
+_RISK_SEG_UNSET_INT = 2**128 - 24
+_SIM_TEMPORARY_INT = 2**128 - 25
+_SIM_EMPTY_INT = 2**128 - 26
+_SIM_UNSET_INT = 2**128 - 27
 
 
 class BaseUID(UUID):
@@ -255,10 +273,110 @@ MetricID.EMPTY = MetricID.register_sentinel("EMPTY", _METRIC_EMPTY_INT)
 MetricID.UNSET = MetricID.register_sentinel("UNSET", _METRIC_UNSET_INT)
 
 
+class SimulationConfigGeneratorID(BaseUID):
+    TEMPORARY: "SimulationConfigGeneratorID"
+    EMPTY: "SimulationConfigGeneratorID"
+    UNSET: "SimulationConfigGeneratorID"
+
+
+SimulationConfigGeneratorID.TEMPORARY = SimulationConfigGeneratorID.register_sentinel(
+    "TEMPORARY", _SIM_GEN_TEMPORARY_INT
+)
+SimulationConfigGeneratorID.EMPTY = SimulationConfigGeneratorID.register_sentinel(
+    "EMPTY", _SIM_GEN_EMPTY_INT
+)
+SimulationConfigGeneratorID.UNSET = SimulationConfigGeneratorID.register_sentinel(
+    "UNSET", _SIM_GEN_UNSET_INT
+)
+
+
+class SimulationConfigID(BaseUID):
+    TEMPORARY: "SimulationConfigID"
+    EMPTY: "SimulationConfigID"
+    UNSET: "SimulationConfigID"
+
+
+SimulationConfigID.TEMPORARY = SimulationConfigID.register_sentinel(
+    "TEMPORARY", _SIM_CFG_TEMPORARY_INT
+)
+SimulationConfigID.EMPTY = SimulationConfigID.register_sentinel(
+    "EMPTY", _SIM_CFG_EMPTY_INT
+)
+SimulationConfigID.UNSET = SimulationConfigID.register_sentinel(
+    "UNSET", _SIM_CFG_UNSET_INT
+)
+
+
+class SimulationOutputID(BaseUID):
+    TEMPORARY: "SimulationOutputID"
+    EMPTY: "SimulationOutputID"
+    UNSET: "SimulationOutputID"
+
+
+SimulationOutputID.TEMPORARY = SimulationOutputID.register_sentinel(
+    "TEMPORARY", _SIM_OUT_TEMPORARY_INT
+)
+SimulationOutputID.EMPTY = SimulationOutputID.register_sentinel(
+    "EMPTY", _SIM_OUT_EMPTY_INT
+)
+SimulationOutputID.UNSET = SimulationOutputID.register_sentinel(
+    "UNSET", _SIM_OUT_UNSET_INT
+)
+
+
+class GroupID(BaseUID):
+    TEMPORARY: "GroupID"
+    EMPTY: "GroupID"
+    UNSET: "GroupID"
+
+
+GroupID.TEMPORARY = GroupID.register_sentinel("TEMPORARY", _GROUP_TEMPORARY_INT)
+GroupID.EMPTY = GroupID.register_sentinel("EMPTY", _GROUP_EMPTY_INT)
+GroupID.UNSET = GroupID.register_sentinel("UNSET", _GROUP_UNSET_INT)
+
+
+class RiskSegmentID(BaseUID):
+    TEMPORARY: "RiskSegmentID"
+    EMPTY: "RiskSegmentID"
+    UNSET: "RiskSegmentID"
+
+
+RiskSegmentID.TEMPORARY = RiskSegmentID.register_sentinel(
+    "TEMPORARY", _RISK_SEG_TEMPORARY_INT
+)
+RiskSegmentID.EMPTY = RiskSegmentID.register_sentinel("EMPTY", _RISK_SEG_EMPTY_INT)
+RiskSegmentID.UNSET = RiskSegmentID.register_sentinel("UNSET", _RISK_SEG_UNSET_INT)
+
+
+class SimulationID(BaseUID):
+    """Identifier for a simulation top-level object (unique per creation event).
+
+    Unlike content-addressed IDs, a Simulation's identity is unique per
+    creation event: two simulations with identical SCGs are still distinct
+    objects. Also provides the ``TEMPORARY``, ``EMPTY``, and ``UNSET``
+    sentinels.
+    """
+
+    TEMPORARY: "SimulationID"
+    EMPTY: "SimulationID"
+    UNSET: "SimulationID"
+
+
+SimulationID.TEMPORARY = SimulationID.register_sentinel("TEMPORARY", _SIM_TEMPORARY_INT)
+SimulationID.EMPTY = SimulationID.register_sentinel("EMPTY", _SIM_EMPTY_INT)
+SimulationID.UNSET = SimulationID.register_sentinel("UNSET", _SIM_UNSET_INT)
+
+
 __all__ = [
     "BaseUID",
     "DataSourceID",
     "FilterID",
+    "GroupID",
     "MetricID",
+    "RiskSegmentID",
+    "SimulationConfigGeneratorID",
+    "SimulationConfigID",
+    "SimulationID",
+    "SimulationOutputID",
     "short_id",
 ]

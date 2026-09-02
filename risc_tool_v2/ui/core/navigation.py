@@ -6,6 +6,7 @@ from risc_tool_v2.ui.data_source.data_explorer.data_explorer import data_explore
 from risc_tool_v2.ui.data_source.data_importer.data_importer import data_importer_page
 from risc_tool_v2.ui.filter.filters import filter_page
 from risc_tool_v2.ui.metric.metrics import metrics_page
+from risc_tool_v2.ui.simulation.simulations import simulation_page
 
 
 def set_page_navigation():
@@ -15,6 +16,7 @@ def set_page_navigation():
             data_explorer_page,
             filter_page,
             metrics_page,
+            simulation_page,
         ],
     })
 
