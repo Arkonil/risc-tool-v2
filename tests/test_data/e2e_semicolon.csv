@@ -1,0 +1,6 @@
+application_date;credit_score;income;credit_limit;average_balance;age;dti_ratio;num_open_lines;employment_status;housing_status;credit_default_flag;credit_default_amount
+2018-01-01;696;50926.69;25000.0;6497.22;76;0.343;5;Employed;Rent;1;3404.78
+2018-01-01;769;52808.21;12700.0;8719.34;38;0.112;7;Employed;Own;0;0.0
+2018-01-01;509;67475.41;23900.0;2824.2;50;0.171;2;Employed;Own;1;2081.74
+2018-01-01;689;37212.96;4700.0;3746.79;68;0.1;5;Employed;Rent;0;0.0
+2018-01-01;575;30682.69;13900.0;5216.13;79;0.316;7;Employed;Rent;1;3173.52
