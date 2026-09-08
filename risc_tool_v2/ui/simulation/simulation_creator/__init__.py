@@ -32,7 +32,10 @@ def _back_button() -> None:
             icon=":material/arrow_back_ios:",
             type="primary",
         ):
-            simulation_vm.clear_draft()
+            if simulation_vm.is_editing:
+                simulation_vm.cancel_edit_draft()
+            else:
+                simulation_vm.clear_draft()
             simulation_vm.set_mode("graph")
             st.rerun()
 
@@ -44,7 +47,10 @@ def simulation_creator() -> None:
 
     _back_button()
 
-    st.title("Create New Simulation")
+    if simulation_vm.is_editing:
+        st.title("Edit Simulation")
+    else:
+        st.title("Create New Simulation")
 
     draft = simulation_vm.draft_scg
 
@@ -83,9 +89,9 @@ def simulation_creator() -> None:
     st.divider()
 
     if st.button(
-        label="Create Simulation",
+        label="Save Changes" if simulation_vm.is_editing else "Create New Simulation",
         type="primary",
-        icon=":material/add:",
+        icon=":material/save:" if simulation_vm.is_editing else ":material/add:",
         width="content",
         disabled=bool(errors),
     ):

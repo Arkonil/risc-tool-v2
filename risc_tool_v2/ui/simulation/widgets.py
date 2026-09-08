@@ -80,8 +80,13 @@ def column_selector(
     key: str,
     placeholder: str,
     current: str | None,
+    data_source_ids: tuple[DataSourceID, ...] | None = None,
 ) -> str | None:
-    columns = _session().simulation_view_model.common_columns
+    sim_vm = _session().simulation_view_model
+    if data_source_ids is None:
+        columns = sim_vm.common_columns
+    else:
+        columns = sim_vm.selected_common_columns(data_source_ids)
 
     selected = st.selectbox(
         label=key,
@@ -98,13 +103,17 @@ def unit_bad_rate_row(
     label: str,
     key: str,
     numerator: str | None,
+    data_source_ids: tuple[DataSourceID, ...] | None = None,
 ) -> str | None:
     col1, col2, col3, col4, col5 = st.columns([4, 1, 5, 1, 5], gap=None)
     metric_text_widget(col1, label)
     metric_text_widget(col2, "=")
     with col3:
         unt_bad = column_selector(
-            key=f"{key}_unt_bad", placeholder="# Bad Count", current=numerator
+            key=f"{key}_unt_bad",
+            placeholder="# Bad Count",
+            current=numerator,
+            data_source_ids=data_source_ids,
         )
     metric_text_widget(col4, "/")
     metric_text_widget(col5, "# Accounts")
@@ -116,18 +125,25 @@ def dollar_bad_rate_row(
     key: str,
     numerator: str | None,
     denominator: str | None,
+    data_source_ids: tuple[DataSourceID, ...] | None = None,
 ) -> tuple[str | None, str | None]:
     col1, col2, col3, col4, col5 = st.columns([4, 1, 5, 1, 5], gap=None)
     metric_text_widget(col1, label)
     metric_text_widget(col2, "=")
     with col3:
         dlr_bad = column_selector(
-            key=f"{key}_dlr_bad", placeholder="$ Bad Amount", current=numerator
+            key=f"{key}_dlr_bad",
+            placeholder="$ Bad Amount",
+            current=numerator,
+            data_source_ids=data_source_ids,
         )
     metric_text_widget(col4, "/")
     with col5:
         avg_bal = column_selector(
-            key=f"{key}_avg_bal", placeholder="$ Avg Balance", current=denominator
+            key=f"{key}_avg_bal",
+            placeholder="$ Avg Balance",
+            current=denominator,
+            data_source_ids=data_source_ids,
         )
     return dlr_bad, avg_bal
 

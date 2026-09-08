@@ -7,11 +7,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from risc_tool_v2.data.core.uid import SimulationID
-from risc_tool_v2.data.simulation.models.simulation_config import (
-    SimulationConfigGenerator,
-    SimulationOutput,
-)
+from risc_tool_v2.data.core.uid import SimulationConfigGeneratorID, SimulationID
 
 
 class SimulationStatus(StrEnum):
@@ -26,9 +22,12 @@ class SimulationStatus(StrEnum):
 class Simulation(BaseModel, frozen=True):
     """Top-level simulation entity stored in the repository.
 
-    Every Simulation owns exactly one SimulationConfigGenerator. The status
-    and timestamps track execution lifecycle, and ``output`` holds the
-    optional SimulationOutput produced when the simulation has run.
+    Every Simulation references exactly one SimulationConfigGenerator by its
+    content-addressed :attr:`simulation_config_generator_id`; the SCG object
+    itself lives in the repository's ``scgs`` store. The status and timestamps
+    track execution lifecycle. Produced outputs are reachable through the
+    reference chain ``simulation -> scg -> sc -> so`` (held in the repository
+    stores keyed by content hash), not stored directly here.
 
     The ``uid`` is unique per creation event (not content-addressed): two
     simulations with identical SCGs are still distinct entities.
@@ -37,10 +36,9 @@ class Simulation(BaseModel, frozen=True):
     model_config = ConfigDict(extra="forbid")
 
     uid: SimulationID = SimulationID.UNSET
-    simulation_config_generator: SimulationConfigGenerator
+    simulation_config_generator_id: SimulationConfigGeneratorID
 
     status: SimulationStatus = SimulationStatus.PENDING
-    output: SimulationOutput | None = None
     error_message: str | None = None
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -62,18 +60,15 @@ class Simulation(BaseModel, frozen=True):
     def with_updates(self, **updates: t.Any) -> "Simulation":
         """Return a copy of this simulation with updated fields."""
         fields: dict[str, t.Any] = {
-            "simulation_config_generator": self.simulation_config_generator,
+            "uid": self.uid,
+            "simulation_config_generator_id": self.simulation_config_generator_id,
             "status": self.status,
-            "output": self.output,
             "error_message": self.error_message,
             "created_at": self.created_at,
             "run_started_at": self.run_started_at,
             "run_completed_at": self.run_completed_at,
         }
         fields.update(updates)
-        # A newly derived output/status should roll forward the timestamps.
-        if updates.get("output") is not None and updates.get("output") != self.output:
-            fields["run_completed_at"] = datetime.now(UTC)
         return Simulation(**fields)
 
 

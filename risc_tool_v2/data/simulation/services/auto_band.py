@@ -7,7 +7,7 @@ from decimal import Decimal
 import polars as pl
 
 from risc_tool_v2.data.core.enums import LossRateTypes
-from risc_tool_v2.data.core.uid import GroupID
+from risc_tool_v2.data.core.uid import RiskSegmentID
 from risc_tool_v2.data.core.utils.logging import get_logger
 from risc_tool_v2.data.simulation.models.groups import CategoricalGroup, NumericalGroup
 from risc_tool_v2.data.simulation.models.risk_segment import RiskSegmentConfig
@@ -90,7 +90,7 @@ def create_auto_numeric_bands(
     mob: int = 12,
     use_scalar: bool = True,
     hv_imp_hr: bool | None = None,
-) -> OrderedDict[GroupID, NumericalGroup]:
+) -> OrderedDict[RiskSegmentID, NumericalGroup]:
     """Create optimal numerical band boundaries for risk segments."""
     schema = base_lf.collect_schema()
 
@@ -156,7 +156,7 @@ def create_auto_numeric_bands(
         .collect()
     )
 
-    groups: OrderedDict[GroupID, NumericalGroup] = OrderedDict()
+    groups: OrderedDict[RiskSegmentID, NumericalGroup] = OrderedDict()
 
     minimum_difference = (
         group_df
@@ -182,7 +182,7 @@ def create_auto_numeric_bands(
         for risk_seg_id, risk_seg in risk_segment_config.get_segments(
             normalize=True
         ).items():
-            groups[GroupID(risk_seg_id)] = NumericalGroup(
+            groups[risk_seg_id] = NumericalGroup(
                 lower_bound=0.0,
                 upper_bound=0.0,
             )
@@ -282,7 +282,7 @@ def create_auto_numeric_bands(
         if not selected.is_empty():
             last_value = float(selected.select(pl.col("variable").max()).item())
 
-        groups[GroupID(risk_seg_id)] = NumericalGroup(
+        groups[risk_seg_id] = NumericalGroup(
             lower_bound=current_lower_bound,
             upper_bound=last_value,
         )
@@ -324,7 +324,7 @@ def create_auto_categorical_bands(
     denominator: str | None = None,
     mob: int = 12,
     use_scalar: bool = True,
-) -> OrderedDict[GroupID, CategoricalGroup]:
+) -> OrderedDict[RiskSegmentID, CategoricalGroup]:
     """Create optimal categorical groups for risk segments."""
     schema = base_lf.collect_schema()
 
@@ -375,7 +375,7 @@ def create_auto_categorical_bands(
         .collect()
     )
 
-    groups: OrderedDict[GroupID, CategoricalGroup] = OrderedDict()
+    groups: OrderedDict[RiskSegmentID, CategoricalGroup] = OrderedDict()
 
     for risk_seg_id, risk_seg in risk_segment_config.get_segments(
         normalize=True
@@ -397,7 +397,7 @@ def create_auto_categorical_bands(
             .to_list()
         )
 
-        groups[GroupID(risk_seg_id)] = CategoricalGroup(categories=categories)
+        groups[risk_seg_id] = CategoricalGroup(categories=categories)
         group_df = group_df.filter(~pl.col(variable).cast(pl.String).is_in(categories))
 
     last_group_id = next(reversed(groups), None)

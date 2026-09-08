@@ -1,7 +1,5 @@
 """Simulation graph view: streamlit-flow canvas with sidebar actions."""
 
-import html
-
 import streamlit as st
 from streamlit_flow import streamlit_flow  # type: ignore
 from streamlit_flow.elements import StreamlitFlowEdge, StreamlitFlowNode  # type: ignore
@@ -36,28 +34,16 @@ def _sidebar_widgets(selected_id: SimulationID | None) -> None:
     if selected_id is not None:
         sim_id: SimulationID = selected_id
 
-        def _run() -> None:
-            simulation_vm.run_simulation(sim_id)
-
         st.sidebar.divider()
         st.sidebar.markdown(f"**Selected: Simulation #{sim_id}**")
 
         st.sidebar.button(
-            label="Run Simulation",
-            icon=":material/play_arrow:",
+            label="Open Simulation",
+            icon=":material/open_in_new:",
             width="stretch",
             type="primary",
-            on_click=_run,
+            on_click=lambda: simulation_vm.set_mode("view", sim_id),
         )
-
-        if st.sidebar.button(
-            label="Delete Simulation",
-            icon=":material/delete:",
-            width="stretch",
-            type="secondary",
-        ):
-            simulation_vm.remove_simulation(sim_id)
-            st.rerun()
 
 
 def simulation_graph() -> None:
@@ -71,8 +57,9 @@ def simulation_graph() -> None:
 
     nodes: list[StreamlitFlowNode] = []
     for sim_id, sim in simulations.items():
-        safe_name = html.escape(sim.simulation_config_generator.name)
-        safe_var = html.escape(sim.simulation_config_generator.variable_name)
+        scg = simulation_vm.scg_for(sim)
+        safe_name = scg.name
+        safe_var = scg.variable_name
         status = sim.status.value
 
         node_content = f"""<p>
@@ -121,9 +108,12 @@ def simulation_graph() -> None:
     )
 
     selected_id: SimulationID | None = None
-    if new_state.selected_id is not None:
+    raw_selected: str | None = (
+        str(new_state.selected_id) if new_state.selected_id is not None else None
+    )
+    if raw_selected is not None:
         try:
-            selected_id = SimulationID(str(new_state.selected_id))
+            selected_id = SimulationID(raw_selected)
         except (TypeError, ValueError):
             selected_id = None
 

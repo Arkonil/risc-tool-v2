@@ -4,8 +4,6 @@ from risc_tool_v2.data.simulation.models.groups import (
     CategoricalGroup,
     GroupBase,
     NumericalGroup,
-    SupportsGroups,
-    rebuild_group_dict,
 )
 from risc_tool_v2.data.simulation.models.risk_segment import (
     RiskSegment,
@@ -36,8 +34,6 @@ __all__ = [
     "SimulationConfigGenerator",
     "SimulationOutput",
     "SimulationStatus",
-    "SupportsGroups",
     "get_default_risk_segments",
     "is_valid_hex_color",
-    "rebuild_group_dict",
 ]

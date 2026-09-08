@@ -30,10 +30,13 @@ from risc_tool_v2.data.simulation.models.simulation import Simulation
 from risc_tool_v2.data.simulation.models.simulation_config import (
     BadRateConfig,
     SimulationConfigGenerator,
+    SimulationOutput,
 )
 from risc_tool_v2.data.simulation.repositories.simulation_repository import (
     SimulationRepository,
 )
+
+Mode = t.Literal["graph", "create", "view"]
 
 
 class SimulationViewModel(ChangeTracker):
@@ -62,8 +65,9 @@ class SimulationViewModel(ChangeTracker):
         self.__metric_repository = metric_repository
 
         # UI state
-        self.__view_mode: t.Literal["graph", "create", "view"] = "graph"
+        self.__view_mode: Mode = "graph"
         self.__current_simulation_id: SimulationID | None = None
+        self.__editing_sim_id: SimulationID | None = None
         self.__draft_scg: SimulationConfigGenerator | None = None
         self.__errors: list[str] = []
 
@@ -87,7 +91,7 @@ class SimulationViewModel(ChangeTracker):
         return self.__data_repository.has_valid_sources
 
     @property
-    def mode(self) -> t.Literal["graph", "create", "view"]:
+    def mode(self) -> Mode:
         return self.__view_mode
 
     @property
@@ -104,13 +108,41 @@ class SimulationViewModel(ChangeTracker):
 
     def set_mode(
         self,
-        mode: t.Literal["graph", "create", "view"],
+        mode: Mode,
         sim_id: SimulationID | None = None,
     ) -> None:
         self.__view_mode = mode
         self.__current_simulation_id = sim_id
+        if mode != "create":
+            self.__editing_sim_id = None
         if mode == "create":
             self.begin_draft()
+
+    @property
+    def is_editing(self) -> bool:
+        return self.__editing_sim_id is not None
+
+    @property
+    def editing_simulation_id(self) -> SimulationID | None:
+        return self.__editing_sim_id
+
+    def begin_edit_draft(self, sim_id: SimulationID) -> None:
+        """Populate the draft from an existing Simulation's SCG for editing."""
+        sim = self.__simulation_repository.get_simulation(sim_id)
+        scg_id = sim.simulation_config_generator_id
+        if scg_id not in self.__simulation_repository.scgs:
+            raise ValueError(f"Simulation {sim_id} references missing SCG {scg_id}.")
+        self.__editing_sim_id = sim_id
+        self.__current_simulation_id = sim_id
+        self.__draft_scg = self.__simulation_repository.scgs[scg_id]
+        self.__view_mode = "create"
+
+    def cancel_edit_draft(self) -> None:
+        """Abandon an in-progress edit without saving."""
+        self.__editing_sim_id = None
+        self.__current_simulation_id = None
+        self.__draft_scg = None
+        self.__view_mode = "graph"
 
     @property
     def filters(self) -> dict[FilterID, Filter]:
@@ -353,10 +385,17 @@ class SimulationViewModel(ChangeTracker):
         draft = self.__draft_scg
         if draft is None:
             raise RuntimeError("Cannot confirm simulation without a draft.")
-        sim = self.__simulation_repository.create_simulation(draft)
+        if self.__editing_sim_id is not None:
+            sim = self.__simulation_repository.update_simulation_scg(
+                self.__editing_sim_id, draft
+            )
+        else:
+            sim = self.__simulation_repository.create_simulation(draft)
+        editing = self.__editing_sim_id is not None
+        self.__editing_sim_id = None
         self.__draft_scg = None
         self.__current_simulation_id = sim.uid
-        self.__view_mode = "graph"
+        self.__view_mode = "view" if editing else "graph"
 
     @property
     def _empty_draft(self) -> SimulationConfigGenerator:
@@ -379,8 +418,16 @@ class SimulationViewModel(ChangeTracker):
     def simulations(self) -> dict[SimulationID, Simulation]:
         return self.__simulation_repository.simulations
 
+    def scg_for(self, sim: Simulation) -> SimulationConfigGenerator:
+        return self.__simulation_repository.scgs[sim.simulation_config_generator_id]
+
     def run_simulation(self, sim_id: SimulationID) -> Simulation:
         return self.__simulation_repository.run_simulation(sim_id)
+
+    def get_simulation_outputs(
+        self, sim_id: SimulationID
+    ) -> tuple[SimulationOutput, ...]:
+        return self.__simulation_repository.get_simulation_outputs(sim_id)
 
     def remove_simulation(self, sim_id: SimulationID) -> None:
         self.__simulation_repository.remove_simulation(sim_id)
@@ -391,6 +438,15 @@ class SimulationViewModel(ChangeTracker):
     @property
     def common_columns(self) -> list[str]:
         return [c[0] for c in self.__data_repository.common_columns()]
+
+    def selected_common_columns(
+        self, data_source_ids: t.Sequence[DataSourceID]
+    ) -> list[str]:
+        if not data_source_ids:
+            return []
+        return [
+            c[0] for c in self.__data_repository.common_columns(list(data_source_ids))
+        ]
 
     @property
     def data_source_labels(self) -> dict[DataSourceID, str]:
