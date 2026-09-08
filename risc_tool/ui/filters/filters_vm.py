@@ -11,8 +11,9 @@ from risc_tool.data.models.completion import Completion
 from risc_tool.data.models.enums import Signature
 from risc_tool.data.models.exceptions import InvalidFilterError, format_error
 from risc_tool.data.models.filter import Filter
-from risc_tool.data.models.object_id import FilterID
+from risc_tool.data.models.id_remap import Remaps, get_remap, remap_value
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import DataSourceID, FilterID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 
@@ -59,14 +60,67 @@ class FilterViewModel(ChangeTracker):
         self.__errors: list[InvalidFilterError | ValueError | SyntaxError] = []
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
-        """Handle dependency updates by resetting the filter cache and errors.
+        """Handle dependency updates by dropping the editor cache when stale.
+
+        Called after :meth:`on_dependency_remap`. An edit session survives
+        when the filter under edit still exists in the repository (it was
+        kept or freshly rewritten by the repository's own validation);
+        otherwise — deleted/invalidated filters and unsaved drafts — the
+        cache resets to the empty placeholder.
 
         Args:
             change_ids: Set of change IDs from the dependency.
         """
+        current_uid = self.__filter_cache.uid
+        if current_uid != FilterID.EMPTY and (
+            current_uid in self.__filter_repository.filters
+        ):
+            return
+
         self.__filter_cache = self.__empty_filter
         self.is_verified = False
         self.__errors = []
+
+    def on_dependency_remap(self, remaps: Remaps) -> None:
+        """Rewrite stored identities when dependencies remap their IDs.
+
+        Follows FilterID remaps published by the repository when an edited
+        filter's content-derived ID changed, refreshing the editor cache
+        from the repository's new version. Data source remaps are
+        acknowledged but require no rewrite: filters reference columns by
+        name, not by data source identity.
+
+        Args:
+            remaps: Identity remappings keyed by ID class.
+        """
+        ds_remap = get_remap(remaps, DataSourceID)
+        if ds_remap:
+            self.logger.debug(
+                "Data source IDs remapped; the editor cache holds no "
+                "source references: %s",
+                ds_remap,
+            )
+
+        filter_remap = get_remap(remaps, FilterID)
+        if not filter_remap:
+            return
+
+        current_uid = self.__filter_cache.uid
+        new_uid = remap_value(filter_remap, current_uid)
+        if new_uid == current_uid:
+            return
+
+        self.logger.debug(
+            "Remapping editor cache for filter ID %s -> %s", current_uid, new_uid
+        )
+        repo_filter = self.__filter_repository.filters.get(new_uid)
+        if repo_filter is None:
+            return
+
+        # Repository filters are validated by definition; adopting one keeps
+        # the in-progress edit consistent with its persisted counterpart.
+        self.__filter_cache = repo_filter.duplicate()
+        self.is_verified = True
 
     @property
     def __empty_filter(self) -> Filter:
@@ -136,16 +190,21 @@ class FilterViewModel(ChangeTracker):
     ) -> None:
         """Update one or more properties of the cached filter and mark as unverified.
 
+        The cache is a frozen Filter, so edits replace it with an updated
+        copy; the uid is left untouched and re-pinned on validation.
+
         Args:
             name: New filter name, or None to keep current.
             query: New filter query string, or None to keep current.
         """
         if name is not None:
-            self.__filter_cache.name = name
+            self.__filter_cache = self.__filter_cache.model_copy(update={"name": name})
             self.is_verified = False
 
         if query is not None:
-            self.__filter_cache.query = query
+            self.__filter_cache = self.__filter_cache.model_copy(
+                update={"query": query}
+            )
             self.is_verified = False
 
     def get_column_completions(self) -> list[Completion]:
@@ -185,7 +244,12 @@ class FilterViewModel(ChangeTracker):
                 name=name,
                 query=query,
             )
-            self.__filter_cache.uid = current_id
+            # Pin the original ID (EMPTY for new filters) onto the freshly
+            # validated cache so save routing is preserved. Frozen model: the
+            # copy deliberately skips re-validation.
+            self.__filter_cache = self.__filter_cache.model_copy(
+                update={"uid": current_id}
+            )
             self.is_verified = True
             self.latest_editor_id = latest_editor_id
             self.logger.info("Filter '%s' validated successfully", name)

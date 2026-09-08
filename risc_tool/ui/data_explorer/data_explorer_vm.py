@@ -15,10 +15,11 @@ from risc_tool.data.models.enums import (
     VariableType,
 )
 from risc_tool.data.models.filter import Filter
+from risc_tool.data.models.id_remap import Remaps, get_remap, remap_keys, remap_list
 from risc_tool.data.models.json_models import DataExplorerViewModelJSON
-from risc_tool.data.models.object_id import DataSourceID, FilterID
 from risc_tool.data.models.outlier import OutlierRule
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import DataSourceID, FilterID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
 from risc_tool.data.services.iv_calculation import calculate_iv
@@ -81,9 +82,10 @@ class DataExplorerViewModel(ChangeTracker):
             len(self.iv_current_filter_ids),
         )
         # Remove selected sources that no longer exist
-        self.__iv_data_sources = list(
-            set(self.__iv_data_sources) & set(self.data_repository.data_sources)
-        )
+        available = set(self.data_repository.data_sources)
+        self.__iv_data_sources = [
+            ds_id for ds_id in self.__iv_data_sources if ds_id in available
+        ]
 
         # Reset target if it's no longer available
         if self.iv_current_target not in self.available_target_columns:
@@ -119,6 +121,34 @@ class DataExplorerViewModel(ChangeTracker):
             change_ids: Set of change IDs from the dependency.
         """
         self._update_iv_inputs()
+
+    def on_dependency_remap(self, remaps: Remaps) -> None:
+        """Rewrite stored identity references when dependencies remap their IDs.
+
+        Rewrites selected data source IDs when a data source's content
+        changes, and filter/outlier IDs when a filter's content-derived ID
+        changes, so no stale references remain.
+
+        Args:
+            remaps: Identity remappings keyed by ID class.
+        """
+        ds_remap = get_remap(remaps, DataSourceID)
+        if ds_remap:
+            self.logger.debug("Remapping IV data source IDs: %s", ds_remap)
+            self.__iv_data_sources = remap_list(ds_remap, self.__iv_data_sources)
+
+        filter_remap = get_remap(remaps, FilterID)
+        if filter_remap:
+            self.logger.debug(
+                "Remapping IV filter IDs: %d selections, %d error keys",
+                len(self.iv_current_filter_ids),
+                len(self.ol_errors),
+            )
+            self.iv_current_filter_ids = remap_list(
+                filter_remap, self.iv_current_filter_ids
+            )
+            # TEMPORARY (unsaved outlier errors) is not remappable and passes through.
+            self.ol_errors = remap_keys(filter_remap, self.ol_errors)
 
     # Common Properties for Data Explorer
     @property
@@ -628,8 +658,8 @@ class DataExplorerViewModel(ChangeTracker):
         outlier_cache = self.filter_repository.validate_outlier_rule(
             variable_name, comparison_op, comparison_base_f
         )
-        outlier_cache.uid = outlier_id
-        return outlier_cache
+        # Frozen model: pin the requested ID via an updated copy.
+        return outlier_cache.model_copy(update={"uid": outlier_id})
 
     def save_outlier(
         self,

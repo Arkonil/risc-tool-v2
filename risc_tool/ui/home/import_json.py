@@ -201,7 +201,6 @@ def import_json_page() -> None:
     (
         invalid_filters,
         invalid_metrics,
-        missing_metrics_variables,
         invalid_iterations,
         missing_data_explorer_variables,
         missing_summary_variables,
@@ -214,7 +213,6 @@ def import_json_page() -> None:
         invalid_filters
         or invalid_metrics
         or invalid_iterations
-        or missing_metrics_variables
         or missing_data_explorer_variables
         or missing_summary_variables
     ):
@@ -248,13 +246,6 @@ def import_json_page() -> None:
                     "Some columns are not available in the data sources.",
                     icon=":material/error:",
                 )
-
-    if missing_metrics_variables:
-        with st.container(border=True):
-            st.error(
-                f"Missing variables (used in default metrics) in the data sources: {', '.join(missing_metrics_variables)}",
-                icon=":material/error:",
-            )
 
     if invalid_iterations:
         st.markdown("### Iterations:")

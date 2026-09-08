@@ -16,8 +16,8 @@ from risc_tool.data.models.enums import (
     ScalarTableColumn,
     Signature,
 )
-from risc_tool.data.models.object_id import RiskSegmentID
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import RiskSegmentID
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.data.repositories.options import OptionRepository
 from risc_tool.data.repositories.scalar import ScalarRepository
@@ -106,16 +106,24 @@ class ConfigViewModel(ChangeTracker):
             List of error messages if validation fails.
         """
         errors: list[str] = []
-        names: list[str] = (
-            edited_df[RSDetCol.RISK_SEGMENT].astype(str).str.strip().tolist()
-        )
+        raw_names = edited_df[RSDetCol.RISK_SEGMENT].tolist()
+        names: list[str] = []
+
+        for value in raw_names:
+            if pd.isna(value):
+                names.append("")
+            else:
+                names.append(str(value).strip())
 
         if any(name == "" for name in names):
             errors.append("Risk Segment Names cannot be empty.")
+            return errors
 
         seen: set[str] = set()
         duplicates: set[str] = set()
         for name in names:
+            if name == "":
+                continue
             if name in seen:
                 duplicates.add(name)
             seen.add(name)
@@ -124,6 +132,7 @@ class ConfigViewModel(ChangeTracker):
             errors.append(
                 f"Risk Segment Names must be unique. Repeated: {sorted(duplicates)}"
             )
+            return errors
 
         # Monotonicity validation for Upper Bad Rate
         def get_upper_rate_val(val: t.Any) -> float:
@@ -142,9 +151,9 @@ class ConfigViewModel(ChangeTracker):
             except (ValueError, TypeError):
                 return float("inf")
 
-        rates: OrderedDict[RiskSegmentID, float] = OrderedDict(
+        rates: OrderedDict[int, float] = OrderedDict(
             (
-                RiskSegmentID(idx),
+                int(idx),
                 get_upper_rate_val(edited_df.at[idx, RSDetCol.UPPER_RATE]),
             )
             for idx in edited_df.index
@@ -160,6 +169,9 @@ class ConfigViewModel(ChangeTracker):
 
                 prev_str = "None" if prev_rate == float("inf") else f"{prev_rate:.2f}%"
                 curr_str = "None" if curr_rate == float("inf") else f"{curr_rate:.2f}%"
+
+                if prev_name == "" or curr_name == "":
+                    continue
 
                 errors.append(
                     f"Upper Bad Rate of segment '{curr_name}' ({curr_str}) "

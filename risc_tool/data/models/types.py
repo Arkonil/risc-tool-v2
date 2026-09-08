@@ -4,6 +4,7 @@ import typing
 from uuid import UUID
 
 from risc_tool.data.models.enums import Signature
+from risc_tool.data.models.id_remap import Remap, Remaps
 
 ChangeID = tuple[Signature, UUID]
 """A unique identifier for a change event, combining the component signature and a UUID."""
@@ -14,11 +15,12 @@ ChangeIDs = set[ChangeID]
 CallbackID = UUID
 """Unique identifier for a callback subscription."""
 
-Callback = typing.Callable[[ChangeIDs], bool]
+Callback = typing.Callable[[ChangeIDs, Remaps | None], bool]
 """Callback function type for change notifications.
 
 Args:
     change_ids: A set of ChangeID tuples representing the changes.
+    remaps: Optional identity remappings (``{id_class: {old_id: new_id}}``).
 
 Returns:
     True if the callback handled the changes, False otherwise.
@@ -94,4 +96,6 @@ __all__ = [
     "GridMetricSummary",
     "GridMetricView",
     "IterationView",
+    "Remap",
+    "Remaps",
 ]

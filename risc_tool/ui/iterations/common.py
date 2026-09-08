@@ -7,7 +7,7 @@ import streamlit as st
 import streamlit_antd_components as sac  # type: ignore
 
 from risc_tool.data.models.enums import IterationType, RangeColumn
-from risc_tool.data.models.object_id import GroupID, IterationID
+from risc_tool.data.models.uid import GroupID, IterationID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.filter_selector import filter_selector
 from risc_tool.ui.components.metric_selector import metric_selector_button
@@ -61,7 +61,7 @@ def set_groups_dialog_widget(iteration_id: IterationID) -> None:
     with submit_col:
         if st.button("Submit", type="primary", width="stretch"):
             selected_group_ids = [
-                GroupID(int(group_id))
+                GroupID(group_id)
                 for group_id in edited_groups[
                     edited_groups[RangeColumn.SELECTED.value]
                 ].index.to_list()

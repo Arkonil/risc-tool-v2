@@ -10,7 +10,7 @@ from streamlit_flow.state import StreamlitFlowState  # type: ignore
 
 from risc_tool.data.models.iteration import Iteration
 from risc_tool.data.models.iteration_graph import IterationGraph
-from risc_tool.data.models.object_id import IterationID
+from risc_tool.data.models.uid import IterationID
 from risc_tool.data.session import Session
 
 
@@ -198,8 +198,11 @@ def iteration_graph() -> None:
         selected_node_id=selected_id,
     )
 
-    if new_state.selected_id is not None and new_state.selected_id.isdecimal():
-        selected_id = IterationID(int(new_state.selected_id))
+    if new_state.selected_id is not None:
+        try:
+            selected_id = IterationID(new_state.selected_id)
+        except (TypeError, ValueError):
+            selected_id = None
     else:
         selected_id = None
 

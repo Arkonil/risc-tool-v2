@@ -35,7 +35,7 @@ def bad_rate_config_section(draft: SimulationConfigGenerator) -> None:
 
             dev_unt_num = dev_unit.numerator_col if dev_unit is not None else None
             unt_bad = widgets.unit_bad_rate_row(
-                "# Bad Rate", "sim_dev_unt", dev_unt_num
+                "# Bad Rate", "sim_dev_unt", dev_unt_num, selected_ids
             )
             reconcile(
                 dev_unt_num,
@@ -51,7 +51,7 @@ def bad_rate_config_section(draft: SimulationConfigGenerator) -> None:
             dev_dlr_num = dev_dollar.numerator_col if dev_dollar is not None else None
             dev_dlr_den = dev_dollar.denominator_col if dev_dollar is not None else None
             dlr_bad, avg_bal = widgets.dollar_bad_rate_row(
-                "$ Bad Rate", "sim_dev_dlr", dev_dlr_num, dev_dlr_den
+                "$ Bad Rate", "sim_dev_dlr", dev_dlr_num, dev_dlr_den, selected_ids
             )
             reconcile(
                 dev_dlr_num,
@@ -95,7 +95,7 @@ def bad_rate_config_section(draft: SimulationConfigGenerator) -> None:
 
             test_unt_num = test_unit.numerator_col if test_unit is not None else None
             test_unt_bad = widgets.unit_bad_rate_row(
-                "# Bad Rate", "sim_test_unt", test_unt_num
+                "# Bad Rate", "sim_test_unt", test_unt_num, test_selected_ids
             )
             reconcile(
                 test_unt_num,
@@ -115,7 +115,11 @@ def bad_rate_config_section(draft: SimulationConfigGenerator) -> None:
                 test_dollar.denominator_col if test_dollar is not None else None
             )
             test_dlr_bad, test_avg_bal = widgets.dollar_bad_rate_row(
-                "$ Bad Rate", "sim_test_dlr", test_dlr_num, test_dlr_den
+                "$ Bad Rate",
+                "sim_test_dlr",
+                test_dlr_num,
+                test_dlr_den,
+                test_selected_ids,
             )
             reconcile(
                 test_dlr_num,

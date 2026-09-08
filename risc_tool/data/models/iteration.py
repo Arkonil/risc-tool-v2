@@ -31,7 +31,7 @@ from risc_tool.data.models.iteration_group import (
     rebuild_group_dict,
 )
 from risc_tool.data.models.json_models import IterationJSON
-from risc_tool.data.models.object_id import GroupID, IterationID, RiskSegmentID
+from risc_tool.data.models.uid import GroupID, IterationID, RiskSegmentID, short_id
 from risc_tool.utils.logging import get_logger
 from risc_tool.utils.wrap_text import TAB
 
@@ -175,9 +175,11 @@ class IterationBase[TGroup: GroupBase](BaseModel):
             if not group.is_valid():
                 continue
 
+            group_key = int(group_id)
+            mapped_group_id = int(mapping.get(group_key, group_key))
             code_template += (
                 f"else if {group.sas_code_template('$VARIABLE_NAME')} then\n"
-                f"    $OUTPUT_VARIABLE_NAME = $GROUP_INDEX_{mapping.get(group_id, group_id)};\n"
+                f"    $OUTPUT_VARIABLE_NAME = $GROUP_INDEX_{short_id(mapped_group_id)};\n"
             )
 
         code_template += "else $OUTPUT_VARIABLE_NAME = $MISSING;\n"
@@ -442,7 +444,7 @@ class SingleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
             A string Template with placeholders for variable/output names.
         """
         groups = self.default_groups if default else self.groups
-        mapping = {group_id.value: group_id.value for group_id in groups}
+        mapping = {int(group_id): int(group_id) for group_id in groups}
 
         code_template = "format $OUTPUT_VARIABLE_NAME $50.;\n\n"
         code_template += self.generate_sas_code_for_groups(default, mapping=mapping)
@@ -475,7 +477,7 @@ class SingleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
                 group_definitions += (
                     f"pd.Interval({_format_bound(lower_bound)}, "
                     f"{_format_bound(upper_bound)}, closed='right'): "
-                    f"$GROUP_INDEX_{group_id.value},\n"
+                    f"$GROUP_INDEX_{short_id(group_id)},\n"
                 )
 
         elif self.var_type == VariableType.CATEGORICAL:
@@ -488,19 +490,19 @@ class SingleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
                     f'"{cat}"' for cat in sorted(cat_group.categories)
                 )
                 group_definitions += (
-                    f"({cats_formatted},): $GROUP_INDEX_{group_id.value},\n"
+                    f"({cats_formatted},): $GROUP_INDEX_{short_id(group_id)},\n"
                 )
 
-        code_template = f"iter_{self.uid}_map = {{\n"
+        code_template = f"iter_{short_id(self.uid)}_map = {{\n"
         code_template += textwrap.indent(group_definitions, TAB)
         code_template += "}\n"
         code_template += (
-            f"iter_{self.uid}_map = pd.Series("
-            f"data=iter_{self.uid}_map.values(), index=list(iter_{self.uid}_map.keys()))\n\n"
+            f"iter_{short_id(self.uid)}_map = pd.Series("
+            f"data=iter_{short_id(self.uid)}_map.values(), index=list(iter_{short_id(self.uid)}_map.keys()))\n\n"
         )
         code_template += (
             f'$DATA["$OUTPUT_VARIABLE_NAME"] = '
-            f'create_mapped_variable($DATA["$VARIABLE_NAME"], iter_{self.uid}_map)\n'
+            f'create_mapped_variable($DATA["$VARIABLE_NAME"], iter_{short_id(self.uid)}_map)\n'
         )
 
         return Template(code_template)
@@ -606,14 +608,12 @@ class DoubleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
 
         for column in sorted(parent_seg_ids):
             mapping = {
-                group_id.value: g_map[column].value
+                int(group_id): int(g_map[column])
                 for group_id, g_map in risk_segment_grid.items()
                 if column in g_map
             }
 
-            code_template += (
-                f"else if $PREV_ITER_OUT_NAME = $GROUP_INDEX_{column} then do;\n"
-            )
+            code_template += f"else if $PREV_ITER_OUT_NAME = $GROUP_INDEX_{short_id(column)} then do;\n"
             code_template += textwrap.indent(
                 text=self.generate_sas_code_for_groups(
                     default=default, mapping=mapping
@@ -685,24 +685,26 @@ class DoubleVarIteration[TGroup: GroupBase](IterationBase[TGroup]):
             g_map = risk_segment_grid.get(g_id, {})
             grid_definition += "["
             grid_definition += ", ".join(
-                f"$GROUP_INDEX_{g_map.get(col, RiskSegmentID(0))}"
+                f"$GROUP_INDEX_{short_id(g_map.get(col, RiskSegmentID(0)))}"
                 for col in parent_seg_ids
             )
             grid_definition += "],\n"
         grid_definition = "[\n" + textwrap.indent(grid_definition, TAB) + "]"
 
         column_definition = (
-            "[" + ", ".join(f"$GROUP_INDEX_{col}" for col in parent_seg_ids) + "]"
+            "["
+            + ", ".join(f"$GROUP_INDEX_{short_id(col)}" for col in parent_seg_ids)
+            + "]"
         )
 
-        code_template = f"iter_{self.uid}_grid = pd.DataFrame(\n"
+        code_template = f"iter_{short_id(self.uid)}_grid = pd.DataFrame(\n"
         code_template += textwrap.indent(f"data={grid_definition},\n", TAB)
         code_template += textwrap.indent(f"columns={column_definition},\n", TAB)
         code_template += textwrap.indent(f"index={group_definitions},\n", TAB)
         code_template += ")\n\n"
         code_template += (
             f'$DATA["$OUTPUT_VARIABLE_NAME"] = '
-            f'create_grid_mapped_variable($DATA["$VARIABLE_NAME"], $DATA["$PREV_ITER_OUT_NAME"], iter_{self.uid}_grid)\n'
+            f'create_grid_mapped_variable($DATA["$VARIABLE_NAME"], $DATA["$PREV_ITER_OUT_NAME"], iter_{short_id(self.uid)}_grid)\n'
         )
 
         return Template(code_template)

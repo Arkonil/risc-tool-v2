@@ -1,16 +1,53 @@
+import json
 import logging
 import typing as t
 from pathlib import Path
+from uuid import NAMESPACE_URL, uuid5
 
 import polars as pl
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
-from risc_tool.data.models.object_id import DataSourceID
+from risc_tool.data.models.uid import DataSourceID
 from risc_tool.utils.logging import get_logger
 
 ReadMode = t.Literal[
     "CSV"
 ]  # , "EXCEL"]  # EXCEL support is planned for future implementation
+
+
+def _content_str(label: str, filepath: Path, read_config: "ReadConfig") -> str:
+    """Build a canonical string from a data source's content for hashing.
+
+    Args:
+        label: The data source label.
+        filepath: The data source file path.
+        read_config: The data source read configuration.
+
+    Returns:
+        A deterministic string that uniquely represents the content.
+    """
+    payload = json.dumps(
+        read_config.model_dump(mode="json"), sort_keys=True, default=str
+    )
+    return f"{label}|{filepath}|{payload}"
+
+
+def _uid_from_content(
+    label: str, filepath: Path, read_config: "ReadConfig"
+) -> DataSourceID:
+    """Derive a content-addressed DataSourceID from a data source's content.
+
+    Args:
+        label: The data source label.
+        filepath: The data source file path.
+        read_config: The data source read configuration.
+
+    Returns:
+        A DataSourceID whose value is a UUIDv5 hash of the content.
+    """
+    return DataSourceID(
+        uuid5(NAMESPACE_URL, _content_str(label, filepath, read_config))
+    )
 
 
 class ReadConfig(BaseModel, frozen=True):
@@ -45,9 +82,9 @@ class DataSource(BaseModel):
         _full_lf_cache_key: Cache key for the LazyFrame (filepath, read_config).
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
-    uid: DataSourceID
+    uid: DataSourceID = DataSourceID.UNSET
     label: str
     filepath: Path
     read_config: ReadConfig
@@ -58,6 +95,34 @@ class DataSource(BaseModel):
     _pl_schema: pl.Schema | None = PrivateAttr(default=None)
     _cache_lf: pl.LazyFrame | None = PrivateAttr(default=None)
     _cache_lf_key: tuple[Path, ReadConfig] | None = PrivateAttr(default=None)
+
+    @model_validator(mode="after")
+    def _derive_uid(self) -> "DataSource":
+        """Derive the content-addressed uid when it is left unset.
+
+        An explicitly provided uid is preserved, which allows the
+        EMPTY/TEMPORARY sentinels and deserialized identities to survive
+        construction. Passing UNSET explicitly behaves like omission.
+
+        Returns:
+            This instance with the uid derived if none was set.
+        """
+        if self.uid is DataSourceID.UNSET:
+            # Frozen model: bypass immutability to fill in the derived uid.
+            object.__setattr__(self, "uid", self.create_hash())
+        return self
+
+    def create_hash(self) -> DataSourceID:
+        """Return a content-addressed DataSourceID derived from this content.
+
+        The ID hashes all content fields (label, filepath, read_config)
+        except the uid itself, so identical content always produces the
+        same identity.
+
+        Returns:
+            A DataSourceID whose value is a UUIDv5 hash of the content.
+        """
+        return _uid_from_content(self.label, self.filepath, self.read_config)
 
     def validate_read_config(self) -> None:
         """Validate the read configuration against the data file.

@@ -13,9 +13,10 @@ from risc_tool.data.models.changes import ChangeTracker
 from risc_tool.data.models.completion import Completion
 from risc_tool.data.models.enums import Signature
 from risc_tool.data.models.exceptions import format_error
+from risc_tool.data.models.id_remap import Remaps, get_remap, remap_value
 from risc_tool.data.models.metric import Metric
-from risc_tool.data.models.object_id import DataSourceID, MetricID
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import DataSourceID, MetricID
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.metric import MetricRepository
 from risc_tool.utils.logging import get_logger
@@ -56,14 +57,60 @@ class MetricViewModel(ChangeTracker):
         self.__errors: list[Exception] = []
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
-        """Reset editor state when data dependencies change.
+        """Handle dependency updates by dropping the editor cache when stale.
+
+        An edit session survives when the metric under edit still exists in
+        the repository (it was kept or freshly rewritten by the repository's
+        own validation); otherwise — deleted/invalidated metrics and unsaved
+        drafts — the cache resets to the empty placeholder.
 
         Args:
             change_ids: The change IDs of the updated dependencies.
         """
+        current_uid = self.__metric_cache.uid
+        if current_uid != MetricID.EMPTY and current_uid in (
+            self.__metric_repository.metrics
+        ):
+            return
+
         self.__metric_cache = self.__empty_metric
         self.is_verified = False
         self.__errors = []
+
+    def on_dependency_remap(self, remaps: Remaps) -> None:
+        """Adopt rewritten repository state when metric identities change.
+
+        Editing a data source chains into MetricID changes (identities hash
+        their data source IDs); the repository republishes those chained
+        remaps after rewriting its own state, and the editor cache adopts
+        the repository's rewritten version. Unsaved drafts carry no derived
+        identity and are reset by :meth:`on_dependency_update` instead.
+
+        Args:
+            remaps: Identity remappings keyed by ID class.
+        """
+        metric_remap = get_remap(remaps, MetricID)
+        if not metric_remap:
+            return
+
+        current_uid = self.__metric_cache.uid
+        new_uid = remap_value(metric_remap, current_uid)
+        if new_uid == current_uid:
+            return
+
+        self.logger.debug(
+            "Adopting remapped editor cache for metric ID %s -> %s",
+            current_uid,
+            new_uid,
+        )
+        repo_metric = self.__metric_repository.metrics.get(new_uid)
+        if repo_metric is None:
+            return
+
+        # Repository metrics are validated by definition; adopting one keeps
+        # the in-progress edit consistent with its persisted counterpart.
+        self.__metric_cache = repo_metric.duplicate()
+        self.is_verified = True
 
     @property
     def __empty_metric(self) -> Metric:
@@ -125,7 +172,9 @@ class MetricViewModel(ChangeTracker):
     ) -> None:
         """Update editable properties of the metric cache.
 
-        Name and query changes invalidate verification.
+        The cache is a frozen Metric, so edits replace it with an updated
+        copy; only the uid is left untouched (re-pinned on validation). Name
+        and query changes invalidate verification.
 
         Args:
             name: New metric name, or None to keep unchanged.
@@ -135,25 +184,28 @@ class MetricViewModel(ChangeTracker):
             is_percentage: New percentage flag, or None to keep unchanged.
             decimal_places: New decimal places, or None to keep unchanged.
         """
-        if name is not None:
-            self.__metric_cache.name = name
+        if name is not None and name != self.__metric_cache.name:
+            self.__metric_cache = self.__metric_cache.model_copy(update={"name": name})
             self.is_verified = False
 
-        if query is not None:
-            self.__metric_cache.query = query
+        if query is not None and query != self.__metric_cache.query:
+            self.__metric_cache = self.__metric_cache.model_copy(update={"query": query})
             self.is_verified = False
 
+        updates: dict[str, t.Any] = {}
         if is_cumulative is not None:
-            self.__metric_cache.is_cumulative = is_cumulative
-
+            updates["is_cumulative"] = is_cumulative
         if use_thousand_sep is not None:
-            self.__metric_cache.use_thousand_sep = use_thousand_sep
-
+            updates["use_thousand_sep"] = use_thousand_sep
         if is_percentage is not None:
-            self.__metric_cache.is_percentage = is_percentage
-
+            updates["is_percentage"] = is_percentage
         if decimal_places is not None:
-            self.__metric_cache.decimal_places = decimal_places
+            updates["decimal_places"] = decimal_places
+
+        if updates:
+            # Identity-preserving edit: the uid stays as pinned by
+            # validation and is routed through create/modify on save.
+            self.__metric_cache = self.__metric_cache.model_copy(update=updates)
 
     @property
     def all_data_source_ids(self) -> list[DataSourceID]:
@@ -176,7 +228,9 @@ class MetricViewModel(ChangeTracker):
         Args:
             value: The new DataSourceIDs.
         """
-        self.__metric_cache.data_source_ids = value
+        self.__metric_cache = self.__metric_cache.model_copy(
+            update={"data_source_ids": value}
+        )
         self.is_verified = False
 
     def get_data_source_label(self, data_source_id: DataSourceID) -> str:
@@ -268,11 +322,18 @@ class MetricViewModel(ChangeTracker):
                 query=query,
                 data_source_ids=self.__metric_cache.data_source_ids,
             )
-            self.__metric_cache.uid = current_id
-            self.__metric_cache.is_cumulative = is_cumulative
-            self.__metric_cache.use_thousand_sep = use_thousand_sep
-            self.__metric_cache.is_percentage = is_percentage
-            self.__metric_cache.decimal_places = decimal_places
+            # Pin the original ID (EMPTY for new metrics) and reapply the
+            # cached display settings onto the freshly validated metric.
+            # Frozen model: the copy deliberately skips re-validation.
+            self.__metric_cache = self.__metric_cache.model_copy(
+                update={
+                    "uid": current_id,
+                    "is_cumulative": is_cumulative,
+                    "use_thousand_sep": use_thousand_sep,
+                    "is_percentage": is_percentage,
+                    "decimal_places": decimal_places,
+                }
+            )
 
             self.is_verified = True
             self.latest_editor_id = latest_editor_id

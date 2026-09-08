@@ -38,17 +38,18 @@ from risc_tool.data.models.iteration import (
 )
 from risc_tool.data.models.iteration_graph import IterationGraph
 from risc_tool.data.models.json_models import IterationJSON, IterationRepositoryJSON
-from risc_tool.data.models.object_id import (
+from risc_tool.data.models.types import (
+    ChangeIDs,
+    GridMetricSummary,
+)
+from risc_tool.data.models.uid import (
     DataSourceID,
     FilterID,
     GroupID,
     IterationID,
     MetricID,
     RiskSegmentID,
-)
-from risc_tool.data.models.types import (
-    ChangeIDs,
-    GridMetricSummary,
+    short_id,
 )
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.data.repositories.data import DataRepository
@@ -128,7 +129,7 @@ class IterationsRepository(BaseRepository):
         Returns:
             A list of GroupIDs mirroring the segment IDs.
         """
-        return [GroupID(seg_id.value) for seg_id in selected_segment_config.segments]
+        return [GroupID(seg_id) for seg_id in selected_segment_config.segments]
 
     def _get_unfiltered_numeric_range(
         self, variable_name: str, data_source_ids: list[DataSourceID]
@@ -802,9 +803,9 @@ class IterationsRepository(BaseRepository):
                 .to_list()
             )
             parent_segments_present = [
-                RiskSegmentID(int(v))
+                RiskSegmentID(v)
                 for v in parent_segments_present
-                if v is not None and RiskSegmentID(int(v)) in segment_pos
+                if v is not None and RiskSegmentID(v) in segment_pos
             ]
 
             hv_imp_hr: bool | None = None
@@ -1647,14 +1648,14 @@ class IterationsRepository(BaseRepository):
 
         if scalars_enabled:
             maf_dlr_dict: dict[int, float] = {
-                k: v.maf_dlr for k, v in risk_segment_details.segments.items()
+                int(k): v.maf_dlr for k, v in risk_segment_details.segments.items()
             }
             maf_ulr_dict: dict[int, float] = {
-                k: v.maf_ulr for k, v in risk_segment_details.segments.items()
+                int(k): v.maf_ulr for k, v in risk_segment_details.segments.items()
             }
             if show_total_row:
-                maf_dlr_dict[RowIndex.TOTAL] = 1.0
-                maf_ulr_dict[RowIndex.TOTAL] = 1.0
+                maf_dlr_dict[int(RowIndex.TOTAL)] = 1.0
+                maf_ulr_dict[int(RowIndex.TOTAL)] = 1.0
 
             maf_dlr_series = (
                 pd.Series(maf_dlr_dict).reindex(metric_df.index).fillna(1.0)
@@ -1973,7 +1974,7 @@ class IterationsRepository(BaseRepository):
 
         risk_segments = self.get_risk_segment_details(iteration_id).segments
         output_value_mapping = {
-            f"GROUP_INDEX_{seg_id.value}": f'"{seg.name}"'
+            f"GROUP_INDEX_{short_id(seg_id)}": f'"{seg.name}"'
             for seg_id, seg in risk_segments.items()
         }
 
@@ -1993,7 +1994,7 @@ class IterationsRepository(BaseRepository):
 
             previous_iter_out_name = output_variable_name
             output_variable_name = (
-                f"Risk_Seg_{node}_{'default' if _default else 'custom'}"
+                f"Risk_Seg_{short_id(node)}_{'default' if _default else 'custom'}"
             )
 
             template = (

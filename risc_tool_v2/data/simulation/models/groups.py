@@ -1,56 +1,17 @@
 """Group models for numerical and categorical simulation splits.
 
-This module defines the GroupBase protocol and its concrete numerical and
-categorical implementations, along with helpers to rebuild typed group
-dictionaries safely.
+This module defines GroupBase and its concrete numerical and categorical
+implementations used to describe per-risk-segment bands.
 """
 
 import math
 import typing as t
 from abc import abstractmethod
-from collections import OrderedDict
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from risc_tool_v2.data.core.uid import GroupID
-
-TGroup = t.TypeVar("TGroup", bound="GroupBase")
 TTargetGroup = t.TypeVar("TTargetGroup", bound="GroupBase")
-
-
-class SupportsGroups(t.Protocol[TGroup]):
-    """Protocol for iteration models that own typed groups/default_groups.
-
-    Attributes:
-        groups: Mapping of GroupID to group models.
-    """
-
-    groups: OrderedDict[GroupID, TGroup]
-
-    def set_groups(self, groups: OrderedDict[GroupID, TGroup]) -> None:
-        """Set the groups on the model.
-
-        Args:
-            groups: The ordered mapping of GroupID to group models to store.
-        """
-        ...
-
-
-def rebuild_group_dict[TTargetGroup: "GroupBase"](
-    items: t.Iterable[tuple[GroupID, "GroupBase"]],
-    group_cls: type[TTargetGroup],
-) -> OrderedDict[GroupID, TTargetGroup]:
-    """Rebuild group dict with a concrete group class for static typing safety."""
-    rebuilt = OrderedDict[GroupID, TTargetGroup]()
-
-    for gid, group in items:
-        if isinstance(group, group_cls):
-            rebuilt[gid] = group.model_copy(deep=True)
-        else:
-            rebuilt[gid] = group_cls.model_validate(group.model_dump())
-
-    return rebuilt
 
 
 class GroupBase(BaseModel, frozen=True):
@@ -221,6 +182,4 @@ __all__ = [
     "CategoricalGroup",
     "GroupBase",
     "NumericalGroup",
-    "SupportsGroups",
-    "rebuild_group_dict",
 ]

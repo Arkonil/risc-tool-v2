@@ -12,8 +12,8 @@ from risc_tool_v2.data.core.enums import LossRateTypes, VariableType
 from risc_tool_v2.data.core.uid import (
     DataSourceID,
     FilterID,
-    GroupID,
     MetricID,
+    RiskSegmentID,
     SimulationConfigGeneratorID,
     SimulationConfigID,
     SimulationOutputID,
@@ -508,7 +508,7 @@ class SimulationOutput(BaseModel, frozen=True):
     # Single grouping (no default_groups distinction - immutable)
     variable_name: str
     variable_type: VariableType
-    groups: OrderedDict[GroupID, NumericalGroup | CategoricalGroup]
+    groups: OrderedDict[RiskSegmentID, NumericalGroup | CategoricalGroup]
 
     # Metadata
     created_at: datetime = Field(default_factory=datetime.now)
@@ -600,7 +600,9 @@ class SimulationOutput(BaseModel, frozen=True):
 
     @classmethod
     def from_dict(cls, data: "SimulationOutputJSON") -> "SimulationOutput":
-        groups: OrderedDict[GroupID, NumericalGroup | CategoricalGroup] = OrderedDict()
+        groups: OrderedDict[RiskSegmentID, NumericalGroup | CategoricalGroup] = (
+            OrderedDict()
+        )
         for gid, group_json in data.groups.items():
             if group_json.type == "numerical":
                 num_json = group_json

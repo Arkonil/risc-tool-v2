@@ -39,9 +39,6 @@ _SIM_CFG_UNSET_INT = 2**128 - 15
 _SIM_OUT_TEMPORARY_INT = 2**128 - 16
 _SIM_OUT_EMPTY_INT = 2**128 - 17
 _SIM_OUT_UNSET_INT = 2**128 - 18
-_GROUP_TEMPORARY_INT = 2**128 - 19
-_GROUP_EMPTY_INT = 2**128 - 20
-_GROUP_UNSET_INT = 2**128 - 21
 _RISK_SEG_TEMPORARY_INT = 2**128 - 22
 _RISK_SEG_EMPTY_INT = 2**128 - 23
 _RISK_SEG_UNSET_INT = 2**128 - 24
@@ -324,17 +321,6 @@ SimulationOutputID.UNSET = SimulationOutputID.register_sentinel(
 )
 
 
-class GroupID(BaseUID):
-    TEMPORARY: "GroupID"
-    EMPTY: "GroupID"
-    UNSET: "GroupID"
-
-
-GroupID.TEMPORARY = GroupID.register_sentinel("TEMPORARY", _GROUP_TEMPORARY_INT)
-GroupID.EMPTY = GroupID.register_sentinel("EMPTY", _GROUP_EMPTY_INT)
-GroupID.UNSET = GroupID.register_sentinel("UNSET", _GROUP_UNSET_INT)
-
-
 class RiskSegmentID(BaseUID):
     TEMPORARY: "RiskSegmentID"
     EMPTY: "RiskSegmentID"
@@ -371,7 +357,6 @@ __all__ = [
     "BaseUID",
     "DataSourceID",
     "FilterID",
-    "GroupID",
     "MetricID",
     "RiskSegmentID",
     "SimulationConfigGeneratorID",

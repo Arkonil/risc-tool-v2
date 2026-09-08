@@ -13,7 +13,7 @@ from collections import OrderedDict
 import polars as pl
 from pydantic import BaseModel, Field, field_validator
 
-from risc_tool.data.models.object_id import GroupID
+from risc_tool.data.models.uid import GroupID
 
 TGroup = t.TypeVar("TGroup", bound="GroupBase")
 

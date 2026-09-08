@@ -1,46 +1,23 @@
 from risc_tool.data.models.sentinel_int import SentinelInt
+from risc_tool.data.models.uid import DataSourceID
+
+__all__ = [
+    "DataSourceID",
+    "FilterID",
+    "GroupID",
+    "IterationID",
+    "MetricID",
+    "MutableObjectID",
+    "RiskSegmentID",
+    "SimulationID",
+]
 
 
-class BaseID(SentinelInt):
+class MutableObjectID(SentinelInt):
     pass
 
 
-class DataSourceID(BaseID):
-    """Sentinel integer type for data source identifiers.
-
-    Provides special sentinel values for temporary and empty data sources
-    while behaving like a regular integer for normal IDs.
-    """
-
-    TEMPORARY: "DataSourceID"
-    """Sentinel value (-1) representing a temporary/unsaved data source."""
-
-    EMPTY: "DataSourceID"
-    """Sentinel value (-2) representing an empty/placeholder data source."""
-
-    @classmethod
-    def validate_sentinel(cls, v: int) -> "DataSourceID":
-        """Validate and convert an integer to a DataSourceID, handling sentinels.
-
-        Args:
-            v: The integer value to validate.
-
-        Returns:
-            The corresponding DataSourceID sentinel or a new DataSourceID instance.
-        """
-        if v == int(cls.TEMPORARY):
-            return cls.TEMPORARY
-        if v == int(cls.EMPTY):
-            return cls.EMPTY
-
-        return super().validate_sentinel(v)
-
-
-DataSourceID.TEMPORARY = DataSourceID(-1, name="TEMPORARY")
-DataSourceID.EMPTY = DataSourceID(-2, name="EMPTY")
-
-
-class FilterID(BaseID):
+class FilterID(MutableObjectID):
     """Sentinel integer type for filter identifiers.
 
     Provides special sentinel values for temporary and empty filters
@@ -75,7 +52,7 @@ FilterID.TEMPORARY = FilterID(-1, name="TEMPORARY")
 FilterID.EMPTY = FilterID(-2, name="EMPTY")
 
 
-class MetricID(BaseID):
+class MetricID(MutableObjectID):
     """Sentinel integer type for metric identifiers.
 
     Provides sentinel values for temporary, empty, and default (built-in)
@@ -159,13 +136,24 @@ MetricID.TST_DLR_BAD_RATE = MetricID(-8, name="TST_DLR_BAD_RATE")
 MetricID.EMPTY = MetricID(-5, name="EMPTY")
 
 
-class IterationID(BaseID):
+class SimulationID(MutableObjectID):
     pass
 
 
-class RiskSegmentID(BaseID):
+class IterationID(MutableObjectID):
     pass
 
 
-class GroupID(BaseID):
+class RiskSegmentID(MutableObjectID):
     pass
+
+
+class GroupID(MutableObjectID):
+    pass
+
+
+"""
+SimulationConfigGenerator
+SimulationConfig
+SimulationOutput
+"""

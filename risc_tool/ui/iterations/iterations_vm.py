@@ -22,19 +22,19 @@ from risc_tool.data.models.iteration import Iteration
 from risc_tool.data.models.iteration_graph import IterationGraph
 from risc_tool.data.models.iteration_metadata import IterationMetadata
 from risc_tool.data.models.json_models import IterationsViewModelJSON
-from risc_tool.data.models.object_id import (
-    FilterID,
-    GroupID,
-    IterationID,
-    MetricID,
-    RiskSegmentID,
-)
 from risc_tool.data.models.types import (
     ChangeIDs,
     ColorTheme,
     GridEditorViewComponents,
     GridMetricView,
     IterationView,
+)
+from risc_tool.data.models.uid import (
+    FilterID,
+    GroupID,
+    IterationID,
+    MetricID,
+    RiskSegmentID,
 )
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.data.repositories.filter import FilterRepository
@@ -847,6 +847,17 @@ class IterationsViewModel(ChangeTracker):
 
         return []
 
+    def get_editable_range(
+        self, iteration_id: IterationID, default: bool
+    ) -> pd.DataFrame:
+        """Return the cached editable DataFrame for an iteration."""
+        cached = self.__editable_range_cache.get((iteration_id, default))
+        if cached is None:
+            raise ValueError(
+                f"No editable range cache found for iteration {iteration_id}"
+            )
+        return cached.copy()
+
     def editable_range_edit_handler(
         self, iteration_id: IterationID, default: bool, edited_final_df: pd.DataFrame
     ) -> bool:
@@ -905,9 +916,10 @@ class IterationsViewModel(ChangeTracker):
                 )
         else:
             for _, row in controls.iterrows():
-                categories = row[RangeColumn.CATEGORIES.value]
-                if isinstance(categories, list):
-                    labels.append(", ".join(str(category) for category in categories))  # type: ignore
+                categories_value: t.Any = row[RangeColumn.CATEGORIES.value]
+                if isinstance(categories_value, list):
+                    cat_list = t.cast(list[t.Any], categories_value)
+                    labels.append(", ".join(str(category) for category in cat_list))
                 else:
                     labels.append("")
 

@@ -12,7 +12,7 @@ import typing as t
 import streamlit as st
 
 from risc_tool.data.models.data_source import ReadConfig, ReadMode
-from risc_tool.data.models.object_id import DataSourceID
+from risc_tool.data.models.uid import DataSourceID
 from risc_tool.data.session import Session
 from risc_tool.ui.data_importer.data_importer_vm import DataSourceViewModel
 from risc_tool.utils.logging import get_logger

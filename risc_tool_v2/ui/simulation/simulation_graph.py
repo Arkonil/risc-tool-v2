@@ -36,28 +36,16 @@ def _sidebar_widgets(selected_id: SimulationID | None) -> None:
     if selected_id is not None:
         sim_id: SimulationID = selected_id
 
-        def _run() -> None:
-            simulation_vm.run_simulation(sim_id)
-
         st.sidebar.divider()
         st.sidebar.markdown(f"**Selected: Simulation #{sim_id}**")
 
         st.sidebar.button(
-            label="Run Simulation",
-            icon=":material/play_arrow:",
+            label="Open Simulation",
+            icon=":material/open_in_new:",
             width="stretch",
             type="primary",
-            on_click=_run,
+            on_click=lambda: simulation_vm.set_mode("view", sim_id),
         )
-
-        if st.sidebar.button(
-            label="Delete Simulation",
-            icon=":material/delete:",
-            width="stretch",
-            type="secondary",
-        ):
-            simulation_vm.remove_simulation(sim_id)
-            st.rerun()
 
 
 def simulation_graph() -> None:
@@ -71,8 +59,9 @@ def simulation_graph() -> None:
 
     nodes: list[StreamlitFlowNode] = []
     for sim_id, sim in simulations.items():
-        safe_name = html.escape(sim.simulation_config_generator.name)
-        safe_var = html.escape(sim.simulation_config_generator.variable_name)
+        scg = simulation_vm.scg_for(sim)
+        safe_name = html.escape(scg.name)
+        safe_var = html.escape(scg.variable_name)
         status = sim.status.value
 
         node_content = f"""<p>

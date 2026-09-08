@@ -34,4 +34,6 @@
 - When generating Python code strings containing file paths, always sanitize Windows path strings using `.replace("\\", "/")` to prevent invalid escape sequences in generated code.
 
 ## Tooling & Environment Execution
-- All Python-related commands (e.g., `pytest`, `ruff check`, `streamlit run`, python scripts) MUST be executed using `uv run` (e.g., `uv run pytest`, `uv run ruff check`). Direct tool invocations or system python binaries are explicitly disallowed.
+- Any Python command must be executed through `uv`.
+- Use `uv run ...` for Python entrypoints (e.g., `uv run pytest`, `uv run ruff check`, `uv run streamlit run main.py`, `uv run python script.py`).
+- Direct invocations of system Python or tools outside `uv` are explicitly disallowed.
