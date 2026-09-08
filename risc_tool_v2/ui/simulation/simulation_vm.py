@@ -1,5 +1,6 @@
 """View model for the Simulation page."""
 
+import dataclasses
 import typing as t
 from collections import OrderedDict
 
@@ -10,15 +11,18 @@ from risc_tool_v2.data.core.types import ChangeIDs
 from risc_tool_v2.data.core.uid import (
     DataSourceID,
     FilterID,
+    IterationID,
     MetricID,
     RiskSegmentID,
     SimulationID,
+    SimulationOutputID,
 )
 from risc_tool_v2.data.data_source.repositories.data_repository import DataRepository
 from risc_tool_v2.data.filter.models.filter import Filter
 from risc_tool_v2.data.filter.repositories.filter_repository import FilterRepository
 from risc_tool_v2.data.metric.models.metric import Metric
 from risc_tool_v2.data.metric.repositories.metric_repository import MetricRepository
+from risc_tool_v2.data.simulation.models.iteration import SimulationIteration
 from risc_tool_v2.data.simulation.models.risk_segment import (
     RiskSegment,
     RiskSegmentConfig,
@@ -35,8 +39,23 @@ from risc_tool_v2.data.simulation.models.simulation_config import (
 from risc_tool_v2.data.simulation.repositories.simulation_repository import (
     SimulationRepository,
 )
+from risc_tool_v2.data.simulation.services.iterate import BandTableResult
 
-Mode = t.Literal["graph", "create", "view"]
+Mode = t.Literal["graph", "create", "view", "iteration"]
+
+
+@dataclasses.dataclass
+class IterationMetadata:
+    """Per-iteration view metadata (metrics, filters, flags).
+
+    This is view state only and is deliberately not serialized with the
+    simulation repository.
+    """
+
+    metric_ids: tuple[MetricID, ...] = ()
+    filter_ids: tuple[FilterID, ...] = ()
+    scalars_enabled: bool = True
+    remove_outliers: bool = True
 
 
 class SimulationViewModel(ChangeTracker):
@@ -69,6 +88,8 @@ class SimulationViewModel(ChangeTracker):
         self.__current_simulation_id: SimulationID | None = None
         self.__editing_sim_id: SimulationID | None = None
         self.__draft_scg: SimulationConfigGenerator | None = None
+        self.__current_iteration_id: IterationID | None = None
+        self.__iteration_metadata: dict[IterationID, IterationMetadata] = {}
         self.__errors: list[str] = []
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
@@ -80,6 +101,43 @@ class SimulationViewModel(ChangeTracker):
         ):
             self.__current_simulation_id = None
             self.__view_mode = "graph"
+
+        # Prune metadata for iterations that no longer exist (cascade delete),
+        # and drop stale metric/filter ids from the surviving entries.
+        self.__iteration_metadata = {
+            iter_id: meta
+            for iter_id, meta in self.__iteration_metadata.items()
+            if iter_id in self.__simulation_repository.iterations
+        }
+        for iter_id, meta in self.__iteration_metadata.items():
+            valid_metric_ids = tuple(
+                metric_id
+                for metric_id in meta.metric_ids
+                if metric_id in self.__metric_repository.metrics
+            )
+            valid_filter_ids = tuple(
+                filter_id
+                for filter_id in meta.filter_ids
+                if filter_id in self.__filter_repository.filters
+            )
+            if (
+                valid_metric_ids != meta.metric_ids
+                or valid_filter_ids != meta.filter_ids
+            ):
+                self.__iteration_metadata[iter_id] = dataclasses.replace(
+                    meta,
+                    metric_ids=valid_metric_ids,
+                    filter_ids=valid_filter_ids,
+                )
+
+        if (
+            self.__current_iteration_id is not None
+            and self.__current_iteration_id
+            not in self.__simulation_repository.iterations
+        ):
+            self.__current_iteration_id = None
+            if self.__view_mode == "iteration":
+                self.__view_mode = "graph"
 
     def on_dependency_remap(self, remaps: Remaps) -> None:
         filter_remap = get_remap(remaps, FilterID)
@@ -110,9 +168,12 @@ class SimulationViewModel(ChangeTracker):
         self,
         mode: Mode,
         sim_id: SimulationID | None = None,
+        iter_id: IterationID | None = None,
     ) -> None:
         self.__view_mode = mode
         self.__current_simulation_id = sim_id
+        if iter_id is not None:
+            self.__current_iteration_id = iter_id
         if mode != "create":
             self.__editing_sim_id = None
         if mode == "create":
@@ -434,6 +495,106 @@ class SimulationViewModel(ChangeTracker):
         if self.__current_simulation_id == sim_id:
             self.__current_simulation_id = None
             self.__view_mode = "graph"
+
+    # Iterations (single-variable analyses derived from simulation outputs)
+    def open_iteration_from_output(
+        self, sim_id: SimulationID, so_id: SimulationOutputID
+    ) -> SimulationIteration:
+        """Open (or create, idempotently) the iteration for an output."""
+        iteration = self.__simulation_repository.create_iteration(sim_id, so_id)
+        self._ensure_iteration_metadata(iteration)
+        self.__current_iteration_id = iteration.uid
+        self.__view_mode = "iteration"
+        return iteration
+
+    def open_iteration(self, iteration_id: IterationID) -> SimulationIteration:
+        """Open an existing iteration by ID, seeding metadata on first access."""
+        iteration = self.get_iteration(iteration_id)
+        self._ensure_iteration_metadata(iteration)
+        self.__current_iteration_id = iteration.uid
+        self.__view_mode = "iteration"
+        return iteration
+
+    def get_iteration(self, iteration_id: IterationID) -> SimulationIteration:
+        return self.__simulation_repository.get_iteration(iteration_id)
+
+    def iterations_for_sim(
+        self, sim_id: SimulationID
+    ) -> tuple[SimulationIteration, ...]:
+        return self.__simulation_repository.iterations_for_sim(sim_id)
+
+    def remove_iteration(self, iteration_id: IterationID) -> None:
+        """Delete an iteration; returns to the graph when deleting the open one."""
+        self.__simulation_repository.remove_iteration(iteration_id)
+        self.__iteration_metadata.pop(iteration_id, None)
+        if self.__current_iteration_id == iteration_id:
+            self.__current_iteration_id = None
+            if self.__view_mode == "iteration":
+                self.__view_mode = "graph"
+
+    def update_iteration_metadata(
+        self,
+        iteration_id: IterationID,
+        *,
+        metric_ids: tuple[MetricID, ...] | None = None,
+        filter_ids: tuple[FilterID, ...] | None = None,
+        scalars_enabled: bool | None = None,
+        remove_outliers: bool | None = None,
+    ) -> None:
+        """Update an iteration's view metadata, keeping only existing ids."""
+        meta = self.iteration_metadata(iteration_id)
+        if metric_ids is not None:
+            valid = tuple(m for m in metric_ids if m in self.metrics)
+            meta.metric_ids = valid
+        if filter_ids is not None:
+            valid = tuple(
+                f for f in filter_ids if f in self.__filter_repository.filters
+            )
+            meta.filter_ids = valid
+        if scalars_enabled is not None:
+            meta.scalars_enabled = scalars_enabled
+        if remove_outliers is not None:
+            meta.remove_outliers = remove_outliers
+
+    def iteration_metadata(self, iteration_id: IterationID) -> IterationMetadata:
+        return self.__iteration_metadata[iteration_id]
+
+    def get_iteration_table(self, iteration_id: IterationID) -> BandTableResult:
+        """Evaluate the iteration's band table with its current view metadata."""
+        meta = self.iteration_metadata(iteration_id)
+        return self.__simulation_repository.get_iteration_table(
+            iteration_id,
+            metric_ids=meta.metric_ids,
+            filter_ids=meta.filter_ids,
+            scalars_enabled=meta.scalars_enabled,
+            remove_outliers=meta.remove_outliers,
+        )
+
+    @property
+    def current_iteration(self) -> SimulationIteration | None:
+        if self.__current_iteration_id is None:
+            return None
+        return self.__simulation_repository.iterations.get(self.__current_iteration_id)
+
+    @property
+    def current_iteration_id(self) -> IterationID | None:
+        return self.__current_iteration_id
+
+    def _ensure_iteration_metadata(self, iteration: SimulationIteration) -> None:
+        """Seed an iteration's metadata from its parent simulation on first use."""
+        if iteration.uid in self.__iteration_metadata:
+            return
+        try:
+            sim = self.__simulation_repository.get_simulation(iteration.simulation_id)
+            scg = self.__simulation_repository.scgs[sim.simulation_config_generator_id]
+            seed = IterationMetadata(
+                filter_ids=tuple(scg.filter_ids),
+                scalars_enabled=scg.use_scalars,
+                remove_outliers=scg.remove_outliers,
+            )
+        except (ValueError, KeyError):
+            seed = IterationMetadata()
+        self.__iteration_metadata[iteration.uid] = seed
 
     @property
     def common_columns(self) -> list[str]:

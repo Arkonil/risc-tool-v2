@@ -194,6 +194,37 @@ def _results(
     segments = scg.risk_segment_config.segments
     for so in outputs:
         _output_table(so, segments)
+        _iteration_actions(simulation_vm, sim, so)
+
+
+def _iteration_actions(
+    simulation_vm: SimulationViewModel, sim: Simulation, so: SimulationOutput
+) -> None:
+    """Offer a New/Open Iteration control for one simulation output."""
+    existing = next(
+        (
+            iteration
+            for iteration in simulation_vm.iterations_for_sim(sim.uid)
+            if iteration.so_id == so.uid
+        ),
+        None,
+    )
+    if existing is not None:
+        if st.button(
+            label=f"Open Iteration #{existing.uid}",
+            icon=":material/timeline:",
+            key=f"open_iteration_{so.uid}",
+        ):
+            simulation_vm.open_iteration(existing.uid)
+            st.rerun()
+    else:
+        if st.button(
+            label="New Iteration",
+            icon=":material/add_chart:",
+            key=f"new_iteration_{so.uid}",
+        ):
+            simulation_vm.open_iteration_from_output(sim.uid, so.uid)
+            st.rerun()
 
 
 def _risk_segments(scg: SimulationConfigGenerator) -> None:

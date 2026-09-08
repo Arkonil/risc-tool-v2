@@ -39,6 +39,9 @@ _SIM_CFG_UNSET_INT = 2**128 - 15
 _SIM_OUT_TEMPORARY_INT = 2**128 - 16
 _SIM_OUT_EMPTY_INT = 2**128 - 17
 _SIM_OUT_UNSET_INT = 2**128 - 18
+_ITER_TEMPORARY_INT = 2**128 - 19
+_ITER_EMPTY_INT = 2**128 - 20
+_ITER_UNSET_INT = 2**128 - 21
 _RISK_SEG_TEMPORARY_INT = 2**128 - 22
 _RISK_SEG_EMPTY_INT = 2**128 - 23
 _RISK_SEG_UNSET_INT = 2**128 - 24
@@ -321,6 +324,29 @@ SimulationOutputID.UNSET = SimulationOutputID.register_sentinel(
 )
 
 
+class IterationID(BaseUID):
+    """Identifier for a single-variable simulation iteration.
+
+    Identity is a simple unique integer (1, 2, 3, ...) assigned sequentially
+    by the simulation repository, mirroring v1's iteration ids. Also provides
+    the ``TEMPORARY``, ``EMPTY``, and ``UNSET`` sentinels.
+    """
+
+    TEMPORARY: "IterationID"
+    """Sentinel value representing a temporary/unsaved iteration."""
+
+    EMPTY: "IterationID"
+    """Sentinel value representing an empty/placeholder iteration."""
+
+    UNSET: "IterationID"
+    """Sentinel value marking a uid as not yet assigned."""
+
+
+IterationID.TEMPORARY = IterationID.register_sentinel("TEMPORARY", _ITER_TEMPORARY_INT)
+IterationID.EMPTY = IterationID.register_sentinel("EMPTY", _ITER_EMPTY_INT)
+IterationID.UNSET = IterationID.register_sentinel("UNSET", _ITER_UNSET_INT)
+
+
 class RiskSegmentID(BaseUID):
     TEMPORARY: "RiskSegmentID"
     EMPTY: "RiskSegmentID"
@@ -357,6 +383,7 @@ __all__ = [
     "BaseUID",
     "DataSourceID",
     "FilterID",
+    "IterationID",
     "MetricID",
     "RiskSegmentID",
     "SimulationConfigGeneratorID",

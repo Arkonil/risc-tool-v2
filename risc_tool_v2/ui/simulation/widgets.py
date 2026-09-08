@@ -17,7 +17,7 @@ from pandas.io.formats.style import Styler
 from streamlit.delta_generator import DeltaGenerator
 
 from risc_tool_v2.data.core.enums import LossRateTypes, VariableType
-from risc_tool_v2.data.core.uid import DataSourceID, FilterID
+from risc_tool_v2.data.core.uid import DataSourceID, FilterID, MetricID
 from risc_tool_v2.data.session import Session
 from risc_tool_v2.data.simulation.models.risk_segment import RiskSegmentConfig
 from risc_tool_v2.ui.core.session import get_session
@@ -224,6 +224,24 @@ def filter_selector(current: tuple[FilterID, ...]) -> tuple[FilterID, ...]:
         format_func=lambda fid: filters[fid].name,
         key="sim_filters",
         placeholder="Select Filters",
+    )
+    return tuple(selected)
+
+
+def metric_selector(
+    current: tuple[MetricID, ...], key: str = "sim_metrics"
+) -> tuple[MetricID, ...]:
+    metrics = _session().simulation_view_model.metrics
+
+    st.markdown("##### Select Metrics")
+    selected = st.multiselect(
+        label="Select Metrics",
+        options=sorted(metrics.keys()),
+        default=list(current),
+        label_visibility="collapsed",
+        format_func=lambda mid: metrics[mid].name,
+        key=key,
+        placeholder="Select Metrics",
     )
     return tuple(selected)
 

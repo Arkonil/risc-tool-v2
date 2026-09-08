@@ -10,6 +10,7 @@ from risc_tool_v2.data.core.enums import LossRateTypes, VariableType
 from risc_tool_v2.data.core.uid import (
     DataSourceID,
     FilterID,
+    IterationID,
     RiskSegmentID,
     SimulationConfigGeneratorID,
     SimulationConfigID,
@@ -134,6 +135,19 @@ class SimulationOutputJSON(BaseModel):
     validation_warnings: list[str]
 
 
+class IterationJSON(BaseModel):
+    model_config = ConfigDict(serialize_by_alias=True, validate_by_alias=True)
+
+    uid: IterationID
+    name: str
+    simulation_id: SimulationID
+    scg_id: SimulationConfigGeneratorID
+    sc_id: SimulationConfigID
+    so_id: SimulationOutputID
+    variable_name: str
+    variable_type: VariableType
+
+
 class SimulationJSON(BaseModel):
     model_config = ConfigDict(serialize_by_alias=True, validate_by_alias=True)
 
@@ -160,12 +174,16 @@ class SimulationRepositoryJSON(BaseModel):
     outputs: dict[SimulationConfigID, SimulationOutputJSON] = Field(
         default_factory=dict[SimulationConfigID, SimulationOutputJSON]
     )
+    iterations: dict[IterationID, IterationJSON] = Field(
+        default_factory=dict[IterationID, IterationJSON]
+    )
 
 
 __all__ = [
     "BadRateConfigJSON",
     "CategoricalGroupJSON",
     "GroupJSON",
+    "IterationJSON",
     "LossRateScalarJSON",
     "NumericalGroupJSON",
     "RiskSegmentConfigJSON",

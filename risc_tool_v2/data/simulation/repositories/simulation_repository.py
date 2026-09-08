@@ -11,6 +11,7 @@ from risc_tool_v2.data.core.types import ChangeIDs
 from risc_tool_v2.data.core.uid import (
     DataSourceID,
     FilterID,
+    IterationID,
     MetricID,
     RiskSegmentID,
     SimulationConfigGeneratorID,
@@ -29,6 +30,7 @@ from risc_tool_v2.data.simulation.models.groups import (
     CategoricalGroup,
     NumericalGroup,
 )
+from risc_tool_v2.data.simulation.models.iteration import SimulationIteration
 from risc_tool_v2.data.simulation.models.simulation import Simulation, SimulationStatus
 from risc_tool_v2.data.simulation.models.simulation_config import (
     BadRateConfig,
@@ -39,6 +41,10 @@ from risc_tool_v2.data.simulation.models.simulation_config import (
 from risc_tool_v2.data.simulation.services.auto_band import (
     create_auto_categorical_bands,
     create_auto_numeric_bands,
+)
+from risc_tool_v2.data.simulation.services.iterate import (
+    BandTableResult,
+    evaluate_band_table,
 )
 
 
@@ -65,6 +71,8 @@ class SimulationRepository(BaseRepository):
         self.sos: dict[SimulationOutputID, SimulationOutput] = {}
         # Cache: SC content hash -> SO (for recycling across simulations)
         self._so_cache: dict[SimulationConfigID, SimulationOutputID] = {}
+        # Iterations derived from simulation outputs (sequential integer ids)
+        self.iterations: dict[IterationID, SimulationIteration] = {}
 
         self.__data_repository = data_repository
         self.__filter_repository = filter_repository
@@ -109,6 +117,13 @@ class SimulationRepository(BaseRepository):
             self._so_cache.pop(sc.uid, None)
         self.scgs.pop(scg.uid, None)
         del self.simulations[sim_id]
+        if self.iterations:
+            # Cascade: iterations are derived from this simulation's outputs.
+            self.iterations = {
+                iter_id: iteration
+                for iter_id, iteration in self.iterations.items()
+                if iteration.simulation_id != sim_id
+            }
         self.notify_subscribers()
 
     def update_simulation_scg(
@@ -299,6 +314,110 @@ class SimulationRepository(BaseRepository):
             return self.sos.get(so_id)
         return None
 
+    # Iterations (single-variable analyses derived from simulation outputs)
+    def create_iteration(
+        self, sim_id: SimulationID, so_id: SimulationOutputID
+    ) -> SimulationIteration:
+        """Create an iteration over one of a simulation's outputs.
+
+        The iteration stores only references (``simulation_id``, ``scg_id``,
+        ``sc_id``, ``so_id``); banding and configuration resolve from the
+        cached SCG/SC/SO. Iteration identity is a sequential integer assigned
+        in creation order. Creating an iteration for an output that already
+        has one is idempotent and returns the existing iteration.
+        """
+        sim = self.get_simulation(sim_id)
+
+        if so_id not in self.sos:
+            raise ValueError(f"Simulation output {so_id} does not exist.")
+        so = self.sos[so_id]
+
+        output_so_ids = {out.uid for out in self.get_simulation_outputs(sim_id)}
+        if so_id not in output_so_ids:
+            raise ValueError(f"Output {so_id} does not belong to simulation {sim_id}.")
+
+        for iteration in self.iterations.values():
+            if iteration.simulation_id == sim_id and iteration.so_id == so_id:
+                return iteration
+
+        next_id = (
+            max(
+                (int(iteration.uid) for iteration in self.iterations.values()),
+                default=0,
+            )
+            + 1
+        )
+        iteration = SimulationIteration(
+            uid=IterationID(int=next_id),
+            name=f"Iteration #{next_id}",
+            simulation_id=sim_id,
+            scg_id=sim.simulation_config_generator_id,
+            sc_id=so.simulation_config_hash,
+            so_id=so_id,
+            variable_name=so.variable_name,
+            variable_type=so.variable_type,
+        )
+        self.iterations[iteration.uid] = iteration
+        self.notify_subscribers()
+        return iteration
+
+    def get_iteration(self, iteration_id: IterationID) -> SimulationIteration:
+        """Get an iteration by ID, raising when it does not exist."""
+        if iteration_id not in self.iterations:
+            raise ValueError(f"Iteration {iteration_id} does not exist.")
+        return self.iterations[iteration_id]
+
+    def iterations_for_sim(
+        self, sim_id: SimulationID
+    ) -> tuple[SimulationIteration, ...]:
+        """Return the iterations derived from a simulation's outputs."""
+        return tuple(
+            iteration
+            for iteration in self.iterations.values()
+            if iteration.simulation_id == sim_id
+        )
+
+    def remove_iteration(self, iteration_id: IterationID) -> None:
+        """Remove an iteration."""
+        self.iterations.pop(iteration_id, None)
+        self.notify_subscribers()
+
+    def get_iteration_table(
+        self,
+        iteration_id: IterationID,
+        *,
+        metric_ids: tuple[MetricID, ...] = (),
+        filter_ids: tuple[FilterID, ...] = (),
+        scalars_enabled: bool = True,
+        remove_outliers: bool = True,
+    ) -> BandTableResult:
+        """Evaluate the per-band metric table for an iteration.
+
+        The iteration's groups/concurrency resolve from its cached SO and SCG;
+        the selected metrics and filters come from the caller (the view model's
+        iteration metadata).
+        """
+        iteration = self.get_iteration(iteration_id)
+        if iteration.so_id not in self.sos:
+            raise ValueError(
+                f"Iteration {iteration_id} references missing output {iteration.so_id}."
+            )
+        if iteration.scg_id not in self.scgs:
+            raise ValueError(
+                f"Iteration {iteration_id} references missing SCG {iteration.scg_id}."
+            )
+        return evaluate_band_table(
+            data_repository=self.__data_repository,
+            filter_repository=self.__filter_repository,
+            metric_repository=self.__metric_repository,
+            scg=self.scgs[iteration.scg_id],
+            so=self.sos[iteration.so_id],
+            metric_ids=metric_ids,
+            filter_ids=filter_ids,
+            scalars_enabled=scalars_enabled,
+            remove_outliers=remove_outliers,
+        )
+
     # Dependency handling
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
         # A removal (data source or filter) is delivered as a plain update, so
@@ -481,6 +600,10 @@ class SimulationRepository(BaseRepository):
                 for sc_uid, so_id in self._so_cache.items()
                 if (so := self.sos.get(so_id)) is not None
             },
+            iterations={
+                iteration.uid: iteration.to_dict()
+                for iteration in self.iterations.values()
+            },
         )
 
     def _simulation_to_json(self, sim: Simulation) -> SimulationJSON:
@@ -528,6 +651,10 @@ class SimulationRepository(BaseRepository):
             output = SimulationOutput.from_dict(output_json)
             repo.sos[output.uid] = output
             repo._so_cache[sc_uid] = output.uid
+
+        for iter_uid, iteration_json in data.iterations.items():
+            iteration = SimulationIteration.from_dict(iteration_json)
+            repo.iterations[iter_uid] = iteration
 
         repo.notify_subscribers()
         return repo
