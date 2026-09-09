@@ -12,7 +12,7 @@ import typing as t
 import pandas as pd
 import streamlit as st
 
-from risc_tool_v2.data.core.uid import DataSourceID, RiskSegmentID
+from risc_tool_v2.data.core.uid import DataSourceID, RiskSegmentID, short_id
 from risc_tool_v2.data.simulation.models.groups import NumericalGroup
 from risc_tool_v2.data.simulation.models.risk_segment import RiskSegment
 from risc_tool_v2.data.simulation.models.simulation import Simulation, SimulationStatus
@@ -71,17 +71,22 @@ def _row_style(
     )
 
 
-def _sidebar(simulation_vm: SimulationViewModel, sim: Simulation) -> None:
-    st.sidebar.button(
-        label="Back to Graph",
-        icon=":material/arrow_back:",
-        width="stretch",
-        type="secondary",
-        on_click=lambda: simulation_vm.set_mode("graph"),
-    )
+def _back_button(simulation_vm: SimulationViewModel) -> None:
+    columns = st.columns([100, 900], vertical_alignment="center")
+    with columns[0]:
+        if st.button(
+            label="Back",
+            icon=":material/arrow_back_ios:",
+            type="primary",
+            key="simulation_view_back",
+        ):
+            simulation_vm.set_mode("graph")
+            st.rerun()
 
+
+def _sidebar(simulation_vm: SimulationViewModel, sim: Simulation) -> None:
     st.sidebar.divider()
-    st.sidebar.markdown(f"**Selected: Simulation #{sim.uid}**")
+    st.sidebar.markdown(f"**Selected: Simulation #{short_id(sim.uid)}**")
 
     def _run() -> None:
         simulation_vm.run_simulation(sim.uid)
@@ -211,7 +216,7 @@ def _iteration_actions(
     )
     if existing is not None:
         if st.button(
-            label=f"Open Iteration #{existing.uid}",
+            label=f"Open Iteration #{int(existing.uid)}",
             icon=":material/timeline:",
             key=f"open_iteration_{so.uid}",
         ):
@@ -372,11 +377,12 @@ def simulation_view() -> None:
         st.rerun()
         return
 
+    _back_button(simulation_vm)
     _sidebar(simulation_vm, sim)
 
     scg = simulation_vm.scg_for(sim)
 
-    st.title(f"Simulation #{sim.uid}")
+    st.title(f"Simulation #{short_id(sim.uid)}")
     st.caption(f"**{scg.name}** · variable **{scg.variable_name}**")
 
     st.badge(

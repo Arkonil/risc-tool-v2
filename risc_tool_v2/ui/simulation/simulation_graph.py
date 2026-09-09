@@ -8,7 +8,7 @@ from streamlit_flow.elements import StreamlitFlowEdge, StreamlitFlowNode  # type
 from streamlit_flow.layouts import TreeLayout as FlowLayout  # type: ignore
 from streamlit_flow.state import StreamlitFlowState  # type: ignore
 
-from risc_tool_v2.data.core.uid import IterationID, SimulationID
+from risc_tool_v2.data.core.uid import IterationID, SimulationID, short_id
 from risc_tool_v2.data.simulation.models.iteration import SimulationIteration
 from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.simulation.simulation_vm import SimulationViewModel
@@ -27,6 +27,32 @@ def _open_iteration(
     simulation_vm: SimulationViewModel, iteration_id: IterationID
 ) -> None:
     simulation_vm.open_iteration(iteration_id)
+
+
+def _iteration_node_id(iteration_id: IterationID) -> str:
+    """Encode an iteration into a compact flow node id.
+
+    Uses the decimal integer uid suffix (e.g. ``"iter-42"``) which round-trips
+    cleanly through :func:`_decode_iteration_node_id`. The full UUID string
+    form must NOT be used here, because ``int(uuid_str)`` raises ``ValueError``
+    and the node click would silently fail to decode.
+    """
+    return f"iter-{int(iteration_id)}"
+
+
+def _decode_iteration_node_id(
+    raw: str,
+) -> IterationID | None:
+    """Decode ``"iter-<int>"`` back into an :class:`IterationID`.
+
+    Returns ``None`` when ``raw`` is not a valid iteration node id.
+    """
+    if not raw.startswith("iter-"):
+        return None
+    try:
+        return IterationID(int=int(raw[5:]))
+    except (TypeError, ValueError):
+        return None
 
 
 def _open_simulation(simulation_vm: SimulationViewModel, sim_id: SimulationID) -> None:
@@ -56,7 +82,7 @@ def _sidebar_widgets(
 
     if iteration is not None:
         st.sidebar.divider()
-        st.sidebar.markdown(f"**Selected: Iteration #{iteration.uid}**")
+        st.sidebar.markdown(f"**Selected: Iteration #{int(iteration.uid)}**")
 
         st.sidebar.button(
             label="Open Iteration",
@@ -72,12 +98,20 @@ def _sidebar_widgets(
             type="secondary",
             on_click=lambda: _open_simulation(simulation_vm, iteration.simulation_id),
         )
+        st.sidebar.button(
+            label="Add Double-Variable Iteration",
+            icon=":material/add_chart:",
+            width="stretch",
+            type="secondary",
+            disabled=iteration.is_double_var,
+            on_click=lambda: simulation_vm.begin_iteration_create(iteration.uid),
+        )
 
     elif selected_id is not None:
         sim_id: SimulationID = selected_id
 
         st.sidebar.divider()
-        st.sidebar.markdown(f"**Selected: Simulation #{sim_id}**")
+        st.sidebar.markdown(f"**Selected: Simulation #{short_id(sim_id)}**")
 
         st.sidebar.button(
             label="Open Simulation",
@@ -105,7 +139,7 @@ def simulation_graph() -> None:
         status = sim.status.value
 
         node_content = f"""<p>
-            <strong>Simulation #{sim_id}</strong>
+            <strong>Simulation #{short_id(sim_id)}</strong>
             <br />
             {safe_name}
             <br />
@@ -129,21 +163,37 @@ def simulation_graph() -> None:
 
     edges: list[StreamlitFlowEdge] = []
 
-    # Iterations hang off their simulation as a second layer. Each node id is
-    # prefixed with "iter-" so clicks can be decoded without clashing with the
-    # UUID-string simulation ids.
+    # Iterations build a layered DAG: a root iteration hangs off its
+    # simulation, while double-variable iterations and editable clones connect
+    # to their graph parent instead. Each node id is the compact integer suffix
+    # "iter-<int(uid)>" so clicks can be decoded back to an IterationID without
+    # clashing with the UUID-string simulation ids; the x offset encodes the
+    # graph depth.
+    index = 0
     for sim_id in simulations:
-        for index, iteration in enumerate(simulation_vm.iterations_for_sim(sim_id)):
+        for iteration in simulation_vm.iterations_for_sim(sim_id):
+            depth = simulation_vm.iteration_graph.iteration_depth(iteration.uid)
             safe_var = html.escape(iteration.variable_name)
+            markers = " · ".join(
+                marker
+                for marker, active in (
+                    ("double-var", iteration.is_double_var),
+                    ("editable", iteration.is_editable),
+                )
+                if active
+            )
+            marker_line = (
+                f'<br /><span style="color: grey;">{markers}</span>' if markers else ""
+            )
             node_content = f"""<p>
-                <strong>Iteration #{iteration.uid}</strong>
+                <strong>Iteration #{int(iteration.uid)}</strong>
                 <br />
                 <i>{safe_var}</i>
-            </p>"""
+                {marker_line}</p>"""
             nodes.append(
                 StreamlitFlowNode(
-                    id=f"iter-{iteration.uid}",
-                    pos=(100, 150 + index * 50),
+                    id=_iteration_node_id(iteration.uid),
+                    pos=(320 + (depth - 1) * 230, 150 + index * 60),
                     data={"content": node_content},
                     node_type="default",
                     source_position="right",
@@ -152,14 +202,20 @@ def simulation_graph() -> None:
                     style=_NODE_STYLE,
                 )
             )
+            parent_id = simulation_vm.iteration_graph.get_parent(iteration.uid)
+            source = (
+                _iteration_node_id(parent_id) if parent_id is not None else f"{sim_id}"
+            )
+            target = _iteration_node_id(iteration.uid)
             edges.append(
                 StreamlitFlowEdge(
-                    id=f"iter-{iteration.uid}-edge",
-                    source=f"{sim_id}",
-                    target=f"iter-{iteration.uid}",
+                    id=f"{target}-edge",
+                    source=source,
+                    target=target,
                     animated=True,
                 )
             )
+            index += 1
 
     state = StreamlitFlowState(nodes, edges)
     state.timestamp = 0
@@ -188,10 +244,9 @@ def simulation_graph() -> None:
     )
     if raw_selected is not None:
         if raw_selected.startswith("iter-"):
-            try:
-                selected_iteration_id = IterationID(int=int(raw_selected[5:]))
-            except (TypeError, ValueError):
-                selected_iteration_id = None
+            # Iteration node ids carry the compact decimal uid suffix; see
+            # _iteration_node_id / _decode_iteration_node_id.
+            selected_iteration_id = _decode_iteration_node_id(raw_selected)
         else:
             try:
                 selected_id = SimulationID(raw_selected)

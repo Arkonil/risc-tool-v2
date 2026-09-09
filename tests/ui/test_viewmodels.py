@@ -1,7 +1,12 @@
 import pytest
 
-from risc_tool_v2.data.core.enums import LossRateTypes
-from risc_tool_v2.data.core.uid import RiskSegmentID, SimulationID
+from risc_tool_v2.data.core.enums import IterationType, LossRateTypes, VariableType
+from risc_tool_v2.data.core.uid import (
+    IterationID,
+    MetricID,
+    RiskSegmentID,
+    SimulationID,
+)
 from risc_tool_v2.data.data_source.models.data_source import ReadConfig
 from risc_tool_v2.data.simulation.models.simulation import SimulationStatus
 from risc_tool_v2.data.simulation.repositories.simulation_repository import (
@@ -299,7 +304,13 @@ def test_simulation_vm_open_iteration_seeds_metadata_from_sim(
     assert metadata.filter_ids == (sim_filter_id,)
     assert metadata.remove_outliers is True
     assert metadata.scalars_enabled is False
-    assert metadata.metric_ids == ()
+    # A new iteration is seeded with all four built-in bad rates selected.
+    assert metadata.metric_ids == (
+        MetricID.DEV_UNT_BAD_RATE,
+        MetricID.DEV_DLR_BAD_RATE,
+        MetricID.TST_UNT_BAD_RATE,
+        MetricID.TST_DLR_BAD_RATE,
+    )
 
 
 def test_simulation_vm_update_iteration_metadata_prunes_invalid_ids(
@@ -309,7 +320,7 @@ def test_simulation_vm_update_iteration_metadata_prunes_invalid_ids(
     sim_id, so = _create_output_simulation(vm, sim_repo)
     iteration = vm.open_iteration_from_output(sim_id, so.uid)
 
-    from risc_tool_v2.data.core.uid import FilterID, MetricID
+    from risc_tool_v2.data.core.uid import FilterID
 
     vm.update_iteration_metadata(
         iteration.uid,
@@ -317,8 +328,33 @@ def test_simulation_vm_update_iteration_metadata_prunes_invalid_ids(
         filter_ids=(FilterID(int=3),),
     )
     metadata = vm.iteration_metadata(iteration.uid)
+    # Invalid (non-built-in, non-existent) metric ids are dropped entirely.
     assert metadata.metric_ids == ()
     assert metadata.filter_ids == ()
+
+
+def test_simulation_vm_update_iteration_metadata_keeps_builtin_sentinels(
+    data_repository, filter_repository, metric_repository
+):
+    """Built-in bad rate id sentinels survive an explicit metadata metric update."""
+    vm, sim_repo = _simulation_vm(data_repository, filter_repository, metric_repository)
+    sim_id, so = _create_output_simulation(vm, sim_repo)
+    iteration = vm.open_iteration_from_output(sim_id, so.uid)
+
+    # Explicitly selecting built-ins plus a bogus id keeps the built-ins.
+    vm.update_iteration_metadata(
+        iteration.uid,
+        metric_ids=(
+            MetricID.DEV_UNT_BAD_RATE,
+            MetricID(int=999),
+            MetricID.TST_DLR_BAD_RATE,
+        ),
+    )
+    metadata = vm.iteration_metadata(iteration.uid)
+    assert metadata.metric_ids == (
+        MetricID.DEV_UNT_BAD_RATE,
+        MetricID.TST_DLR_BAD_RATE,
+    )
 
 
 def test_simulation_vm_remove_iteration_falls_back_to_graph(
@@ -353,3 +389,256 @@ def test_simulation_vm_dependency_update_prunes_removed_iteration(
     assert vm.current_iteration is None
     assert vm.current_iteration_id is None
     assert iteration.uid not in sim_repo.iterations
+
+
+def test_simulation_vm_create_editable_clone_opens_clone(
+    data_repository, filter_repository, metric_repository
+):
+    vm, sim_repo = _simulation_vm(data_repository, filter_repository, metric_repository)
+    sim_id, so = _create_output_simulation(vm, sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+
+    clone = vm.create_editable_clone(root.uid)
+
+    assert clone.is_editable is True
+    assert clone.iter_type == IterationType.SINGLE
+    assert clone.family_root_id == root.uid
+    assert clone.default_groups == root.groups
+    assert vm.mode == "iteration"
+    assert vm.current_iteration_id == clone.uid
+    assert clone.uid in sim_repo.iteration_graph.children(root.uid)
+
+    # Clone of an editable branches from the family root, not the clone.
+    clone2 = vm.create_editable_clone(clone.uid)
+    assert clone2.family_root_id == root.uid
+    assert clone2.source_iteration_id == clone.uid
+    assert clone2.uid in sim_repo.iteration_graph.children(root.uid)
+
+
+def test_simulation_vm_create_double_var_iteration_numeric(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+
+    double_var = vm.create_double_var_iteration(
+        root.uid, new_variable_name="income", new_variable_type=VariableType.NUMERICAL
+    )
+
+    assert double_var.is_double_var
+    assert double_var.is_editable is False
+    assert vm.mode == "iteration"
+    assert vm.current_iteration_id == double_var.uid
+
+    grid = vm.get_iteration_grid(double_var.uid)
+    assert grid.parent_segments
+    assert all(
+        (row_gid, parent_gid) in grid.values
+        for row_gid in grid.row_groups
+        for parent_gid in grid.parent_segments
+    )
+
+    # The single-variable view is not double-variable capable.
+    with pytest.raises(ValueError):
+        vm.get_iteration_grid(root.uid)
+
+
+def test_simulation_vm_metric_options_includes_builtins_and_user_metrics(
+    data_repository, filter_repository, metric_repository
+):
+    metric_repository.create_metric(
+        name="Avg Credit",
+        query="`credit_score`.mean()",
+        is_cumulative=False,
+        use_thousand_sep=True,
+        is_percentage=False,
+        decimal_places=2,
+        data_source_ids=list(data_repository.data_sources.keys()),
+    )
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    iteration = vm.open_iteration_from_output(sim_id, so.uid)
+
+    options = vm.metric_options(iteration.uid)
+
+    # The four built-in bad rates come first, then the user metric.
+    keys = list(options.keys())
+    assert keys[:4] == [
+        MetricID.DEV_UNT_BAD_RATE,
+        MetricID.DEV_DLR_BAD_RATE,
+        MetricID.TST_UNT_BAD_RATE,
+        MetricID.TST_DLR_BAD_RATE,
+    ]
+    names = [m.name for m in options.values()]
+    assert "Dev # Bad Rate" in names
+    assert any(name == "Avg Credit" for name in names)
+
+
+def test_simulation_vm_iteration_create_mode_lifecycle(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+
+    vm.begin_iteration_create(root.uid)
+
+    assert vm.mode == "iteration_create"
+    assert vm.iteration_create_base_id == root.uid
+    assert vm.iteration_create_base is not None
+
+    vm.cancel_iteration_create()
+    assert vm.mode == "graph"
+    assert vm.iteration_create_base_id is None
+
+
+def test_simulation_vm_iteration_create_missing_base(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+
+    with pytest.raises(ValueError):
+        vm.begin_iteration_create(IterationID(int=99))
+
+
+def test_simulation_vm_create_double_var_rejects_missing_variable(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+
+    with pytest.raises(ValueError):
+        vm.create_double_var_iteration(
+            root.uid,
+            new_variable_name="does_not_exist",
+            new_variable_type=VariableType.NUMERICAL,
+        )
+    # The failed creation must not disturb the view state.
+    assert vm.mode == "iteration"
+    assert vm.current_iteration_id == root.uid
+
+
+def test_simulation_vm_double_var_candidate_columns(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+
+    candidates = vm.double_var_candidate_columns(root.uid)
+    names = [name for name, _ in candidates]
+    assert "credit_score" not in names  # the iteration's own variable
+    assert "income" in names
+    assert any(name == "income" and var_type == VariableType.NUMERICAL for name, var_type in candidates)
+    assert any(name == "status" and var_type == VariableType.CATEGORICAL for name, var_type in candidates)
+
+
+def test_simulation_vm_iteration_chain_and_graph(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+    clone = vm.create_editable_clone(root.uid)
+    double_var = vm.create_double_var_iteration(
+        root.uid, new_variable_name="income", new_variable_type=VariableType.NUMERICAL
+    )
+
+    assert vm.iteration_chain(root.uid) == (root,)
+    chain = vm.iteration_chain(clone.uid)
+    assert [it.uid for it in chain] == [root.uid, clone.uid]
+    assert vm.iteration_graph.get_parent(clone.uid) == root.uid
+    assert vm.iteration_graph.get_parent(double_var.uid) == root.uid
+    assert vm.iteration_graph.is_root(double_var.uid) is False
+
+
+def test_simulation_vm_rename_iteration(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+
+    updated = vm.rename_iteration(root.uid, "Renamed Iteration")
+
+    assert updated.name == "Renamed Iteration"
+    assert vm.get_iteration(root.uid).name == "Renamed Iteration"
+
+
+def test_simulation_vm_editing_passthrough(
+    data_repository, filter_repository, metric_repository
+):
+    vm, _sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, _sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+
+    clone = vm.create_editable_clone(root.uid)
+    n_working = len(clone.groups)
+    vm.add_new_group(clone.uid)
+    assert len(vm.get_iteration(clone.uid).groups) == n_working + 1
+
+    # set_controls replaces the working bands wholesale.
+    from collections import OrderedDict
+
+    from risc_tool_v2.data.simulation.models.groups import NumericalGroup
+
+    working = OrderedDict(
+        (gid, NumericalGroup(lower_bound=0.0, upper_bound=100.0))
+        for gid in clone.groups
+    )
+    vm.set_controls(clone.uid, working)
+    assert all(
+        isinstance(g, NumericalGroup) for g in vm.get_iteration(clone.uid).groups.values()
+    )
+
+    # Double-variable edits: grid and mask passthrough.
+    double_var = vm.create_double_var_iteration(
+        root.uid, new_variable_name="income", new_variable_type=VariableType.NUMERICAL
+    )
+    dv_clone = vm.create_editable_clone(double_var.uid)
+    grid = dict(dv_clone.effective_risk_segment_grid())
+    vm.set_risk_segment_grid(dv_clone.uid, grid)
+    assert vm.get_iteration(dv_clone.uid).risk_segment_grid == grid
+
+    mask = {gid: (position == 0) for position, gid in enumerate(dv_clone.default_groups)}
+    vm.select_groups(dv_clone.uid, mask=mask)
+    assert vm.get_iteration(dv_clone.uid).groups_mask == mask
+
+
+def test_simulation_vm_remove_double_var_cascades(
+    data_repository, filter_repository, metric_repository
+):
+    vm, sim_repo = _simulation_vm(
+        data_repository, filter_repository, metric_repository
+    )
+    sim_id, so = _create_output_simulation(vm, sim_repo)
+    root = vm.open_iteration_from_output(sim_id, so.uid)
+    double_var = vm.create_double_var_iteration(
+        root.uid, new_variable_name="income", new_variable_type=VariableType.NUMERICAL
+    )
+
+    vm.remove_iteration(double_var.uid)
+
+    assert vm.mode == "graph"
+    assert double_var.uid not in sim_repo.iterations
+    assert root.uid in sim_repo.iterations

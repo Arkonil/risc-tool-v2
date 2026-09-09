@@ -212,7 +212,9 @@ def variable_selector(current: str) -> str:
     )
 
 
-def filter_selector(current: tuple[FilterID, ...]) -> tuple[FilterID, ...]:
+def filter_selector(
+    current: tuple[FilterID, ...], key: str = "sim_filters"
+) -> tuple[FilterID, ...]:
     filters = _session().simulation_view_model.filters
 
     st.markdown("##### Select Filters")
@@ -222,7 +224,7 @@ def filter_selector(current: tuple[FilterID, ...]) -> tuple[FilterID, ...]:
         default=list(current),
         label_visibility="collapsed",
         format_func=lambda fid: filters[fid].name,
-        key="sim_filters",
+        key=key,
         placeholder="Select Filters",
     )
     return tuple(selected)

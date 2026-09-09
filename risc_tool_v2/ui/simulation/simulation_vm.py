@@ -22,7 +22,11 @@ from risc_tool_v2.data.filter.models.filter import Filter
 from risc_tool_v2.data.filter.repositories.filter_repository import FilterRepository
 from risc_tool_v2.data.metric.models.metric import Metric
 from risc_tool_v2.data.metric.repositories.metric_repository import MetricRepository
-from risc_tool_v2.data.simulation.models.iteration import SimulationIteration
+from risc_tool_v2.data.simulation.models.iteration import (
+    BandGroups,
+    SimulationIteration,
+)
+from risc_tool_v2.data.simulation.models.iteration_graph import IterationGraph
 from risc_tool_v2.data.simulation.models.risk_segment import (
     RiskSegment,
     RiskSegmentConfig,
@@ -39,9 +43,29 @@ from risc_tool_v2.data.simulation.models.simulation_config import (
 from risc_tool_v2.data.simulation.repositories.simulation_repository import (
     SimulationRepository,
 )
-from risc_tool_v2.data.simulation.services.iterate import BandTableResult
+from risc_tool_v2.data.simulation.services.iterate import (
+    BandTableResult,
+    MetricGridResult,
+    builtin_bad_rate_metric_options,
+)
 
-Mode = t.Literal["graph", "create", "view", "iteration"]
+Mode = t.Literal["graph", "create", "view", "iteration", "iteration_create"]
+
+# The four built-in bad rate metrics (dev/test x unit/dollar), keyed to their
+# reserved MetricID sentinels. They are selectable per iteration and resolve
+# from the iteration's SCG during evaluation, whether or not the simulation
+# configured each rate.
+BUILTIN_BAD_RATE_IDS: tuple[MetricID, ...] = (
+    MetricID.DEV_UNT_BAD_RATE,
+    MetricID.DEV_DLR_BAD_RATE,
+    MetricID.TST_UNT_BAD_RATE,
+    MetricID.TST_DLR_BAD_RATE,
+)
+
+
+def is_builtin_bad_rate_id(metric_id: MetricID) -> bool:
+    """Return whether a metric id is one of the four built-in bad rates."""
+    return metric_id in BUILTIN_BAD_RATE_IDS
 
 
 @dataclasses.dataclass
@@ -56,6 +80,8 @@ class IterationMetadata:
     filter_ids: tuple[FilterID, ...] = ()
     scalars_enabled: bool = True
     remove_outliers: bool = True
+    split_view_enabled: bool = False
+    show_prev_iter_details: bool = False
 
 
 class SimulationViewModel(ChangeTracker):
@@ -89,6 +115,7 @@ class SimulationViewModel(ChangeTracker):
         self.__editing_sim_id: SimulationID | None = None
         self.__draft_scg: SimulationConfigGenerator | None = None
         self.__current_iteration_id: IterationID | None = None
+        self.__iteration_create_base: IterationID | None = None
         self.__iteration_metadata: dict[IterationID, IterationMetadata] = {}
         self.__errors: list[str] = []
 
@@ -113,7 +140,8 @@ class SimulationViewModel(ChangeTracker):
             valid_metric_ids = tuple(
                 metric_id
                 for metric_id in meta.metric_ids
-                if metric_id in self.__metric_repository.metrics
+                if is_builtin_bad_rate_id(metric_id)
+                or metric_id in self.__metric_repository.metrics
             )
             valid_filter_ids = tuple(
                 filter_id
@@ -137,6 +165,16 @@ class SimulationViewModel(ChangeTracker):
         ):
             self.__current_iteration_id = None
             if self.__view_mode == "iteration":
+                self.__view_mode = "graph"
+
+        # Leave iteration-creation mode if its base iteration was deleted.
+        if (
+            self.__iteration_create_base is not None
+            and self.__iteration_create_base
+            not in self.__simulation_repository.iterations
+        ):
+            self.__iteration_create_base = None
+            if self.__view_mode == "iteration_create":
                 self.__view_mode = "graph"
 
     def on_dependency_remap(self, remaps: Remaps) -> None:
@@ -178,6 +216,8 @@ class SimulationViewModel(ChangeTracker):
             self.__editing_sim_id = None
         if mode == "create":
             self.begin_draft()
+        if mode != "iteration_create":
+            self.__iteration_create_base = None
 
     @property
     def is_editing(self) -> bool:
@@ -540,11 +580,17 @@ class SimulationViewModel(ChangeTracker):
         filter_ids: tuple[FilterID, ...] | None = None,
         scalars_enabled: bool | None = None,
         remove_outliers: bool | None = None,
+        split_view_enabled: bool | None = None,
+        show_prev_iter_details: bool | None = None,
     ) -> None:
         """Update an iteration's view metadata, keeping only existing ids."""
         meta = self.iteration_metadata(iteration_id)
         if metric_ids is not None:
-            valid = tuple(m for m in metric_ids if m in self.metrics)
+            valid = tuple(
+                m
+                for m in metric_ids
+                if is_builtin_bad_rate_id(m) or m in self.metrics
+            )
             meta.metric_ids = valid
         if filter_ids is not None:
             valid = tuple(
@@ -555,11 +601,41 @@ class SimulationViewModel(ChangeTracker):
             meta.scalars_enabled = scalars_enabled
         if remove_outliers is not None:
             meta.remove_outliers = remove_outliers
+        if split_view_enabled is not None:
+            meta.split_view_enabled = split_view_enabled
+        if show_prev_iter_details is not None:
+            meta.show_prev_iter_details = show_prev_iter_details
 
     def iteration_metadata(self, iteration_id: IterationID) -> IterationMetadata:
         return self.__iteration_metadata[iteration_id]
 
-    def get_iteration_table(self, iteration_id: IterationID) -> BandTableResult:
+    def metric_options(
+        self, iteration_id: IterationID
+    ) -> OrderedDict[MetricID, Metric]:
+        """Return every selectable metric for an iteration, built-ins first.
+
+        The four built-in bad rates (dev/test x unit/dollar) are derived from
+        the iteration's SCG, followed by the registered user metrics.
+        """
+        options: OrderedDict[MetricID, Metric] = OrderedDict()
+        iteration = self.get_iteration(iteration_id)
+        scg = self.__simulation_repository.scgs.get(iteration.scg_id)
+        if scg is not None:
+            for metric_id, (_name, metric) in builtin_bad_rate_metric_options(
+                scg
+            ).items():
+                options[metric_id] = metric
+        for metric_id, metric in self.__metric_repository.metrics.items():
+            options[metric_id] = metric
+        return options
+
+    def get_iteration_table(
+        self,
+        iteration_id: IterationID,
+        *,
+        show_total_row: bool = False,
+        default: bool = False,
+    ) -> BandTableResult:
         """Evaluate the iteration's band table with its current view metadata."""
         meta = self.iteration_metadata(iteration_id)
         return self.__simulation_repository.get_iteration_table(
@@ -568,7 +644,158 @@ class SimulationViewModel(ChangeTracker):
             filter_ids=meta.filter_ids,
             scalars_enabled=meta.scalars_enabled,
             remove_outliers=meta.remove_outliers,
+            show_total_row=show_total_row,
+            default=default,
         )
+
+    def get_iteration_grid(
+        self,
+        iteration_id: IterationID,
+        *,
+        show_total_row: bool = False,
+        show_total_column: bool = False,
+        default: bool = False,
+    ) -> MetricGridResult:
+        """Evaluate a double-variable iteration's grid with view metadata."""
+        meta = self.iteration_metadata(iteration_id)
+        return self.__simulation_repository.get_iteration_grid(
+            iteration_id,
+            metric_ids=meta.metric_ids,
+            filter_ids=meta.filter_ids,
+            scalars_enabled=meta.scalars_enabled,
+            remove_outliers=meta.remove_outliers,
+            show_total_row=show_total_row,
+            show_total_column=show_total_column,
+            default=default,
+        )
+
+    @property
+    def iteration_graph(self) -> IterationGraph:
+        """Return the iteration parent-child graph from the repository."""
+        return self.__simulation_repository.iteration_graph
+
+    def iteration_chain(self, iteration_id: IterationID) -> tuple[SimulationIteration, ...]:
+        """Return the iteration's lineage root-first, including itself.
+
+        The chain is derived from the repository graph (single-variable roots
+        have an empty ancestor list, so the tuple is just ``(iteration,)``).
+        """
+        graph = self.__simulation_repository.iteration_graph
+        chain = graph.get_ancestors(iteration_id) + [iteration_id]
+        return tuple(self.get_iteration(iter_id) for iter_id in chain)
+
+    def double_var_candidate_columns(
+        self, iteration_id: IterationID
+    ) -> list[tuple[str, VariableType]]:
+        """Return ``(column, type)`` pairs usable for a double-variable iteration.
+
+        Candidates are the columns shared by the iteration's dev bad rate data
+        sources (falling back to all common columns), minus the iteration's own
+        banded variable.
+        """
+        iteration = self.get_iteration(iteration_id)
+        scg = self.__simulation_repository.scgs.get(iteration.scg_id)
+        source_ids: list[DataSourceID] = []
+        if scg is not None:
+            bad_rate = (
+                scg.dev_unit_bad_rate
+                if scg.bad_rate_type == LossRateTypes.ULR
+                else scg.dev_dollar_bad_rate
+            )
+            if bad_rate is not None:
+                source_ids = list(bad_rate.data_source_ids)
+        columns = (
+            self.__data_repository.common_columns(source_ids)
+            if source_ids
+            else self.__data_repository.common_columns()
+        )
+        return [
+            (name, var_type)
+            for name, var_type in sorted(columns)
+            if name != iteration.variable_name
+        ]
+
+    def create_editable_clone(self, iteration_id: IterationID) -> SimulationIteration:
+        """Clone an iteration into an editable variant and open it."""
+        iteration = self.__simulation_repository.create_editable_clone(iteration_id)
+        self._ensure_iteration_metadata(iteration)
+        self.__current_iteration_id = iteration.uid
+        self.__view_mode = "iteration"
+        return iteration
+
+    def create_double_var_iteration(
+        self,
+        iteration_id: IterationID,
+        *,
+        new_variable_name: str,
+        new_variable_type: VariableType,
+        upgrade_limit: int = 2,
+        downgrade_limit: int = 2,
+        auto_rank_ordering: bool = True,
+    ) -> SimulationIteration:
+        """Create a double-variable iteration over another iteration and open it."""
+        iteration = self.__simulation_repository.create_double_var_iteration(
+            iteration_id,
+            new_variable_name=new_variable_name,
+            new_variable_type=new_variable_type,
+            upgrade_limit=upgrade_limit,
+            downgrade_limit=downgrade_limit,
+            auto_rank_ordering=auto_rank_ordering,
+        )
+        self._ensure_iteration_metadata(iteration)
+        self.__current_iteration_id = iteration.uid
+        self.__view_mode = "iteration"
+        return iteration
+
+    def rename_iteration(self, iteration_id: IterationID, name: str) -> SimulationIteration:
+        """Rename an iteration and return the updated object."""
+        return self.__simulation_repository.rename_iteration(iteration_id, name)
+
+    def begin_iteration_create(self, base_iteration_id: IterationID) -> None:
+        """Enter the dedicated double-variable iteration creation page."""
+        self.get_iteration(base_iteration_id)  # raises if missing
+        self.__iteration_create_base = base_iteration_id
+        self.__current_iteration_id = base_iteration_id
+        self.__view_mode = "iteration_create"
+
+    def cancel_iteration_create(self) -> None:
+        """Abandon the creation page and return to the graph."""
+        self.__iteration_create_base = None
+        self.__view_mode = "graph"
+
+    @property
+    def iteration_create_base_id(self) -> IterationID | None:
+        return self.__iteration_create_base
+
+    @property
+    def iteration_create_base(self) -> SimulationIteration | None:
+        if self.__iteration_create_base is None:
+            return None
+        return self.__simulation_repository.iterations.get(
+            self.__iteration_create_base
+        )
+
+    def select_groups(
+        self, iteration_id: IterationID, *, mask: dict[RiskSegmentID, bool]
+    ) -> SimulationIteration:
+        """Update a double-variable iteration's active-group mask."""
+        return self.__simulation_repository.select_groups(iteration_id, mask=mask)
+
+    def add_new_group(self, iteration_id: IterationID) -> SimulationIteration:
+        """Append a group to an editable iteration's working bands."""
+        return self.__simulation_repository.add_new_group(iteration_id)
+
+    def set_controls(
+        self, iteration_id: IterationID, groups: BandGroups
+    ) -> SimulationIteration:
+        return self.__simulation_repository.set_controls(iteration_id, groups)
+
+    def set_risk_segment_grid(
+        self,
+        iteration_id: IterationID,
+        grid: dict[RiskSegmentID, dict[RiskSegmentID, RiskSegmentID]],
+    ) -> SimulationIteration:
+        return self.__simulation_repository.set_risk_segment_grid(iteration_id, grid)
 
     @property
     def current_iteration(self) -> SimulationIteration | None:
@@ -588,12 +815,13 @@ class SimulationViewModel(ChangeTracker):
             sim = self.__simulation_repository.get_simulation(iteration.simulation_id)
             scg = self.__simulation_repository.scgs[sim.simulation_config_generator_id]
             seed = IterationMetadata(
+                metric_ids=BUILTIN_BAD_RATE_IDS,
                 filter_ids=tuple(scg.filter_ids),
                 scalars_enabled=scg.use_scalars,
                 remove_outliers=scg.remove_outliers,
             )
         except (ValueError, KeyError):
-            seed = IterationMetadata()
+            seed = IterationMetadata(metric_ids=BUILTIN_BAD_RATE_IDS)
         self.__iteration_metadata[iteration.uid] = seed
 
     @property

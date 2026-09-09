@@ -7,6 +7,9 @@ from risc_tool_v2.ui.core.components.load_data_prompt import load_data_prompt
 from risc_tool_v2.ui.core.session import get_session
 from risc_tool_v2.ui.simulation.simulation_creator import simulation_creator
 from risc_tool_v2.ui.simulation.simulation_graph import simulation_graph
+from risc_tool_v2.ui.simulation.simulation_iteration_creator import (
+    simulation_iteration_creator,
+)
 from risc_tool_v2.ui.simulation.simulation_iteration_view import (
     simulation_iteration_view,
 )
@@ -33,6 +36,10 @@ def simulations_view() -> None:
 
     if simulation_vm.mode == "iteration":
         simulation_iteration_view()
+        return
+
+    if simulation_vm.mode == "iteration_create":
+        simulation_iteration_creator()
         return
 
     simulation_graph()
