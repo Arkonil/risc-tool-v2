@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from risc_tool_v2.data.core.enums import LossRateTypes, VariableType
+from risc_tool_v2.data.core.enums import IterationType, LossRateTypes, VariableType
 from risc_tool_v2.data.core.uid import (
     DataSourceID,
     FilterID,
@@ -146,6 +146,34 @@ class IterationJSON(BaseModel):
     so_id: SimulationOutputID
     variable_name: str
     variable_type: VariableType
+    iter_type: IterationType = IterationType.SINGLE
+    is_editable: bool = False
+    family_root_id: IterationID = IterationID.UNSET
+    source_iteration_id: IterationID = IterationID.UNSET
+    previous_iteration_id: IterationID = IterationID.UNSET
+    default_groups: OrderedDict[RiskSegmentID, GroupJSON] = Field(
+        default_factory=OrderedDict[RiskSegmentID, GroupJSON]
+    )
+    groups: OrderedDict[RiskSegmentID, GroupJSON] = Field(
+        default_factory=OrderedDict[RiskSegmentID, GroupJSON]
+    )
+    groups_mask: dict[RiskSegmentID, bool] = Field(
+        default_factory=dict[RiskSegmentID, bool]
+    )
+    risk_segment_grid: dict[RiskSegmentID, dict[RiskSegmentID, RiskSegmentID]] = Field(
+        default_factory=dict[RiskSegmentID, dict[RiskSegmentID, RiskSegmentID]]
+    )
+    default_risk_segment_grid: dict[
+        RiskSegmentID, dict[RiskSegmentID, RiskSegmentID]
+    ] = Field(default_factory=dict[RiskSegmentID, dict[RiskSegmentID, RiskSegmentID]])
+
+
+class IterationGraphJSON(BaseModel):
+    model_config = ConfigDict(serialize_by_alias=True, validate_by_alias=True)
+
+    connections: dict[IterationID, list[IterationID]] = Field(
+        default_factory=dict[IterationID, list[IterationID]]
+    )
 
 
 class SimulationJSON(BaseModel):
@@ -177,12 +205,14 @@ class SimulationRepositoryJSON(BaseModel):
     iterations: dict[IterationID, IterationJSON] = Field(
         default_factory=dict[IterationID, IterationJSON]
     )
+    iteration_graph: IterationGraphJSON = Field(default_factory=IterationGraphJSON)
 
 
 __all__ = [
     "BadRateConfigJSON",
     "CategoricalGroupJSON",
     "GroupJSON",
+    "IterationGraphJSON",
     "IterationJSON",
     "LossRateScalarJSON",
     "NumericalGroupJSON",

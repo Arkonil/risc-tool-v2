@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 
 from risc_tool_v2.data.core.enums import LossRateTypes, VariableType
-from risc_tool_v2.data.core.uid import IterationID, SimulationID
+from risc_tool_v2.data.core.uid import IterationID, MetricID, SimulationID
 from risc_tool_v2.data.data_source.models.data_source import ReadConfig
 from risc_tool_v2.data.simulation.models.risk_segment import RiskSegmentConfig
 from risc_tool_v2.data.simulation.models.scalar import LossRateScalar, ScalarConfig
@@ -179,7 +179,9 @@ def test_get_iteration_table_always_has_dev_bad_rate_column(
     so = _run_output(repo, sim.uid)
     iteration = repo.create_iteration(sim.uid, so.uid)
 
-    result = repo.get_iteration_table(iteration.uid)
+    result = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.DEV_UNT_BAD_RATE,)
+    )
 
     assert result.errors == []
     assert result.columns == [("Dev # Bad Rate", result.columns[0][1])]
@@ -195,6 +197,73 @@ def test_get_iteration_table_always_has_dev_bad_rate_column(
         result.values[seg_id]["Dev # Bad Rate"] is not None
         for seg_id in result.segments
     )
+
+
+def test_get_iteration_table_total_row(
+    data_repository, filter_repository, metric_repository
+) -> None:
+    repo = SimulationRepository(data_repository, filter_repository, metric_repository)
+    sim = repo.create_simulation(_make_scg(data_repository))
+    so = _run_output(repo, sim.uid)
+    iteration = repo.create_iteration(sim.uid, so.uid)
+
+    result = repo.get_iteration_table(
+        iteration.uid,
+        metric_ids=(MetricID.DEV_UNT_BAD_RATE,),
+        show_total_row=True,
+    )
+
+    assert result.errors == []
+    assert set(result.total) == {"Dev # Bad Rate"}
+    assert result.total["Dev # Bad Rate"] is not None
+
+    without = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.DEV_UNT_BAD_RATE,)
+    )
+    assert without.total == {}
+
+
+def test_get_iteration_table_total_not_scaled(
+    data_repository, filter_repository, metric_repository
+) -> None:
+    """The total row is the ungrouped aggregate and never carries scalars."""
+    repo = SimulationRepository(data_repository, filter_repository, metric_repository)
+    scalar_config = ScalarConfig(
+        ulr_scalar=LossRateScalar(
+            loss_rate_type=LossRateTypes.ULR,
+            current_rate=0.01,
+            lifetime_rate=0.02,
+        )
+    )
+    sim = repo.create_simulation(
+        _make_scg(data_repository, scalar_config=scalar_config)
+    )
+    so = _run_output(repo, sim.uid)
+    iteration = repo.create_iteration(sim.uid, so.uid)
+
+    scaled = repo.get_iteration_table(
+        iteration.uid,
+        metric_ids=(MetricID.DEV_UNT_BAD_RATE,),
+        scalars_enabled=True,
+        show_total_row=True,
+    )
+    unscaled = repo.get_iteration_table(
+        iteration.uid,
+        metric_ids=(MetricID.DEV_UNT_BAD_RATE,),
+        scalars_enabled=False,
+        show_total_row=True,
+    )
+
+    assert scaled.total["Dev # Bad Rate"] is not None
+    assert scaled.total["Dev # Bad Rate"] == pytest.approx(
+        unscaled.total["Dev # Bad Rate"]
+    )
+    # ...while individual bands are still scaled.
+    factors = {
+        seg_id: max(seg.maf(LossRateTypes.ULR) * 2.0, 1.0)
+        for seg_id, seg in scaled.segments.items()
+    }
+    assert {factors[seg_id] for seg_id in scaled.segments} != {1.0}
 
 
 def test_get_iteration_table_applies_scalars_to_bad_rate_only(
@@ -214,8 +283,12 @@ def test_get_iteration_table_applies_scalars_to_bad_rate_only(
     so = _run_output(repo, sim.uid)
     iteration = repo.create_iteration(sim.uid, so.uid)
 
-    unscaled = repo.get_iteration_table(iteration.uid, scalars_enabled=False)
-    scaled = repo.get_iteration_table(iteration.uid, scalars_enabled=True)
+    unscaled = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.DEV_UNT_BAD_RATE,), scalars_enabled=False
+    )
+    scaled = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.DEV_UNT_BAD_RATE,), scalars_enabled=True
+    )
 
     for seg_id in scaled.segments:
         seg = scaled.segments[seg_id]
@@ -229,6 +302,92 @@ def test_get_iteration_table_applies_scalars_to_bad_rate_only(
             )
 
 
+def test_get_iteration_table_builtin_bad_rates_each_selectable(
+    data_repository, filter_repository, metric_repository
+) -> None:
+    """Each of the four built-in bad rates renders and is keyed by its name."""
+    repo = SimulationRepository(data_repository, filter_repository, metric_repository)
+    sim = repo.create_simulation(_make_scg(data_repository))
+    so = _run_output(repo, sim.uid)
+    iteration = repo.create_iteration(sim.uid, so.uid)
+
+    for metric_id, expected_name in (
+        (MetricID.DEV_UNT_BAD_RATE, "Dev # Bad Rate"),
+        (MetricID.DEV_DLR_BAD_RATE, "Dev $ Bad Rate"),
+        (MetricID.TST_UNT_BAD_RATE, "Test # Bad Rate"),
+        (MetricID.TST_DLR_BAD_RATE, "Test $ Bad Rate"),
+    ):
+        result = repo.get_iteration_table(iteration.uid, metric_ids=(metric_id,))
+        assert result.errors == []
+        assert [name for name, _ in result.columns] == [expected_name]
+        for seg_id in result.segments:
+            assert expected_name in result.values[seg_id]
+
+
+def test_get_iteration_table_undefined_builtin_yields_empty_cells(
+    data_repository, filter_repository, metric_repository
+) -> None:
+    """An unconfigured (None) bad rate still renders as selectable with empty cells."""
+    repo = SimulationRepository(data_repository, filter_repository, metric_repository)
+    sim = repo.create_simulation(_make_scg(data_repository))  # only dev_unit set
+    so = _run_output(repo, sim.uid)
+    iteration = repo.create_iteration(sim.uid, so.uid)
+
+    result = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.TST_DLR_BAD_RATE,)
+    )
+    assert result.errors == []
+    assert [name for name, _ in result.columns] == ["Test $ Bad Rate"]
+    assert all(
+        result.values[seg_id]["Test $ Bad Rate"] is None for seg_id in result.segments
+    )
+
+
+def test_get_iteration_table_scales_dev_not_test(
+    data_repository, filter_repository, metric_repository
+) -> None:
+    """When scalars are enabled the dev bad rate is scaled, the test is not."""
+    repo = SimulationRepository(data_repository, filter_repository, metric_repository)
+    scalar_config = ScalarConfig(
+        ulr_scalar=LossRateScalar(
+            loss_rate_type=LossRateTypes.ULR,
+            current_rate=0.01,
+            lifetime_rate=0.02,
+        )
+    )
+    sim = repo.create_simulation(
+        _make_scg(
+            data_repository,
+            scalar_config=scalar_config,
+            test_unit_bad_rate=BadRateConfig(
+                loss_rate_type=LossRateTypes.ULR,
+                numerator_col="unt_bad",
+                data_source_ids=tuple(data_repository.data_sources.keys()),
+                is_annualized=False,
+            ),
+        )
+    )
+    so = _run_output(repo, sim.uid)
+    iteration = repo.create_iteration(sim.uid, so.uid)
+
+    ids = (MetricID.DEV_UNT_BAD_RATE, MetricID.TST_UNT_BAD_RATE)
+    unscaled = repo.get_iteration_table(iteration.uid, metric_ids=ids, scalars_enabled=False)
+    scaled = repo.get_iteration_table(iteration.uid, metric_ids=ids, scalars_enabled=True)
+
+    for seg_id in scaled.segments:
+        seg = scaled.segments[seg_id]
+        factor = max(seg.maf(LossRateTypes.ULR) * 2.0, 1.0)
+        dev_unscaled = unscaled.values[seg_id]["Dev # Bad Rate"]
+        if dev_unscaled is not None:
+            assert scaled.values[seg_id]["Dev # Bad Rate"] == pytest.approx(
+                dev_unscaled * factor
+            )
+        assert (
+            scaled.values[seg_id]["Test # Bad Rate"]
+            == unscaled.values[seg_id]["Test # Bad Rate"]
+        )
+
+
 def test_get_iteration_table_applies_filters(
     data_repository, filter_repository, metric_repository
 ) -> None:
@@ -239,9 +398,13 @@ def test_get_iteration_table_applies_filters(
     so = _run_output(repo, sim.uid)
     iteration = repo.create_iteration(sim.uid, so.uid)
 
-    unfiltered = repo.get_iteration_table(iteration.uid, metric_ids=())
+    unfiltered = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.DEV_UNT_BAD_RATE,)
+    )
     filtered = repo.get_iteration_table(
-        iteration.uid, metric_ids=(), filter_ids=(credential_filter,)
+        iteration.uid,
+        metric_ids=(MetricID.DEV_UNT_BAD_RATE,),
+        filter_ids=(credential_filter,),
     )
 
     assert [n for n, _ in unfiltered.columns] == [n for n, _ in filtered.columns]
@@ -283,7 +446,9 @@ def test_get_iteration_table_includes_and_scopes_user_metrics(tmp_path) -> None:
     so = _run_output(repo, sim.uid)
     iteration = repo.create_iteration(sim.uid, so.uid)
 
-    result = repo.get_iteration_table(iteration.uid, metric_ids=tuple(metric_ids))
+    result = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.DEV_UNT_BAD_RATE, *metric_ids)
+    )
 
     names = [name for name, _ in result.columns]
     assert names == ["Dev # Bad Rate", "Avg Credit", "Avg Credit (2nd)"]
@@ -323,7 +488,9 @@ def test_get_iteration_table_drops_invalid_metric_with_warning(tmp_path) -> None
     so = _run_output(repo, sim.uid)
     iteration = repo.create_iteration(sim.uid, so.uid)
 
-    result = repo.get_iteration_table(iteration.uid, metric_ids=(metric_id,))
+    result = repo.get_iteration_table(
+        iteration.uid, metric_ids=(MetricID.DEV_UNT_BAD_RATE, metric_id)
+    )
 
     assert [name for name, _ in result.columns] == ["Dev # Bad Rate"]
     assert any("Mean Income" in warning for warning in result.warnings)

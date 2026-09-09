@@ -48,6 +48,10 @@ _RISK_SEG_UNSET_INT = 2**128 - 24
 _SIM_TEMPORARY_INT = 2**128 - 25
 _SIM_EMPTY_INT = 2**128 - 26
 _SIM_UNSET_INT = 2**128 - 27
+_METRIC_DEV_UNT_INT = 2**128 - 28
+_METRIC_DEV_DLR_INT = 2**128 - 29
+_METRIC_TST_UNT_INT = 2**128 - 30
+_METRIC_TST_DLR_INT = 2**128 - 31
 
 
 class BaseUID(UUID):
@@ -255,7 +259,9 @@ class MetricID(BaseUID):
 
     The identity is derived from the metric's content, so two metrics with
     identical content share an ID. Also provides the ``TEMPORARY``,
-    ``EMPTY``, and ``UNSET`` sentinels.
+    ``EMPTY``, and ``UNSET`` sentinels plus reserved ids for the four
+    built-in bad rate metrics (dev/test x unit/dollar) that an iteration
+    can include alongside user-defined metrics.
     """
 
     TEMPORARY: "MetricID"
@@ -267,10 +273,34 @@ class MetricID(BaseUID):
     UNSET: "MetricID"
     """Sentinel value marking a uid as not yet derived from content."""
 
+    DEV_UNT_BAD_RATE: "MetricID"
+    """Reserved id for the dev unit (annualized) bad rate metric."""
+
+    DEV_DLR_BAD_RATE: "MetricID"
+    """Reserved id for the dev dollar (annualized) bad rate metric."""
+
+    TST_UNT_BAD_RATE: "MetricID"
+    """Reserved id for the test unit (early) bad rate metric."""
+
+    TST_DLR_BAD_RATE: "MetricID"
+    """Reserved id for the test dollar (early) bad rate metric."""
+
 
 MetricID.TEMPORARY = MetricID.register_sentinel("TEMPORARY", _METRIC_TEMPORARY_INT)
 MetricID.EMPTY = MetricID.register_sentinel("EMPTY", _METRIC_EMPTY_INT)
 MetricID.UNSET = MetricID.register_sentinel("UNSET", _METRIC_UNSET_INT)
+MetricID.DEV_UNT_BAD_RATE = MetricID.register_sentinel(
+    "DEV_UNT_BAD_RATE", _METRIC_DEV_UNT_INT
+)
+MetricID.DEV_DLR_BAD_RATE = MetricID.register_sentinel(
+    "DEV_DLR_BAD_RATE", _METRIC_DEV_DLR_INT
+)
+MetricID.TST_UNT_BAD_RATE = MetricID.register_sentinel(
+    "TST_UNT_BAD_RATE", _METRIC_TST_UNT_INT
+)
+MetricID.TST_DLR_BAD_RATE = MetricID.register_sentinel(
+    "TST_DLR_BAD_RATE", _METRIC_TST_DLR_INT
+)
 
 
 class SimulationConfigGeneratorID(BaseUID):

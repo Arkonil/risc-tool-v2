@@ -5,6 +5,8 @@ from risc_tool_v2.data.simulation.models.groups import (
     GroupBase,
     NumericalGroup,
 )
+from risc_tool_v2.data.simulation.models.iteration import SimulationIteration
+from risc_tool_v2.data.simulation.models.iteration_graph import IterationGraph
 from risc_tool_v2.data.simulation.models.risk_segment import (
     RiskSegment,
     RiskSegmentConfig,
@@ -24,6 +26,7 @@ __all__ = [
     "BadRateConfig",
     "CategoricalGroup",
     "GroupBase",
+    "IterationGraph",
     "LossRateScalar",
     "NumericalGroup",
     "RiskSegment",
@@ -32,6 +35,7 @@ __all__ = [
     "Simulation",
     "SimulationConfig",
     "SimulationConfigGenerator",
+    "SimulationIteration",
     "SimulationOutput",
     "SimulationStatus",
     "get_default_risk_segments",

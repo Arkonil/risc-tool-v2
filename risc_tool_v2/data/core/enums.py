@@ -154,9 +154,23 @@ class LossRateTypes(StrEnum):
     ULR = "# Bad Rate"
 
 
+class IterationType(StrEnum):
+    """Type of simulation iteration: single-variable or double-variable.
+
+    Attributes:
+        SINGLE: Iteration over a single variable (banded against one output).
+        DOUBLE: Iteration over two variables (grid layout with a previous
+            band on the columns and new bands on the rows).
+    """
+
+    SINGLE = "single"
+    DOUBLE = "double"
+
+
 __all__ = [
     "ComparisonOperation",
     "DataExplorerTabName",
+    "IterationType",
     "LossRateTypes",
     "MetricTemplates",
     "PercentileOptions",
