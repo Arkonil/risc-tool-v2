@@ -11,7 +11,7 @@ from risc_tool.data.models.enums import (
     VariableType,
 )
 from risc_tool.data.models.iteration_metadata import IterationMetadata
-from risc_tool.data.models.object_id import FilterID, IterationID, RiskSegmentID
+from risc_tool.data.models.uid import FilterID, IterationID, RiskSegmentID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.error_warnings import error_and_warning_widget
 from risc_tool.ui.components.variable_selector import variable_selector_dialog

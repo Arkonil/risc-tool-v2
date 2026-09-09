@@ -13,8 +13,9 @@ from risc_tool.data.models.changes import ChangeTracker
 from risc_tool.data.models.data_source import DataSource, ReadConfig
 from risc_tool.data.models.enums import Signature
 from risc_tool.data.models.exceptions import DataImportError
-from risc_tool.data.models.object_id import DataSourceID
+from risc_tool.data.models.id_remap import Remaps, get_remap, remap_value
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import DataSourceID
 from risc_tool.data.repositories.data import DataRepository
 
 
@@ -102,7 +103,13 @@ class DataImporterViewModel(ChangeTracker):
             OrderedDict()
         )
         for ds_uid, ds in self.__data_repository.data_sources.items():
-            self.data_source_views[ds_uid] = DataSourceViewModel(data_source=ds)
+            self.data_source_views[ds_uid] = DataSourceViewModel(
+                data_source=ds,
+                import_status={
+                    "status": "success",
+                    "message": f"File imported successfully: {ds.filepath}",
+                },
+            )
 
         # Data Preview
         self._current_ds_id: DataSourceID | None = None
@@ -111,7 +118,9 @@ class DataImporterViewModel(ChangeTracker):
         """Handle updates from the DataRepository dependency.
 
         Syncs the view models with the repository's current data sources,
-        adding new ones and removing deleted ones.
+        adding new ones and removing deleted ones. Only new or changed
+        sources get their view models rebuilt; untouched views keep their
+        existing import status.
 
         Args:
             change_ids: Set of change IDs from the dependency.
@@ -119,25 +128,69 @@ class DataImporterViewModel(ChangeTracker):
         changed_dependencies = {sig for sig, _ in change_ids}
 
         if Signature.DATA_REPOSITORY in changed_dependencies:
-            existing_ds_ids = set(self.__data_repository.data_sources.keys())
-            removed_ds_ids = set(self.data_source_views.keys()) - existing_ds_ids
+            repo_sources = self.__data_repository.data_sources
+            removed_ds_ids = set(self.data_source_views.keys()) - set(
+                repo_sources.keys()
+            )
             self.logger.debug(
                 "Syncing data source views: %d existing, %d removed",
-                len(existing_ds_ids),
+                len(repo_sources),
                 len(removed_ds_ids),
             )
 
-            for ds_id in existing_ds_ids:
+            for ds_id, ds in repo_sources.items():
+                view = self.data_source_views.get(ds_id)
+                if view is not None and view.data_source is ds:
+                    continue
+
                 self.data_source_views[ds_id] = DataSourceViewModel(
-                    data_source=self.__data_repository.data_sources[ds_id],
+                    data_source=ds,
                     import_status={
                         "status": "success",
-                        "message": f"File imported successfully: {self.__data_repository.data_sources[ds_id].filepath}",
+                        "message": f"File imported successfully: {ds.filepath}",
                     },
                 )
 
             for ds_id in removed_ds_ids:
                 del self.data_source_views[ds_id]
+
+    def on_dependency_remap(self, remaps: Remaps) -> None:
+        """Rewrite stored DataSourceID references when a data source's ID changes.
+
+        Renames the keys of ``data_source_views`` in place (preserving
+        order), points each remapped view at the repository's new data
+        source with a fresh success status, and follows the remap for the
+        currently selected data source.
+
+        Args:
+            remaps: Identity remappings keyed by ID class.
+        """
+        remap = get_remap(remaps, DataSourceID)
+        if not remap:
+            return
+
+        self.logger.debug("Remapping data source view IDs: %s", remap)
+
+        self.data_source_views = OrderedDict(
+            (remap_value(remap, uid), view)
+            for uid, view in self.data_source_views.items()
+        )
+
+        repo_sources = self.__data_repository.data_sources
+        for new_id in remap.values():
+            view = self.data_source_views.get(new_id)
+            if view is None or new_id not in repo_sources:
+                continue
+
+            ds = repo_sources[new_id]
+            view.data_source = ds
+            view.import_status = {
+                "status": "success",
+                "message": f"File imported successfully: {ds.filepath}",
+            }
+
+        if self._current_ds_id is not None:
+            self._current_ds_id = remap_value(remap, self._current_ds_id)
 
     @property
     def is_empty(self) -> bool:
@@ -236,11 +289,12 @@ class DataImporterViewModel(ChangeTracker):
                 )
             except DataImportError as e:
                 self.logger.error("Import error adding new data source: %s", e)
-                eds = self.empty_data_source_view.data_source
-
-                eds.filepath = filepath or Path("")
-                eds.label = label
-                eds.read_config = read_config
+                self.empty_data_source_view.data_source = DataSource(
+                    uid=DataSourceID.EMPTY,
+                    label=label,
+                    filepath=filepath or Path(""),
+                    read_config=read_config,
+                )
 
                 self.empty_data_source_view.import_status = {
                     "status": "error",

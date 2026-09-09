@@ -2,8 +2,8 @@
 
 from risc_tool.data.models.changes import ChangeTracker
 from risc_tool.data.models.enums import ExportTabName, Signature
-from risc_tool.data.models.object_id import IterationID
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import IterationID
 from risc_tool.data.repositories.iterations import IterationsRepository
 
 

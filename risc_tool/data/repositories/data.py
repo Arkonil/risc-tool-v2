@@ -15,8 +15,8 @@ from risc_tool.data.models.enums import Signature, VariableType
 from risc_tool.data.models.exceptions import DataImportError
 from risc_tool.data.models.json_models import DataRepositoryJSON
 from risc_tool.data.models.metric import Metric
-from risc_tool.data.models.object_id import DataSourceID
-from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.types import ChangeIDs, Remaps
+from risc_tool.data.models.uid import DataSourceID
 from risc_tool.data.repositories.base import BaseRepository
 
 
@@ -27,7 +27,8 @@ class DataRepository(BaseRepository):
     and computes a unified schema across all valid sources through DataConfig.
 
     Attributes:
-        data_sources: Ordered dictionary of data sources keyed by DataSourceID.
+        data_sources: Ordered mapping of data sources keyed by DataSourceID,
+            with iteration order matching registration order.
         data_config: DataConfig instance managing per-source and unified schemas.
     """
 
@@ -45,8 +46,47 @@ class DataRepository(BaseRepository):
         super().__init__()
         self.logger.debug("Initializing DataRepository")
 
-        self.data_sources: OrderedDict[DataSourceID, DataSource] = OrderedDict()
+        self.data_sources: t.OrderedDict[DataSourceID, DataSource] = OrderedDict()
         self.data_config = DataConfig()
+
+    def _append_source(self, data_source: DataSource) -> None:
+        """Register a data source at the end of the ordered collection."""
+        self.data_sources[data_source.uid] = data_source
+
+    def _replace_source(
+        self, old_id: DataSourceID, new_data_source: DataSource
+    ) -> None:
+        """Replace a data source in place, preserving its position.
+
+        If the new data source has a different content-derived ID, the old ID
+        is removed and the new ID takes its place in the ordering.
+
+        Args:
+            old_id: The ID of the data source being replaced.
+            new_data_source: The replacement data source.
+        """
+        new_id = new_data_source.uid
+        if new_id == old_id:
+            self.data_sources[old_id] = new_data_source
+            return
+
+        items = [
+            (new_id, new_data_source) if uid == old_id else (uid, ds)
+            for uid, ds in self.data_sources.items()
+        ]
+        self.data_sources.clear()
+        self.data_sources.update(items)
+
+    def _remove_source(self, data_source_id: DataSourceID) -> None:
+        """Remove a data source from the ordered collection."""
+        del self.data_sources[data_source_id]
+
+    def on_dependency_remap(self, remaps: Remaps) -> None:
+        """Handle identity remappings from dependencies (no-op for DataRepository).
+
+        Args:
+            remaps: A heterogeneous mapping of old-to-new identities for various ID classes.
+        """
 
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
         """Handle dependency updates (no-op for DataRepository).
@@ -96,7 +136,6 @@ class DataRepository(BaseRepository):
         )
         try:
             data_source = DataSource(
-                uid=DataSourceID.TEMPORARY,
                 label=label,
                 filepath=filepath,
                 read_config=read_config,
@@ -125,10 +164,7 @@ class DataRepository(BaseRepository):
             )
             raise DataImportError(str(error))
 
-        data_source.uid = DataSourceID(
-            self._get_new_id(current_ids=self.data_sources.keys())
-        )
-        self.data_sources[data_source.uid] = data_source
+        self._append_source(data_source)
         self.logger.info("Data source registered with ID %s.", data_source.uid)
 
         self.data_config.update_schema(self.data_sources.values())
@@ -188,7 +224,6 @@ class DataRepository(BaseRepository):
 
         try:
             new_data_source = DataSource(
-                uid=data_source_id,
                 label=label,
                 filepath=filepath,
                 read_config=read_config,
@@ -211,18 +246,27 @@ class DataRepository(BaseRepository):
             )
             raise DataImportError(str(error), data_source)
 
-        # Store the new source
-        self.data_sources[data_source_id] = new_data_source
+        # Store the new source, preserving its position in the ordering
+        old_id = data_source_id
+        new_id = new_data_source.uid
+        self._replace_source(old_id, new_data_source)
 
         # Update the schema for this source in the data config
         self.data_config.update_schema(self.data_sources.values())
 
-        # Notify subscribers
+        # Notify subscribers, publishing the identity remap if the content
+        # change produced a new ID so stale references are rewritten.
         self.logger.info(
             "Data source ID %s updated successfully. Notifying subscribers.",
             data_source_id,
         )
-        self.notify_subscribers()
+        if new_id != old_id:
+            self.logger.info(
+                "Data source content changed: ID remapped %s -> %s", old_id, new_id
+            )
+            self.notify_subscribers(remaps={DataSourceID: {old_id: new_id}})
+        else:
+            self.notify_subscribers()
 
         return new_data_source
 
@@ -244,7 +288,7 @@ class DataRepository(BaseRepository):
             return
 
         self.logger.warning("Deleting data source ID %s", data_source_id)
-        del self.data_sources[data_source_id]
+        self._remove_source(data_source_id)
 
         self.logger.debug(
             "Refreshing configuration after deletion of source %s", data_source_id
@@ -254,6 +298,17 @@ class DataRepository(BaseRepository):
         self.logger.info(
             "Data source ID %s deleted. Notifying subscribers.", data_source_id
         )
+        self.notify_subscribers()
+
+    def clear(self) -> None:
+        """Remove all data sources and reset the unified schema.
+
+        Returns:
+            None
+        """
+        self.data_sources.clear()
+        self.data_config.update_schema(self.data_sources.values())
+        self.logger.info("All data sources cleared. Notifying subscribers.")
         self.notify_subscribers()
 
     # Methods for retrieving combined LazyFrames from valid data sources

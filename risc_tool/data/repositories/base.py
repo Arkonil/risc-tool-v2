@@ -1,6 +1,7 @@
 """Base repository class for data management with change notification."""
 
 import typing as t
+from uuid import UUID
 
 from risc_tool.data.models.changes import ChangeNotifier
 from risc_tool.utils.new_id import id_generator, new_id
@@ -26,7 +27,7 @@ class BaseRepository(ChangeNotifier):
 
         self._id_generator = id_generator()
 
-    def _get_new_id(self, current_ids: t.Collection[int] | None = None) -> int:
+    def _get_new_id(self, current_ids: t.Iterable[int | UUID] | None = None) -> int:
         """Generate a new unique ID not present in the given collection.
 
         Args:

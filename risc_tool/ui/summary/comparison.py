@@ -6,7 +6,7 @@ import streamlit as st
 import streamlit_antd_components as sac  # type: ignore
 from streamlit.delta_generator import DeltaGenerator
 
-from risc_tool.data.models.object_id import IterationID
+from risc_tool.data.models.uid import IterationID
 from risc_tool.data.session import Session
 from risc_tool.ui.components.filter_selector import filter_selector
 from risc_tool.ui.components.iteration_metric_table import iteration_metric_table

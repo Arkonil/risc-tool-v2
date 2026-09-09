@@ -15,10 +15,11 @@ from risc_tool.data.models.enums import (
 )
 from risc_tool.data.models.exceptions import InvalidFilterError
 from risc_tool.data.models.filter import Filter
+from risc_tool.data.models.id_remap import Remaps, get_remap
 from risc_tool.data.models.json_models import FilterJSON, FilterRepositoryJSON
-from risc_tool.data.models.object_id import FilterID
 from risc_tool.data.models.outlier import OutlierRule
 from risc_tool.data.models.types import ChangeIDs
+from risc_tool.data.models.uid import DataSourceID, FilterID
 from risc_tool.data.repositories.base import BaseRepository
 from risc_tool.data.repositories.data import DataRepository
 from risc_tool.utils.duplicate_name import create_duplicate_name
@@ -92,6 +93,34 @@ class FilterRepository(BaseRepository):
         """Clear the verified filter cache so filters are re-validated on next access."""
         self.__verified_filters.clear()
 
+    def on_dependency_remap(self, remaps: Remaps) -> None:
+        """Acknowledge identity remappings published by dependencies.
+
+        Filters reference columns by name and store no DataSourceID
+        references, so a data source's content-derived ID changing requires
+        no rewrite here. Handled explicitly to document intent; the
+        subsequent :meth:`on_dependency_update` re-validates filters against
+        the updated schema.
+
+        Also stashes any FilterID remaps for the framework to propagate
+        naturally via _consume_pending_remaps when notifying subscribers.
+
+        Args:
+            remaps: Identity remappings keyed by ID class.
+        """
+        filter_remap = get_remap(remaps, FilterID)
+        if filter_remap:
+            for old_id, new_id in filter_remap.items():
+                self._stash_remap(old_id, new_id)
+
+        remap = get_remap(remaps, DataSourceID)
+        if remap:
+            self.logger.debug(
+                "Data source IDs remapped; filters reference columns by "
+                "name and are unaffected: %s",
+                remap,
+            )
+
     def on_dependency_update(self, change_ids: ChangeIDs) -> None:
         """Handle dependency updates by re-validating filters and clearing cache.
 
@@ -114,7 +143,7 @@ class FilterRepository(BaseRepository):
             )
             return self.__verified_filters[query].duplicate(name=name)
 
-        new_filter = Filter(uid=FilterID.TEMPORARY, name=name, query=query)
+        new_filter = Filter(name=name, query=query)
         all_columns = self.__data_repository.common_columns()
         all_column_names = [col for col, _ in all_columns]
         new_filter.validate_query(available_columns=all_column_names)
@@ -139,21 +168,59 @@ class FilterRepository(BaseRepository):
         self.__verified_filters[query] = new_filter
         return new_filter
 
+    def _remove_filter(self, filter_id: FilterID) -> None:
+        """Remove a filter from the collection."""
+        del self.filters[filter_id]
+
+    def _replace_filter(self, old_id: FilterID, new_filter: Filter) -> None:
+        """Replace a filter in place, preserving its position.
+
+        If the new filter has a different content-derived ID, the old ID is
+        removed and the new ID takes its place in the ordering.
+
+        Args:
+            old_id: The ID of the filter being replaced.
+            new_filter: The replacement filter.
+        """
+        new_id = new_filter.uid
+        if new_id == old_id:
+            self.filters[old_id] = new_filter
+            return
+
+        items = [
+            (new_id, new_filter) if fid == old_id else (fid, f)
+            for fid, f in self.filters.items()
+        ]
+        self.filters.clear()
+        self.filters.update(items)
+
     def create_filter(self, name: str, query: str) -> None:
         """Validate and create a new filter, then notify subscribers.
+
+        The stored filter's identity is derived from its content, so two
+        filters with identical content cannot coexist.
 
         Args:
             name: Human-readable name for the filter.
             query: The filter expression string.
+
+        Raises:
+            ValueError: If an identical filter already exists.
         """
         self.logger.info("Creating new filter '%s'", name)
         new_filter = self.validate_filter(name, query)
-        new_filter.uid = FilterID(self._get_new_id(current_ids=self.filters.keys()))
+        if new_filter.uid in self.filters:
+            raise ValueError(f"Filter '{name}' already exists.")
         self.filters[new_filter.uid] = new_filter
         self.notify_subscribers()
 
     def modify_filter(self, filter_id: FilterID, name: str, query: str) -> None:
         """Modify an existing filter's name and/or query, then notify subscribers.
+
+        The modified filter re-derives its content-addressed ID; when it
+        changes, the repository stashes an old-to-new FilterID remap so
+        stale references held by subscribers can be rewritten naturally
+        via the framework's _consume_pending_remaps.
 
         Args:
             filter_id: The ID of the filter to modify.
@@ -161,7 +228,8 @@ class FilterRepository(BaseRepository):
             query: New filter expression string.
 
         Raises:
-            ValueError: If the filter_id is not found in the repository.
+            ValueError: If the filter_id is not found in the repository or
+                the new content collides with another existing filter.
         """
         if filter_id not in self.filters:
             self.logger.warning(
@@ -171,8 +239,24 @@ class FilterRepository(BaseRepository):
 
         self.logger.info("Modifying filter ID %s to name='%s'", filter_id, name)
         modified_filter = self.validate_filter(name, query)
-        modified_filter.uid = filter_id
-        self.filters[filter_id] = modified_filter
+
+        old_id = filter_id
+        new_id = modified_filter.uid
+        if new_id != old_id and new_id in self.filters:
+            raise ValueError(f"Filter '{name}' already exists.")
+
+        # Store the new filter, preserving its position in the ordering
+        self._replace_filter(old_id, modified_filter)
+
+        # Stash the identity remap if content changed; framework will
+        # merge it into the next subscriber notification via
+        # _consume_pending_remaps.
+        if new_id != old_id:
+            self.logger.info(
+                "Filter content changed: ID remapped %s -> %s", old_id, new_id
+            )
+            self._stash_remap(old_id, new_id)
+
         self.notify_subscribers()
 
     def remove_filter(self, filter_id: FilterID) -> None:
@@ -183,11 +267,14 @@ class FilterRepository(BaseRepository):
         """
         self.logger.warning("Removing filter ID %s", filter_id)
         if filter_id in self.filters:
-            del self.filters[filter_id]
+            self._remove_filter(filter_id)
         self.notify_subscribers()
 
     def duplicate_filter(self, filter_id: FilterID) -> None:
         """Create a copy of a filter with a unique name and notify subscribers.
+
+        The copy's unique name yields a distinct content-derived ID; no
+        remap is published since nothing referenced the new ID beforehand.
 
         Args:
             filter_id: The ID of the filter to duplicate.
@@ -202,10 +289,7 @@ class FilterRepository(BaseRepository):
         existing_names = {m.name for m in self.filters.values()}
         new_name = create_duplicate_name(filter_name, existing_names)
 
-        filter_obj = self.filters[filter_id].duplicate(
-            uid=FilterID(self._get_new_id(current_ids=self.filters.keys())),
-            name=new_name,
-        )
+        filter_obj = self.filters[filter_id].duplicate(name=new_name)
         self.filters[filter_obj.uid] = filter_obj
         self.notify_subscribers()
 
@@ -250,7 +334,6 @@ class FilterRepository(BaseRepository):
             )
 
         new_outlier = OutlierRule(
-            uid=FilterID.TEMPORARY,
             variable_name=variable_name,
             comparison_op=comparison_op,
             comparison_base=comparison_base,
@@ -268,16 +351,25 @@ class FilterRepository(BaseRepository):
     ) -> None:
         """Create and store a new outlier rule.
 
+        The rule's identity is derived from its parameters, so identical
+        rules cannot coexist.
+
         Args:
             variable_name: The column name the rule applies to.
             comparison_op: The comparison operator (>, >=, <, <=).
             comparison_base: The percentile option or fixed threshold value.
+
+        Raises:
+            ValueError: If an identical outlier rule already exists.
         """
         self.logger.info("Creating new outlier rule for '%s'", variable_name)
         new_outlier = self.validate_outlier_rule(
             variable_name, comparison_op, comparison_base
         )
-        new_outlier.uid = FilterID(self._get_new_id(current_ids=self.filters.keys()))
+        if new_outlier.uid in self.filters:
+            raise ValueError(
+                f"Outlier rule for '{variable_name}' already exists."
+            )
         self.filters[new_outlier.uid] = new_outlier
         self.notify_subscribers()
 
@@ -290,6 +382,11 @@ class FilterRepository(BaseRepository):
     ) -> None:
         """Modify an existing outlier rule's parameters and notify subscribers.
 
+        The modified rule re-derives its parameter-hashed ID; when it
+        changes, the repository stashes an old-to-new FilterID remap so
+        stale references held by subscribers can be rewritten naturally
+        via the framework's _consume_pending_remaps.
+
         Args:
             filter_id: The ID of the outlier rule to modify.
             variable_name: The column name the rule applies to.
@@ -297,7 +394,8 @@ class FilterRepository(BaseRepository):
             comparison_base: The percentile option or fixed threshold value.
 
         Raises:
-            ValueError: If the filter_id is not found in the repository.
+            ValueError: If the filter_id is not found in the repository or
+                the new parameters collide with another existing rule.
         """
         if filter_id not in self.filters:
             self.logger.warning(
@@ -309,8 +407,24 @@ class FilterRepository(BaseRepository):
         modified_outlier = self.validate_outlier_rule(
             variable_name, comparison_op, comparison_base
         )
-        modified_outlier.uid = filter_id
-        self.filters[filter_id] = modified_outlier
+
+        old_id = filter_id
+        new_id = modified_outlier.uid
+        if new_id != old_id and new_id in self.filters:
+            raise ValueError(f"Outlier rule for '{variable_name}' already exists.")
+
+        # Store the new rule, preserving its position in the ordering
+        self._replace_filter(old_id, modified_outlier)
+
+        # Stash the identity remap if parameters changed; framework will
+        # merge it into the next subscriber notification via
+        # _consume_pending_remaps.
+        if new_id != old_id:
+            self.logger.info(
+                "Outlier rule changed: ID remapped %s -> %s", old_id, new_id
+            )
+            self._stash_remap(old_id, new_id)
+
         self.notify_subscribers()
 
     # Query Helper
