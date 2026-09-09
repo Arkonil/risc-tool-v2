@@ -13,3 +13,4 @@ wheels/
 .claude/
 .ruff_cache/
 logs/
+.opencode/
